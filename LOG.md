@@ -79,8 +79,9 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 ```text
 Google Drive
 → PDF
-→ extração
-→ Markdown
+→ conversão obrigatória para Markdown
+→ persistência do Markdown
+→ extração estruturada
 → Ollama
 → dados estruturados
 → relatório
@@ -377,6 +378,57 @@ O repositório possui uma base segura e organizada para iniciar a Fase 1 quando 
 
 ---
 
+## 2026-08-25 — Camada obrigatória PDF para Markdown
+
+**Tipo:** ARQUITETURA
+**Status:** IMPLEMENTADO PARCIALMENTE
+
+**Contexto:**
+Foi definida a regra de que nenhum PDF deve seguir para extração estruturada ou Ollama sem passar primeiro por uma conversão local e determinística para Markdown. O PDF de referência recebido é um Diário Oficial da União de 128 páginas, contendo atos da Anvisa e conteúdos não relacionados ao recorte regulatório solicitado.
+
+**Decisão/Ação:**
+Criado o serviço local `infra/pdf_converter` com API interna, validação estrutural por `pdfplumber`, extração textual eficiente, metadados por hash, marcadores `## Página N`, tratamento explícito de PDFs inválidos/sem camada textual e imagem Docker. Criados o contrato do gate n8n, o contrato/schema de extração regulatória e a documentação de status `deferido`, `indeferido`, `cancelado` e `outro`.
+
+**Arquivos/Componentes afetados:**
+`infra/pdf_converter/`, `tests/pdf_converter/`, `workflows/pdf-to-markdown-gate.md`, `prompts/regulatory-extraction-v1.md`, `prompts/regulatory-extraction.schema.json`, `.env.example`, `PRD.md`, `ROADMAP.md` e `docs/checklists/matriz-documentos-referencia.md`.
+
+**Testes:**
+Testes unitários e de API do conversor passaram para PDF textual, PDF inválido, PDF sem camada textual, health check e contrato de conversão. A validação ponta a ponta com Google Drive, n8n, Ollama e o PDF de 128 páginas ainda está pendente.
+
+**Pendências:**
+Implantar o container na VPS, integrar o gate no workflow n8n, persistir o Markdown no Drive, executar a validação completa do PDF de referência e conectar a extração estruturada ao Ollama.
+
+**Impacto:**
+A extração passa a ter um artefato intermediário auditável e uma barreira técnica contra análise direta do PDF bruto, preservando páginas e distinguindo erro técnico de ausência de informação.
+
+**Referência:**
+`2026_08_24_ASSINADO_do1.pdf`, 128 páginas, SHA-256 `3AD26053AF9898A8BFA7DE5AE3A409313AB9230ED28079F1794C82238797E9B6`. O arquivo não será versionado no repositório.
+
+## 2026-08-25 — Desempenho e preservação de layout do conversor
+
+**Tipo:** IMPLEMENTAÇÃO / DESEMPENHO
+**Status:** VALIDADO LOCALMENTE
+
+**Contexto:**
+A reconstrução geométrica de tabelas e o modo `layout=True` do `pdfplumber` tornaram a conversão do DOU de 128 páginas impraticável.
+
+**Decisão/Ação:**
+O conversor foi versionado como `0.3.0`. O texto passou a ser extraído em ordem por palavra com `pypdf`, mantendo `pdfplumber` na abertura e validação estrutural do documento. Possíveis tabelas são detectadas por padrão textual, preservadas em bloco Markdown e acompanhadas de aviso quando a geometria não é reconstruída.
+
+**Arquivos afetados:**
+`infra/pdf_converter/converter.py`, `infra/pdf_converter/app.py`, `infra/pdf_converter/README.md`, `workflows/pdf-to-markdown-gate.md`, `.env.example`, `PRD.md` e `tests/pdf_converter/test_converter.py`.
+
+**Testes:**
+`python -m pytest -q` passou com 7 testes. Após o gate de tabelas estruturadas, o PDF de referência foi convertido localmente em 66,30 s, com 128 páginas, 128 marcadores, Markdown não vazio, um bloco de tabela estruturada e SHA-256 conferido. Os recortes das páginas 71–75 e 79 preservaram os atos de alimentos, medicamentos, indeferimentos, cancelamentos e o conteúdo de ensaio clínico; a validação da extração estruturada e do workflow integrado permanece pendente.
+
+**Pendências:**
+Implantar o container na VPS, integrar o gate no workflow n8n, persistir o Markdown no Drive e executar os cenários estruturados contra fixture sanitizada/autorizada.
+
+**Impacto:**
+A camada obrigatória mantém desempenho previsível em DOU extensos sem transformar avisos de layout em dados silenciosamente reconstruídos.
+
+---
+
 ## 5. Pendências abertas
 
 | ID | Pendência | Tipo | Prioridade | Status |
@@ -384,13 +436,13 @@ O repositório possui uma base segura e organizada para iniciar a Fase 1 quando 
 | P-001 | Confirmar VPS | INFRA | Alta | Aberta |
 | P-002 | Receber credenciais do Google Drive | BLOQUEIO | Alta | Aberta |
 | P-003 | Receber credenciais Gmail | BLOQUEIO | Alta | Aberta |
-| P-004 | Receber PDFs de exemplo | TESTE | Alta | Aberta |
+| P-004 | Validar PDF de referência recebido | TESTE | Alta | Em andamento |
 | P-005 | Selecionar modelo Ollama inicial | MODELO | Alta | Aberta |
-| P-006 | Definir estrutura final da saída da IA | PROMPT | Alta | Aberta |
+| P-006 | Definir estrutura final da saída da IA | PROMPT | Alta | Concluída |
 | P-007 | Definir regra operacional de confiança | DECISAO | Alta | Aberta |
 | P-008 | Definir template do relatório | IMPLEMENTACAO | Média | Aberta |
 | P-009 | Definir destinatários dos e-mails | ESCOPO | Média | Aberta |
-| P-010 | Definir comportamento para PDF escaneado | DECISAO | Média | Aberta |
+| P-010 | Definir comportamento para PDF escaneado | DECISAO | Média | Concluída |
 
 ---
 

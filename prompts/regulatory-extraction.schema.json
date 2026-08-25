@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegulatoryExtractionV1",
+  "type": "object",
+  "required": [
+    "documento",
+    "medicamentos_deferidos",
+    "medicamentos_indeferidos",
+    "suplementos_deferidos",
+    "suplementos_indeferidos",
+    "estudos_clinicos_deferidos",
+    "estudos_clinicos_indeferidos",
+    "outros_atos",
+    "categorias_nao_localizadas",
+    "avisos",
+    "revisao_humana"
+  ],
+  "properties": {
+    "documento": {"type": "object"},
+    "medicamentos_deferidos": {"type": "array"},
+    "medicamentos_indeferidos": {"type": "array"},
+    "suplementos_deferidos": {"type": "array"},
+    "suplementos_indeferidos": {"type": "array"},
+    "estudos_clinicos_deferidos": {"type": "array"},
+    "estudos_clinicos_indeferidos": {"type": "array"},
+    "outros_atos": {"type": "array"},
+    "categorias_nao_localizadas": {"type": "array"},
+    "avisos": {"type": "array"},
+    "revisao_humana": {
+      "type": "object",
+      "required": ["necessaria", "motivos"],
+      "properties": {
+        "necessaria": {"type": "boolean"},
+        "motivos": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

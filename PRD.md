@@ -13,7 +13,7 @@
 
 O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama**, executada em servidor Linux via Docker.
 
-O sistema deve receber novos documentos PDF por meio do Google Drive, extrair e organizar seu conteúdo, converter o material para Markdown quando aplicável, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado, gerar um PDF final, armazená-lo no Google Drive e enviá-lo automaticamente por Gmail.
+O sistema deve receber novos documentos PDF por meio do Google Drive, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado, gerar um PDF final, armazená-lo no Google Drive e enviá-lo automaticamente por Gmail.
 
 A IA deve atuar como ferramenta de apoio à leitura, classificação, organização e geração de relatórios. O sistema **não substitui análise humana especializada** em questões jurídicas, médicas ou regulatórias.
 
@@ -90,13 +90,15 @@ Infraestrutura de referência apresentada na proposta:
 ```text
 PDF recebido no Google Drive
         ↓
-Leitura e extração
+Download e identificação do documento
         ↓
-Conversão para Markdown
+Conversão obrigatória para Markdown
         ↓
-Análise com Ollama
+Persistência do Markdown e evidências
         ↓
-Extração estruturada
+Extração estruturada a partir somente do Markdown
+        ↓
+Análise complementar com Ollama
         ↓
 Geração do relatório
         ↓
@@ -117,15 +119,15 @@ O sistema deve monitorar automaticamente a origem configurada no Google Drive e 
 
 ### RF-02 — Leitura de PDF
 
-O sistema deve realizar a leitura e extração do conteúdo textual dos PDFs suportados.
+O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermediário. Falhas de leitura devem ser classificadas como erro técnico.
 
-### RF-03 — Conversão para Markdown
+### RF-03 — Conversão obrigatória para Markdown
 
-O conteúdo extraído deve poder ser convertido para uma representação Markdown organizada antes da análise pela IA.
+Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao Ollama. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
 
 ### RF-04 — Análise por IA local
 
-A análise deve ser executada pelo Ollama instalado no próprio servidor, sem depender de API externa de IA no escopo inicial.
+A análise deve ser executada pelo Ollama instalado no próprio servidor, sem depender de API externa de IA no escopo inicial, utilizando somente o Markdown persistido como entrada documental.
 
 ### RF-05 — Identificação regulatória
 
@@ -138,9 +140,19 @@ A análise deve ser capaz de identificar, quando presentes no documento:
 - exigências;
 - pendências.
 
+Para o relatório regulatório, deve organizar, quando presentes:
+
+- medicamentos deferidos/registrados;
+- medicamentos indeferidos;
+- suplementos deferidos/aprovados;
+- suplementos indeferidos;
+- estudos clínicos deferidos;
+- estudos clínicos indeferidos;
+- outros atos regulatórios, incluindo cancelamentos.
+
 ### RF-06 — Estruturação de dados
 
-A saída da análise deve ser transformada em dados estruturados antes da geração do relatório.
+A saída da análise deve ser transformada em dados estruturados antes da geração do relatório. Os registros devem preservar empresa, CNPJ quando disponível, detalhes do produto, processo, registro, validade, apresentação, assunto, produto relacionado e páginas de origem conforme a categoria.
 
 ### RF-07 — Controle de confiança
 
@@ -160,7 +172,7 @@ O relatório final deve ser convertido para PDF.
 
 ### RF-11 — Armazenamento
 
-Os artefatos definidos pelo workflow devem ser salvos na estrutura organizada do Google Drive.
+Os artefatos definidos pelo workflow, incluindo o Markdown intermediário associado ao PDF de origem, devem ser salvos na estrutura organizada do Google Drive.
 
 ### RF-12 — Envio por e-mail
 
@@ -168,7 +180,7 @@ O PDF final deve ser enviado automaticamente pelo Gmail conforme destinatários 
 
 ### RF-13 — Tratamento de erros
 
-O workflow deve possuir tratamento básico de erros para evitar que falhas silenciosas sejam consideradas processamento concluído.
+O workflow deve possuir tratamento básico de erros para evitar que falhas silenciosas sejam consideradas processamento concluído. Falha na conversão PDF → Markdown deve interromper a extração e encaminhar o documento para erro ou revisão.
 
 ### RF-14 — Rastreabilidade
 
@@ -224,6 +236,14 @@ Credenciais do Google, Gmail, n8n, servidor ou qualquer outro serviço não pode
 
 O desenho deve permitir troca futura do modelo Ollama sem necessidade de reconstrução completa do workflow.
 
+### RN-11 — Markdown como fonte intermediária oficial
+
+Depois da conversão, o Markdown persistido é a única fonte documental permitida para a extração estruturada e para a análise por IA. O PDF bruto permanece como fonte primária de auditoria, mas não deve ser enviado diretamente ao Ollama.
+
+### RN-12 — Status regulatório preservado
+
+O sistema deve diferenciar, no mínimo, `deferido`, `indeferido`, `cancelado` e `outro`. Um ato cancelado não pode ser incluído automaticamente como indeferido.
+
 ---
 
 ## 9. Requisitos não funcionais
@@ -252,9 +272,35 @@ Uma falha intermediária não deve obrigar o reprocessamento manual de todo o fl
 
 Tokens, senhas, chaves e credenciais devem ser armazenados por mecanismos adequados do ambiente e nunca em arquivos públicos do repositório.
 
+### RNF-07 — Serviço local de conversão
+
+A conversão PDF → Markdown deve ser executada por serviço local versionado, testável e implantável via Docker, com health check, timeout e contrato HTTP interno. O serviço deve validar a estrutura do PDF com `pdfplumber`, manter leitura textual eficiente para documentos extensos e retornar avisos de layout sem ocultar falhas.
+
 ---
 
-## 10. Escopo incluído
+## 10. Modelo mínimo do relatório regulatório
+
+O relatório deve conter seções fixas para:
+
+1. metadados do documento;
+2. medicamentos deferidos/registrados;
+3. medicamentos indeferidos;
+4. suplementos deferidos/aprovados;
+5. suplementos indeferidos;
+6. estudos clínicos deferidos;
+7. estudos clínicos indeferidos;
+8. outros atos identificados;
+9. categorias não localizadas;
+10. erros, avisos e revisão humana;
+11. evidências por página.
+
+Para estudos clínicos, o produto relacionado deve ser classificado como medicamento, suplemento, dispositivo, outro ou não identificado. O sistema não pode converter um dispositivo em medicamento ou suplemento por inferência.
+
+Quando uma categoria não possuir registros, o relatório deve informar que nenhum registro foi localizado no recorte analisado. Isso não pode ser usado para ocultar uma falha técnica de conversão, extração ou análise.
+
+---
+
+## 11. Escopo incluído
 
 O projeto contempla:
 
@@ -267,9 +313,11 @@ O projeto contempla:
 - integração com Gmail;
 - desenvolvimento do workflow;
 - desenvolvimento dos prompts;
+- serviço local de conversão PDF → Markdown;
 - estruturação das saídas;
 - processamento de PDFs;
 - conversão para Markdown;
+- persistência do Markdown e das evidências;
 - análise por IA;
 - geração de relatórios;
 - conversão para PDF;
@@ -283,7 +331,7 @@ O projeto contempla:
 
 ---
 
-## 11. Fora do escopo inicial
+## 12. Fora do escopo inicial
 
 Não fazem parte do escopo inicial:
 
@@ -304,28 +352,30 @@ Qualquer item fora desta lista de requisitos deve ser tratado como alteração d
 
 ---
 
-## 12. Critérios de aceite
+## 13. Critérios de aceite
 
 O MVP poderá ser considerado entregue quando:
 
 1. o ambiente estiver instalado e executando no servidor definido;
 2. o n8n conseguir detectar um PDF de teste no Google Drive;
-3. o conteúdo do PDF for extraído;
-4. a etapa de conversão/normalização gerar conteúdo utilizável;
-5. o Ollama processar o conteúdo localmente;
-6. a saída estruturada for produzida;
-7. o relatório for gerado;
-8. o relatório for convertido para PDF;
-9. o PDF final for armazenado no Google Drive;
-10. o e-mail automático for enviado pelo Gmail;
-11. um caso de erro puder ser identificado;
-12. um caso de baixa confiança puder ser encaminhado para revisão;
-13. houver documentação mínima de operação;
-14. os testes de funcionamento definidos no repositório estiverem aprovados.
+3. o PDF for convertido obrigatoriamente para Markdown;
+4. o Markdown possuir metadados, hash e marcadores de página;
+5. o Markdown for persistido e associado ao PDF de origem;
+6. a extração estruturada utilizar somente o Markdown persistido;
+7. o Ollama processar o conteúdo localmente;
+8. a saída estruturada for produzida;
+9. o relatório for gerado;
+10. o relatório for convertido para PDF;
+11. o PDF final for armazenado no Google Drive;
+12. o e-mail automático for enviado pelo Gmail;
+13. um caso de falha de conversão impedir a extração e ser identificado;
+14. um caso de baixa confiança puder ser encaminhado para revisão;
+15. houver documentação mínima de operação;
+16. os testes de funcionamento definidos no repositório estiverem aprovados.
 
 ---
 
-## 13. Princípios de evolução
+## 14. Princípios de evolução
 
 Toda evolução do produto deve preservar:
 
@@ -340,7 +390,7 @@ Toda evolução do produto deve preservar:
 
 ---
 
-## 14. Fonte de verdade
+## 15. Fonte de verdade
 
 Para governança do desenvolvimento:
 

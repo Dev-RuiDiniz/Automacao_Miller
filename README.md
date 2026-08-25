@@ -26,11 +26,13 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 ```text
 PDF no Google Drive
         ↓
-Leitura e extração de texto
+Conversão obrigatória para Markdown
         ↓
-Normalização em Markdown
+Persistência do Markdown e das evidências
         ↓
-Análise com IA local
+Extração estruturada
+        ↓
+Análise complementar com IA local
         ↓
 Dados estruturados
         ↓

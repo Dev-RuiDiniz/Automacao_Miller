@@ -14,7 +14,7 @@
 
 **Estado atual:** Fase 0 — preparação interna concluída; aguardando acessos e insumos externos  
 **MVP:** definido  
-**Infraestrutura:** definida em nível de proposta  
+**Infraestrutura:** definida em nível de proposta; conversor PDF → Markdown implementado e ainda não implantado
 **Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
@@ -93,6 +93,9 @@
 - [ ] Definir tratamento de erros
 - [ ] Definir estratégia de retry
 - [ ] Definir rastreabilidade por documento
+- [ ] Integrar gate HTTP PDF → Markdown
+- [ ] Persistir Markdown no Google Drive antes da extração
+- [ ] Impedir chamada ao Ollama antes da conversão validada
 
 **Gate de saída:** n8n estável e pronto para receber integrações.
 
@@ -138,12 +141,15 @@
 
 **Objetivo:** transformar o PDF em conteúdo utilizável pelo modelo.
 
-- [ ] Implementar leitura de PDFs com texto extraível
-- [ ] Identificar PDFs sem conteúdo textual
-- [ ] Não tratar falha de extração como ausência de informação
-- [ ] Converter/normalizar conteúdo
-- [ ] Gerar representação Markdown
-- [ ] Preservar metadados básicos do documento
+- [x] Implementar leitura de PDFs com texto extraível no serviço local
+- [x] Identificar PDFs sem conteúdo textual
+- [x] Não tratar falha de extração como ausência de informação
+- [x] Converter/normalizar conteúdo para Markdown
+- [x] Gerar representação Markdown com `## Página N`
+- [x] Preservar metadados básicos, hash e versão do conversor
+- [x] Criar contrato HTTP `/healthz` e `/v1/convert`
+- [ ] Implantar o serviço no Docker da VPS
+- [ ] Persistir o Markdown no Google Drive
 - [ ] Validar documentos de exemplo
 
 **Observação:** OCR comercial pago está fora do escopo inicial.
@@ -156,12 +162,12 @@
 
 **Objetivo:** produzir análise estruturada com IA local.
 
-- [ ] Criar prompt base
-- [ ] Definir campos estruturados
-- [ ] Identificar status regulatório
-- [ ] Identificar medicamentos
-- [ ] Identificar suplementos alimentares
-- [ ] Identificar ensaios clínicos
+- [x] Criar prompt/contrato base versionado
+- [x] Definir campos estruturados e schema JSON
+- [x] Identificar status regulatório `deferido`, `indeferido`, `cancelado` e `outro`
+- [x] Definir campos de medicamentos
+- [x] Definir campos de suplementos alimentares
+- [x] Definir campos de ensaios clínicos e tipo de produto relacionado
 - [ ] Identificar exigências
 - [ ] Identificar pendências
 - [ ] Definir política de evidência insuficiente
@@ -231,11 +237,19 @@
 
 ### Casos mínimos
 
+- [x] Conversor: PDF textual simples
+- [x] Conversor: PDF inválido
+- [x] Conversor: PDF sem camada textual
+- [x] API: health check e contrato de conversão
 - [ ] PDF válido
 - [ ] PDF com status regulatório
 - [ ] PDF com medicamentos
 - [ ] PDF com suplementos
 - [ ] PDF com ensaios clínicos
+- [ ] PDF de referência DOU com 128 páginas
+- [ ] PDF de referência: medicamento deferido e indeferido
+- [ ] PDF de referência: suplemento deferido, cancelado e ausência de indeferido
+- [ ] PDF de referência: ensaio clínico relacionado a dispositivo
 - [ ] PDF com exigências/pendências
 - [ ] Informação ausente
 - [ ] Baixa confiança
@@ -250,6 +264,7 @@
 
 ### Validação
 
+- [x] Conferir contrato e erros do conversor local
 - [ ] Conferir dados estruturados
 - [ ] Conferir relatório
 - [ ] Conferir PDF
@@ -277,6 +292,7 @@
 - [ ] Documentar recuperação
 - [ ] Documentar modelo Ollama utilizado
 - [ ] Documentar workflow final
+- [x] Documentar serviço PDF → Markdown e gate n8n
 - [ ] Entregar arquivos e acessos definidos
 - [ ] Executar validação final
 

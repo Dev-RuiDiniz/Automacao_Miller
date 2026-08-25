@@ -1,0 +1,62 @@
+# Checklist de acessos e responsáveis
+
+## Objetivo
+
+Coletar os insumos necessários para a implantação e validação do Agente de Automação e Análise Regulatória sem registrar segredos no repositório.
+
+Este documento deve registrar apenas situação, responsável e evidência de confirmação. Senhas, tokens, chaves SSH, credenciais OAuth e IDs sensíveis devem permanecer nos canais e mecanismos autorizados para cada ambiente.
+
+## Controle geral
+
+| Item | Bloqueio relacionado | Responsável | Status | Evidência/observação |
+|---|---|---|---|---|
+| VPS Linux confirmada | EXT-001 | A definir | TODO |  |
+| Acesso administrativo seguro à VPS | EXT-001 | A definir | TODO |  |
+| Google Drive autorizado | EXT-002 | A definir | TODO |  |
+| Gmail autorizado | EXT-003 | A definir | TODO |  |
+| PDFs reais ou de exemplo autorizados | EXT-004 | A definir | TODO |  |
+| Destinatários dos relatórios definidos | EXT-005 | A definir | TODO |  |
+| Responsável pela validação técnica definido | — | A definir | TODO |  |
+| Responsável pela revisão humana definido | — | A definir | TODO |  |
+
+## Dados a confirmar fora do repositório
+
+### VPS — EXT-001
+
+- [ ] Provedor e ambiente confirmados.
+- [ ] Sistema Linux e recursos disponíveis confirmados.
+- [ ] Método de acesso SSH definido.
+- [ ] Usuário administrativo adequado definido.
+- [ ] Política para firewall, backup e persistência alinhada.
+- [ ] Nenhuma chave privada ou senha foi registrada neste repositório.
+
+### Google Drive — EXT-002
+
+- [ ] Conta autorizada para a integração definida.
+- [ ] Pasta de entrada definida.
+- [ ] Pasta de processamento definida.
+- [ ] Pasta de concluídos definida.
+- [ ] Pasta de revisão definida.
+- [ ] Pasta de erros definida.
+- [ ] Permissões de leitura e gravação validadas.
+- [ ] IDs das pastas serão preenchidos somente no ambiente autorizado.
+
+### Gmail — EXT-003 e EXT-005
+
+- [ ] Remetente autorizado definido.
+- [ ] Destinatários dos relatórios definidos.
+- [ ] Regra para cópia e resposta definida, se aplicável.
+- [ ] Permissão de envio validada em ambiente autorizado.
+- [ ] Nenhuma senha, token ou credencial OAuth foi registrada neste arquivo.
+
+### Documentos e validação — EXT-004
+
+- [ ] Arquivos PDF de referência selecionados.
+- [ ] Uso dos arquivos autorizado pelo responsável.
+- [ ] Cenários esperados preenchidos na [matriz de documentos de referência](matriz-documentos-referencia.md).
+- [ ] Documentos sensíveis não serão versionados sem autorização explícita e tratamento adequado.
+- [ ] Responsável pela aprovação dos resultados definido.
+
+## Critério de conclusão
+
+Este checklist estará concluído quando cada item necessário possuir responsável, status e evidência de confirmação fora deste repositório. O preenchimento deste documento não substitui a configuração efetiva das credenciais no ambiente autorizado.

@@ -12,7 +12,7 @@
 
 ## 2. Status geral
 
-**Estado atual:** Planejamento / preparação para implantação  
+**Estado atual:** Fase 0 — preparação interna concluída; aguardando acessos e insumos externos  
 **MVP:** definido  
 **Infraestrutura:** definida em nível de proposta  
 **Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
@@ -43,13 +43,15 @@
 - [x] Criar `README.md` comercial
 - [x] Confirmar repositório oficial
 - [x] Confirmar estratégia de branches (`main` como versão estável)
-- [ ] Criar `.gitignore`
-- [ ] Criar `.env.example`
-- [ ] Definir estrutura de diretórios
-- [ ] Confirmar arquivos PDF de referência para testes
-- [ ] Confirmar responsáveis por validação
+- [x] Criar `.gitignore`
+- [x] Criar `.env.example`
+- [x] Definir estrutura de diretórios
+- [ ] Confirmar arquivos PDF de referência para testes (checklist criado)
+- [ ] Confirmar responsáveis por validação (checklist criado)
 
 **Gate de saída:** governança versionada e acessos mínimos identificados.
+
+**Status da fase:** preparação interna concluída. O gate final permanece pendente dos bloqueios externos `EXT-001` a `EXT-005`.
 
 ---
 

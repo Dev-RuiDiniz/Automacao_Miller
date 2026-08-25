@@ -352,6 +352,31 @@ A documentação inicial passa a apresentar o produto para o público externo e 
 
 ---
 
+## 2026-08-25 — Fechamento da preparação interna da Fase 0
+
+**Tipo:** DOCUMENTACAO  
+**Status:** PREPARAÇÃO INTERNA CONCLUÍDA
+
+**Contexto:**  
+Foi executado o plano de fechamento da preparação interna do repositório, sem iniciar infraestrutura, integrações externas ou processamento de documentos.
+
+**Decisão/Ação:**  
+Criados o `.gitignore`, o `.env.example` seguro, a estrutura inicial de diretórios e os checklists de acessos, responsáveis e documentos de referência. Os bloqueios externos permaneceram pendentes e foram explicitamente preservados no roadmap.
+
+**Arquivos/Componentes afetados:**  
+`.gitignore`, `.env.example`, `docs/checklists/`, `infra/`, `workflows/`, `prompts/`, `scripts/`, `tests/fixtures/`, `ROADMAP.md` e `LOG.md`.
+
+**Testes:**  
+Validação de placeholders no `.env.example`, verificação planejada de arquivos ignorados, revisão de referências Markdown e busca por padrões de credenciais. Não foram executados testes de infraestrutura ou integração, pois permanecem fora desta frente.
+
+**Pendências:**  
+Confirmar VPS, acessos Google Drive/Gmail, PDFs autorizados, destinatários, responsáveis pela validação e demais itens dos bloqueios `EXT-001` a `EXT-005`.
+
+**Impacto:**  
+O repositório possui uma base segura e organizada para iniciar a Fase 1 quando os acessos e insumos externos forem disponibilizados, sem criar dados ou credenciais fictícias.
+
+---
+
 ## 5. Pendências abertas
 
 | ID | Pendência | Tipo | Prioridade | Status |

@@ -46,5 +46,5 @@
 - [x] Revisar o conteúdo e o diff completo.
 - [x] Verificar ausência de segredos nos arquivos a serem commitados.
 - [x] Executar validações documentais aplicáveis.
-- [ ] Criar commit `docs(repo): adiciona documentação inicial do produto`.
-- [ ] Fazer push para `origin/main` e confirmar o estado sincronizado.
+- [x] Criar commit `docs(repo): adiciona documentação inicial do produto`.
+- [x] Fazer push para `origin/main` e confirmar o estado sincronizado.

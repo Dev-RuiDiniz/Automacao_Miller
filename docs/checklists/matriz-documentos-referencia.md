@@ -13,6 +13,7 @@ O documento de referência foi fornecido para validação local. A matriz regist
 - Páginas: 128
 - SHA-256: `3AD26053AF9898A8BFA7DE5AE3A409313AB9230ED28079F1794C82238797E9B6`
 - Local de validação: arquivo local autorizado, fora do repositório
+- Responsável pela validação: Miller
 
 ## Cenários mínimos
 
@@ -30,12 +31,12 @@ O documento de referência foi fornecido para validação local. A matriz regist
 | DOC-010 | Falha de envio no Gmail | Erro de envio identificado; não marcar como concluído quando obrigatório | Simulação autorizada | A definir | TODO |
 | DOC-011 | Reprocessamento do mesmo documento | Duplicidade evitada ou reprocessamento explicitamente autorizado | A definir | A definir | TODO |
 | DOC-012 | Retomada após falha | Execução retomada na etapa suportada, sem ocultar o erro original | A definir | A definir | TODO |
-| REF-001 | PDF de referência completo | 128 marcadores de página e metadados preservados | 2026_08_24_ASSINADO_do1.pdf | Rui Diniz | TODO |
-| REF-002 | Alimentos/suplementos da Anvisa | Atos deferidos, cancelados e dados de produto separados por status | páginas 71–72 do PDF de referência | Rui Diniz | TODO |
-| REF-003 | Medicamentos deferidos | Empresa, medicamento, processo, registro, validade, apresentação e assunto preservados | páginas 72–74 do PDF de referência | Rui Diniz | TODO |
-| REF-004 | Medicamentos indeferidos | Itens classificados como indeferidos, sem confundir alterações ou cancelamentos | página 75 do PDF de referência | Rui Diniz | TODO |
-| REF-005 | Ensaio clínico de dispositivo | Estudo deferido com vínculo classificado como dispositivo, sem inventar medicamento/suplemento | página 79 do PDF de referência | Rui Diniz | TODO |
-| REF-006 | Ausência de estudo clínico indeferido | Categoria marcada como não localizada, não como erro técnico | recorte Anvisa do PDF de referência | Rui Diniz | TODO |
+| REF-001 | PDF de referência completo | 128 marcadores de página e metadados preservados | 2026_08_24_ASSINADO_do1.pdf | Miller | TODO |
+| REF-002 | Alimentos/suplementos da Anvisa | Atos deferidos, cancelados e dados de produto separados por status | páginas 71–72 do PDF de referência | Miller | TODO |
+| REF-003 | Medicamentos deferidos | Empresa, medicamento, processo, registro, validade, apresentação e assunto preservados | páginas 72–74 do PDF de referência | Miller | TODO |
+| REF-004 | Medicamentos indeferidos | Itens classificados como indeferidos, sem confundir alterações ou cancelamentos | página 75 do PDF de referência | Miller | TODO |
+| REF-005 | Ensaio clínico de dispositivo | Estudo deferido com vínculo classificado como dispositivo, sem inventar medicamento/suplemento | página 79 do PDF de referência | Miller | TODO |
+| REF-006 | Ausência de estudo clínico indeferido | Categoria marcada como não localizada, não como erro técnico | recorte Anvisa do PDF de referência | Miller | TODO |
 
 ## Campos a preencher para cada documento autorizado
 

@@ -429,6 +429,31 @@ A camada obrigatória mantém desempenho previsível em DOU extensos sem transfo
 
 ---
 
+## 2026-08-25 — Confirmação de documentos e responsável de validação
+
+**Tipo:** GOVERNANÇA
+**Status:** CONCLUÍDO
+
+**Contexto:**
+Os documentos PDF de referência foram enviados e o responsável pela validação foi informado como Miller.
+
+**Decisão/Ação:**
+Os itens de confirmação da Fase 0 foram concluídos. O bloqueio `EXT-004` passou para `DONE`, os documentos foram mantidos fora do Git e Miller foi registrado como responsável pela validação técnica, revisão humana e aprovação dos resultados.
+
+**Arquivos afetados:**
+`ROADMAP.md`, `docs/checklists/acessos-e-responsaveis.md` e `docs/checklists/matriz-documentos-referencia.md`.
+
+**Testes:**
+Revisão de consistência dos checklists e conferência do vínculo com o PDF de referência já registrado.
+
+**Pendências:**
+A validação técnica dos cenários do PDF continua prevista na Fase 10; esta atualização confirma apenas o recebimento dos documentos e a responsabilidade.
+
+**Impacto:**
+A governança da Fase 0 passa a registrar os insumos e o responsável sem versionar o PDF original.
+
+---
+
 ## 5. Pendências abertas
 
 | ID | Pendência | Tipo | Prioridade | Status |

@@ -14,10 +14,10 @@ Este documento deve registrar apenas situação, responsável e evidência de co
 | Acesso administrativo seguro à VPS | EXT-001 | A definir | TODO |  |
 | Google Drive autorizado | EXT-002 | A definir | TODO |  |
 | Gmail autorizado | EXT-003 | A definir | TODO |  |
-| PDFs reais ou de exemplo autorizados | EXT-004 | A definir | TODO |  |
+| PDFs reais ou de exemplo autorizados | EXT-004 | Miller | DONE | Documentos de referência enviados e registrados na matriz |
 | Destinatários dos relatórios definidos | EXT-005 | A definir | TODO |  |
-| Responsável pela validação técnica definido | — | A definir | TODO |  |
-| Responsável pela revisão humana definido | — | A definir | TODO |  |
+| Responsável pela validação técnica definido | — | Miller | DONE | Responsável informado pelo solicitante |
+| Responsável pela revisão humana definido | — | Miller | DONE | Responsável informado pelo solicitante |
 
 ## Dados a confirmar fora do repositório
 
@@ -51,11 +51,11 @@ Este documento deve registrar apenas situação, responsável e evidência de co
 
 ### Documentos e validação — EXT-004
 
-- [ ] Arquivos PDF de referência selecionados.
-- [ ] Uso dos arquivos autorizado pelo responsável.
+- [x] Arquivos PDF de referência selecionados.
+- [x] Uso dos arquivos autorizado pelo responsável.
 - [ ] Cenários esperados preenchidos na [matriz de documentos de referência](matriz-documentos-referencia.md).
 - [ ] Documentos sensíveis não serão versionados sem autorização explícita e tratamento adequado.
-- [ ] Responsável pela aprovação dos resultados definido.
+- [x] Responsável pela aprovação dos resultados definido: Miller.
 
 ## Critério de conclusão
 

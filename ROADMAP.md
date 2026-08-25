@@ -46,8 +46,8 @@
 - [x] Criar `.gitignore`
 - [x] Criar `.env.example`
 - [x] Definir estrutura de diretórios
-- [ ] Confirmar arquivos PDF de referência para testes (checklist criado)
-- [ ] Confirmar responsáveis por validação (checklist criado)
+- [x] Confirmar arquivos PDF de referência para testes (documentos recebidos e registrados na matriz)
+- [x] Confirmar responsáveis por validação (Miller)
 
 **Gate de saída:** governança versionada e acessos mínimos identificados.
 
@@ -329,7 +329,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | EXT-001 | Acesso à VPS | Cliente | TODO | Bloqueia infraestrutura |
 | EXT-002 | Acesso/credencial Google Drive | Cliente | TODO | Bloqueia integração |
 | EXT-003 | Acesso/credencial Gmail | Cliente | TODO | Bloqueia envio |
-| EXT-004 | PDFs reais/de exemplo | Cliente | TODO | Bloqueia validação |
+| EXT-004 | PDFs reais/de exemplo | Cliente | DONE | Documentos recebidos; validação técnica segue na Fase 10 |
 | EXT-005 | Definição dos destinatários | Cliente | TODO | Bloqueia regra de envio |
 
 ---

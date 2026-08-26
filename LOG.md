@@ -629,9 +629,9 @@ servicos saudaveis; o endpoint interno do Ollama respondeu via n8n com
 
 **Pendencias:**
 Configurar credenciais Google Drive/Gmail dentro do n8n, preencher IDs de
-pastas e destinatarios, importar/ativar os workflows e executar os cenarios da
-matriz. A importacao via CLI requer IDs n8n nos exports; isso foi corrigido no
-repositorio e sera reaplicado na VPS apos o push desta alteracao.
+pastas e destinatarios, ativar o workflow principal e executar os cenarios da
+matriz. Os workflows foram importados com sucesso apos a criacao do usuario
+proprietario no n8n.
 
 **Impacto:**
 O repositorio passa a conter uma base executavel e isolada para homologacao,
@@ -662,8 +662,8 @@ servicos, readiness do n8n, health checks do conversor/renderizador, existencia
 das tabelas de rastreabilidade e inferencia HTTP do Ollama.
 
 **Pendencias:**
-Credenciais Google, IDs das pastas, destinatarios, importacao efetiva dos
-workflows e testes ponta a ponta continuam pendentes. A senha root usada nesta
+Credenciais Google, IDs das pastas, destinatarios, ativacao dos workflows e
+testes ponta a ponta continuam pendentes. A senha root usada nesta
 sessao foi exposta no contexto da tarefa e deve ser rotacionada imediatamente;
 o acesso root por senha nao deve ser desativado antes de validar uma chave SSH
 alternativa.
@@ -671,6 +671,33 @@ alternativa.
 **Impacto:**
 A homologacao possui infraestrutura operacional e isolada, mas ainda nao pode
 ser considerada aceita ponta a ponta sem Drive/Gmail autorizados.
+
+## 2026-08-26 — Configuracao inicial do n8n
+
+**Tipo:** CONFIGURACAO / ACESSO
+**Status:** CONCLUIDO
+
+**Contexto:**
+O n8n novo exigiu a configuracao inicial de proprietario antes de aceitar a
+importacao por CLI.
+
+**Decisao/Acao:**
+Foi criada uma conta proprietaria administrativa fora do repositorio. O login
+foi testado pelo tunel SSH, e os workflows principal e de erros foram
+importados e mantidos inativos. O acesso deve ser entregue por canal seguro;
+nenhuma senha foi registrada no Git.
+
+**Testes:**
+Login HTTP 200 pelo tunel, listagem autenticada dos dois workflows com
+`active=false` e confirmacao dos IDs versionados.
+
+**Pendencias:**
+Associar credenciais OAuth do Google, configurar IDs das pastas e destinatarios
+e somente depois ativar o workflow principal.
+
+**Impacto:**
+O painel esta acessivel localmente e pronto para configuracao autorizada das
+integracoes, sem exposicao publica da porta 25678.
 
 ## 10. Regra para o próximo agente
 

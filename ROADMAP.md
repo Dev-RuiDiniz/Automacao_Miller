@@ -87,7 +87,7 @@
 
 - [x] Implantar n8n self-hosted
 - [x] Configurar persistência
-- [ ] Configurar credenciais fora do código
+- [x] Configurar credenciais fora do código
 - [x] Validar acesso ao painel
 - [x] Definir workflow principal
 - [x] Definir tratamento de erros

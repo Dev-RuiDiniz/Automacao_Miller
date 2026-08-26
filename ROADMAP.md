@@ -123,11 +123,11 @@
 **Objetivo:** criar entrada automática e armazenamento dos resultados.
 
 - [ ] Configurar credenciais do Google Drive
-- [ ] Definir pasta de entrada
-- [ ] Definir pasta de processamento
-- [ ] Definir pasta de concluídos
-- [ ] Definir pasta de revisão
-- [ ] Definir pasta de erro
+- [x] Definir pasta de entrada
+- [x] Definir pasta de processamento
+- [x] Definir pasta de concluídos
+- [x] Definir pasta de revisão
+- [x] Definir pasta de erro
 - [ ] Configurar monitoramento de novos PDFs
 - [ ] Implementar controle contra duplicidade
 - [ ] Validar download do documento
@@ -203,7 +203,7 @@
 
 - [ ] Configurar credenciais Gmail
 - [ ] Definir remetente autorizado
-- [ ] Definir destinatários/regras de destinatário
+- [x] Definir destinatários/regras de destinatário
 - [ ] Criar assunto e corpo padrão
 - [ ] Anexar ou referenciar relatório conforme regra aprovada
 - [ ] Enviar e-mail de teste

@@ -699,6 +699,34 @@ e somente depois ativar o workflow principal.
 O painel esta acessivel localmente e pronto para configuracao autorizada das
 integracoes, sem exposicao publica da porta 25678.
 
+## 2026-08-26 — Estrutura do Drive de homologação
+
+**Tipo:** INTEGRACAO / CONFIGURACAO
+**Status:** PASTAS CRIADAS; AUTORIZACAO OAUTH PENDENTE
+
+**Contexto:**
+Foi solicitada a preparação do Drive pessoal para o primeiro teste do MVP.
+
+**Decisão/Ação:**
+Criada a pasta principal `Automacao Miller - Homologacao` e as subpastas
+Entrada, Processamento, Concluídos, Revisão, Erros, Markdown e Relatórios.
+Os IDs foram gravados somente no `.env` protegido da VPS em
+`/opt/automacao-miller`; nenhum ID ou segredo foi incluído no Git. O destinatário
+de teste foi configurado como `rui.pdiniz@gmail.com`, e as credenciais Google
+foram associadas aos nós correspondentes do workflow principal.
+
+**Testes:**
+Listagem do Drive confirmou as sete subpastas. O `.env` remoto permaneceu com
+permissão 600 e o n8n reiniciou saudável após a configuração.
+
+**Pendências:**
+Concluir o consentimento OAuth no n8n, configurar a credencial PostgreSQL,
+validar os nós Google e executar o primeiro processamento real.
+
+**Impacto:**
+O ambiente de homologação está com a estrutura de armazenamento preparada,
+sem ativar o workflow antes da autorização e validação das integrações.
+
 ## 10. Regra para o próximo agente
 
 Antes de iniciar qualquer tarefa:

@@ -113,7 +113,7 @@ Para iniciar a implantação, são necessários:
 5. definição dos destinatários dos relatórios;
 6. responsáveis pela validação e revisão humana.
 
-O projeto está atualmente em **planejamento e preparação para implantação**. A operação produtiva depende da configuração do ambiente, das integrações e da aprovação dos testes de ponta a ponta.
+O projeto está atualmente com a stack de homologação versionada e em implantação na VPS própria. A operação depende da configuração das credenciais Google, da aprovação dos testes de ponta a ponta e da revisão humana dos resultados.
 
 ## Documentação do projeto
 

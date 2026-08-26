@@ -1,0 +1,318 @@
+{
+  "name": "Automacao Regulatoria - MVP",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
+  "nodes": [
+    {
+      "parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 5}]}},
+      "id": "schedule-input",
+      "name": "Monitor input PDFs",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"'\" + $env.GOOGLE_DRIVE_INPUT_FOLDER_ID + \"' in parents and mimeType = 'application/pdf' and trashed = false\" }}",
+        "returnAll": true
+      },
+      "id": "drive-search",
+      "name": "Google Drive - Search input PDFs",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": "={{ $json.id }}",
+        "binaryPropertyName": "data"
+      },
+      "id": "drive-download",
+      "name": "Google Drive - Download PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PDF_CONVERTER_BASE_URL + '/v1/convert' }}",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "sendBinaryData": true,
+        "binaryPropertyName": "data",
+        "bodyParameters": {"parameters": [{"name": "source_document_id", "value": "={{ $('Google Drive - Search input PDFs').item.json.id }}"}]},
+        "options": {"timeout": "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 120000) }}"}
+      },
+      "id": "pdf-converter",
+      "name": "PDF Converter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json;\nif (body.status !== 'converted' || !body.markdown || !body.metadata?.source_sha256 || Number(body.metadata?.page_count) < 1) {\n  throw new Error('EXTRACTION: conversao PDF para Markdown invalida');\n}\nconst source = $('Google Drive - Search input PDFs').item.json;\nreturn [{ json: { ...body, source_document_id: source.id, source_filename: source.name || body.metadata.source_filename, markdown_file_name: (source.name || 'documento.pdf').replace(/\\.pdf$/i, '.md') } }];"
+      },
+      "id": "validate-markdown",
+      "name": "Validate Markdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = Buffer.from($json.markdown, 'utf8');\nconst binary = await this.helpers.prepareBinaryData(content, $json.markdown_file_name, 'text/markdown');\nreturn [{ json: $json, binary: { data: binary } }];"
+      },
+      "id": "markdown-binary",
+      "name": "Prepare Markdown file",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "binaryPropertyName": "data",
+        "name": "={{ $json.markdown_file_name }}",
+        "parents": "={{ [$env.GOOGLE_DRIVE_MARKDOWN_FOLDER_ID] }}"
+      },
+      "id": "drive-upload-markdown",
+      "name": "Google Drive - Upload Markdown",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automacao_miller.document_processing (source_document_id, source_sha256, source_filename, status, current_stage, attempt_count, started_at, execution_id, markdown_file_id) VALUES ({{ JSON.stringify($(\"Validate Markdown\").item.json.source_document_id) }}, {{ JSON.stringify($(\"Validate Markdown\").item.json.metadata.source_sha256) }}, {{ JSON.stringify($(\"Validate Markdown\").item.json.source_filename) }}, 'em_processamento', 'markdown_persistido', 1, NOW(), {{ JSON.stringify($execution.id) }}, {{ JSON.stringify($json.id || null) }}) ON CONFLICT (source_document_id, source_sha256) DO UPDATE SET status = 'em_processamento', current_stage = 'markdown_persistido', attempt_count = automacao_miller.document_processing.attempt_count + 1, updated_at = NOW(), markdown_file_id = EXCLUDED.markdown_file_id;"
+      },
+      "id": "state-markdown",
+      "name": "State - Markdown persisted",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1540, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0 }, prompt: 'Voce e um extrator documental. Use somente o Markdown abaixo. Nao use conhecimento externo e nao invente campos. Retorne JSON valido com documento, medicamentos_deferidos, medicamentos_indeferidos, suplementos_deferidos, suplementos_indeferidos, estudos_clinicos_deferidos, estudos_clinicos_indeferidos, outros_atos, exigencias, pendencias, categorias_nao_localizadas, evidencias_insuficientes, contradicoes, avisos, controle_confianca e revisao_humana. Cada item localizado deve apontar para paginas_origem. Preserve cancelado fora de indeferido. Para dispositivo, use tipo_produto_relacionado=dispositivo. Contradicoes devem ser preservadas e exigir revisao.\n\nMARKDOWN:\n' + $('Validate Markdown').item.json.markdown } }}",
+        "options": {"timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 600000) }}"}
+      },
+      "id": "ollama-extract",
+      "name": "Ollama - Extract",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [1760, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.response;\nif (!raw) throw new Error('IA: Ollama retornou resposta vazia');\nlet analysis;\ntry { analysis = JSON.parse(raw); } catch (error) { throw new Error('VALIDACAO: resposta do Ollama nao e JSON valido'); }\nconst required = ['documento','medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos','exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos','revisao_humana'];\nfor (const field of required) if (!(field in analysis)) throw new Error('VALIDACAO: campo obrigatorio ausente: ' + field);\nconst reasons = [];\nif (analysis.evidencias_insuficientes?.length) reasons.push('evidencia insuficiente');\nif (analysis.contradicoes?.length) reasons.push('contradicao');\nif (analysis.revisao_humana?.necessaria) reasons.push('revisao humana solicitada');\nconst categories = ['medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos'];\nfor (const category of categories) for (const item of (analysis[category] || [])) if (!item.paginas_origem?.length && !item.paginas?.length && !item.evidencias?.length) reasons.push('item sem evidencia de pagina');\nconst confidence_status = analysis.contradicoes?.length ? 'inconclusivo' : reasons.length ? 'baixa_confianca' : 'aceitavel';\nanalysis.controle_confianca = { status: confidence_status, motivos: [...new Set(reasons)] };\nconst source = $('Validate Markdown').item.json;\nreturn [{ json: { ...source, analysis, confidence_status, markdown_file_id: $('Google Drive - Upload Markdown').item.json.id } }];"
+      },
+      "id": "parse-analysis",
+      "name": "Validate and classify analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 0]
+    },
+    {
+      "parameters": {"conditions": {"boolean": [{"value1": "={{ $json.confidence_status === 'aceitavel' }}", "operation": "isTrue"}]}},
+      "id": "confidence-gate",
+      "name": "Confidence gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2200, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { metadata: { source_filename: $json.source_filename, source_sha256: $json.metadata.source_sha256, page_count: $json.metadata.page_count, converter_version: $json.metadata.converter_version }, analysis: $json.analysis } }];"
+      },
+      "id": "report-payload",
+      "name": "Prepare report payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://report-renderer:8091/v1/render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "responseFormat": "file",
+        "binaryPropertyName": "data",
+        "options": {"timeout": 120000}
+      },
+      "id": "report-renderer",
+      "name": "Report Renderer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [2640, -100]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "binaryPropertyName": "data",
+        "name": "={{ $json.source_filename.replace(/\\.pdf$/i, '') + '-relatorio.pdf' }}",
+        "parents": "={{ [$env.GOOGLE_DRIVE_REPORT_FOLDER_ID] }}"
+      },
+      "id": "drive-upload-report",
+      "name": "Google Drive - Upload Report",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [2860, -100]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.REPORT_RECIPIENTS }}",
+        "subject": "={{ 'Relatorio regulatorio - ' + $('Validate and classify analysis').item.json.source_filename }}",
+        "emailType": "text",
+        "message": "={{ 'Relatorio de apoio documental gerado. Documento: ' + $('Validate and classify analysis').item.json.source_filename + '. Revise o PDF antes de tomar qualquer decisao regulatoria.' }}",
+        "attachments": "data"
+      },
+      "id": "gmail-send",
+      "name": "Gmail - Send report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [3080, -100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automacao_miller.document_processing SET status = 'concluido', current_stage = 'email_enviado', completed_at = NOW(), updated_at = NOW(), report_file_id = {{ JSON.stringify($('Google Drive - Upload Report').item.json.id) }} WHERE source_document_id = {{ JSON.stringify($('Validate and classify analysis').item.json.source_document_id) }} AND source_sha256 = {{ JSON.stringify($('Validate and classify analysis').item.json.metadata.source_sha256) }};"
+      },
+      "id": "state-complete",
+      "name": "State - Completed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [3300, -100]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "move",
+        "fileId": "={{ $('Validate and classify analysis').item.json.source_document_id }}",
+        "folderId": "={{ $env.GOOGLE_DRIVE_COMPLETED_FOLDER_ID }}"
+      },
+      "id": "drive-move-completed",
+      "name": "Google Drive - Move completed",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [3520, -100]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "move",
+        "fileId": "={{ $json.source_document_id }}",
+        "folderId": "={{ $env.GOOGLE_DRIVE_REVIEW_FOLDER_ID }}"
+      },
+      "id": "drive-move-review",
+      "name": "Google Drive - Move to review",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [2420, 120]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automacao_miller.document_processing SET status = 'aguardando_revisao', current_stage = 'revisao_humana', updated_at = NOW(), error_category = 'validacao' WHERE source_document_id = {{ JSON.stringify($json.source_document_id) }} AND source_sha256 = {{ JSON.stringify($json.metadata.source_sha256) }};"
+      },
+      "id": "state-review",
+      "name": "State - Human review",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [2640, 120]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT EXISTS (SELECT 1 FROM automacao_miller.document_processing WHERE source_document_id = {{ JSON.stringify($('Validate Markdown').item.json.source_document_id) }} AND source_sha256 = {{ JSON.stringify($('Validate Markdown').item.json.metadata.source_sha256) }} AND status = 'concluido') AS already_processed;"
+      },
+      "id": "state-check-duplicate",
+      "name": "State - Check duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1100, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const context = $('Validate Markdown').item.json;\nreturn [{ json: { ...context, already_processed: Boolean($json.already_processed) } }];"
+      },
+      "id": "restore-context",
+      "name": "Restore conversion context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 220]
+    },
+    {
+      "parameters": {"conditions": {"boolean": [{"value1": "={{ !$json.already_processed }}", "operation": "isTrue"}]}},
+      "id": "duplicate-gate",
+      "name": "Duplicate gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1540, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { source_document_id: $json.source_document_id, source_sha256: $json.metadata.source_sha256, status: 'ignored_duplicate' } }];"
+      },
+      "id": "duplicate-ignored",
+      "name": "Duplicate ignored",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 300]
+    }
+  ],
+  "connections": {
+    "Monitor input PDFs": {"main": [[{"node": "Google Drive - Search input PDFs", "type": "main", "index": 0}]]},
+    "Google Drive - Search input PDFs": {"main": [[{"node": "Google Drive - Download PDF", "type": "main", "index": 0}]]},
+    "Google Drive - Download PDF": {"main": [[{"node": "PDF Converter", "type": "main", "index": 0}]]},
+    "PDF Converter": {"main": [[{"node": "Validate Markdown", "type": "main", "index": 0}]]},
+    "Validate Markdown": {"main": [[{"node": "State - Check duplicate", "type": "main", "index": 0}]]},
+    "State - Check duplicate": {"main": [[{"node": "Restore conversion context", "type": "main", "index": 0}]]},
+    "Restore conversion context": {"main": [[{"node": "Duplicate gate", "type": "main", "index": 0}]]},
+    "Duplicate gate": {"main": [[{"node": "Prepare Markdown file", "type": "main", "index": 0}], [{"node": "Duplicate ignored", "type": "main", "index": 0}]]},
+    "Prepare Markdown file": {"main": [[{"node": "Google Drive - Upload Markdown", "type": "main", "index": 0}]]},
+    "Google Drive - Upload Markdown": {"main": [[{"node": "State - Markdown persisted", "type": "main", "index": 0}]]},
+    "State - Markdown persisted": {"main": [[{"node": "Ollama - Extract", "type": "main", "index": 0}]]},
+    "Ollama - Extract": {"main": [[{"node": "Validate and classify analysis", "type": "main", "index": 0}]]},
+    "Validate and classify analysis": {"main": [[{"node": "Confidence gate", "type": "main", "index": 0}]]},
+    "Confidence gate": {"main": [[{"node": "Prepare report payload", "type": "main", "index": 0}], [{"node": "Google Drive - Move to review", "type": "main", "index": 0}]]},
+    "Prepare report payload": {"main": [[{"node": "Report Renderer", "type": "main", "index": 0}]]},
+    "Report Renderer": {"main": [[{"node": "Google Drive - Upload Report", "type": "main", "index": 0}]]},
+    "Google Drive - Upload Report": {"main": [[{"node": "Gmail - Send report", "type": "main", "index": 0}]]},
+    "Gmail - Send report": {"main": [[{"node": "State - Completed", "type": "main", "index": 0}]]},
+    "State - Completed": {"main": [[{"node": "Google Drive - Move completed", "type": "main", "index": 0}]]},
+    "Google Drive - Move to review": {"main": [[{"node": "State - Human review", "type": "main", "index": 0}]]}
+  }
+}

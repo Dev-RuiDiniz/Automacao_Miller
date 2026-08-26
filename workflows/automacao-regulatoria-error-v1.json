@@ -1,0 +1,40 @@
+{
+  "name": "Automacao Regulatoria - Error Handler",
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const execution = $json.execution || {};\nconst lastNode = execution.lastNodeExecuted || 'desconhecida';\nconst error = execution.error || {};\nreturn [{ json: { source_document_id: $json.workflowData?.source_document_id || null, status: 'erro', current_stage: lastNode, error_category: 'infraestrutura', error_message: String(error.message || 'falha nao detalhada'), execution_id: execution.id || null } }];"
+      },
+      "id": "normalize-error",
+      "name": "Normalize error context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO automacao_miller.workflow_errors (source_document_id, status, current_stage, error_category, error_message, execution_id) VALUES ({{ JSON.stringify($json.source_document_id) }}, 'erro', {{ JSON.stringify($json.current_stage) }}, {{ JSON.stringify($json.error_category) }}, {{ JSON.stringify($json.error_message) }}, {{ JSON.stringify($json.execution_id) }});"
+      },
+      "id": "record-error",
+      "name": "Record workflow error",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 0]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {"main": [[{"node": "Normalize error context", "type": "main", "index": 0}]]},
+    "Normalize error context": {"main": [[{"node": "Record workflow error", "type": "main", "index": 0}]]}
+  }
+}

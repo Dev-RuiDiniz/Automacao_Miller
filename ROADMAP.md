@@ -12,9 +12,9 @@
 
 ## 2. Status geral
 
-**Estado atual:** Fase 0 — preparação interna concluída; aguardando acessos e insumos externos  
+**Estado atual:** Fases 0–9 implementadas no repositório; implantação da homologação em andamento
 **MVP:** definido  
-**Infraestrutura:** definida em nível de proposta; conversor PDF → Markdown implementado e ainda não implantado
+**Infraestrutura:** VPS auditada; stack Docker isolada versionada e aguardando implantação remota
 **Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
@@ -59,12 +59,12 @@
 
 **Objetivo:** preparar o ambiente Linux para execução do sistema.
 
-- [ ] Provisionar/confirmar VPS
+- [x] Provisionar/confirmar VPS
 - [ ] Atualizar sistema operacional
 - [ ] Configurar usuário administrativo adequado
 - [ ] Configurar firewall e acesso SSH
-- [ ] Instalar Docker
-- [ ] Instalar Docker Compose, se utilizado
+- [x] Instalar Docker
+- [x] Instalar Docker Compose, se utilizado
 - [ ] Criar estrutura persistente de volumes
 - [ ] Configurar política de restart
 - [ ] Definir backup das configurações
@@ -89,13 +89,13 @@
 - [ ] Configurar persistência
 - [ ] Configurar credenciais fora do código
 - [ ] Validar acesso ao painel
-- [ ] Definir workflow principal
-- [ ] Definir tratamento de erros
-- [ ] Definir estratégia de retry
-- [ ] Definir rastreabilidade por documento
-- [ ] Integrar gate HTTP PDF → Markdown
-- [ ] Persistir Markdown no Google Drive antes da extração
-- [ ] Impedir chamada ao Ollama antes da conversão validada
+- [x] Definir workflow principal
+- [x] Definir tratamento de erros
+- [x] Definir estratégia de retry
+- [x] Definir rastreabilidade por documento
+- [x] Integrar gate HTTP PDF → Markdown
+- [x] Persistir Markdown no Google Drive antes da extração
+- [x] Impedir chamada ao Ollama antes da conversão validada
 
 **Gate de saída:** n8n estável e pronto para receber integrações.
 
@@ -106,7 +106,7 @@
 **Objetivo:** disponibilizar IA local compatível com a VPS.
 
 - [ ] Instalar Ollama
-- [ ] Selecionar modelo inicial leve e quantizado
+- [x] Selecionar modelo inicial leve e quantizado
 - [ ] Registrar modelo e versão no `LOG.md`
 - [ ] Validar memória e CPU
 - [ ] Executar teste básico de inferência
@@ -168,12 +168,12 @@
 - [x] Definir campos de medicamentos
 - [x] Definir campos de suplementos alimentares
 - [x] Definir campos de ensaios clínicos e tipo de produto relacionado
-- [ ] Identificar exigências
-- [ ] Identificar pendências
-- [ ] Definir política de evidência insuficiente
-- [ ] Definir controle de confiança
-- [ ] Definir regra de conteúdo contraditório
-- [ ] Definir regra de revisão humana
+- [x] Identificar exigências
+- [x] Identificar pendências
+- [x] Definir política de evidência insuficiente
+- [x] Definir controle de confiança
+- [x] Definir regra de conteúdo contraditório
+- [x] Definir regra de revisão humana
 - [ ] Criar conjunto de documentos de validação
 
 **Gate de saída:** saída estruturada consistente nos casos de referência.
@@ -184,14 +184,14 @@
 
 **Objetivo:** transformar a análise em artefato final padronizado.
 
-- [ ] Definir template do relatório
-- [ ] Mapear dados estruturados para o relatório
-- [ ] Diferenciar campos encontrados, ausentes e inconclusivos
-- [ ] Gerar relatório
-- [ ] Converter relatório para PDF
+- [x] Definir template do relatório
+- [x] Mapear dados estruturados para o relatório
+- [x] Diferenciar campos encontrados, ausentes e inconclusivos
+- [x] Gerar relatório
+- [x] Converter relatório para PDF
 - [ ] Validar legibilidade do PDF
-- [ ] Salvar PDF no Google Drive
-- [ ] Associar relatório ao documento de origem
+- [x] Salvar PDF no Google Drive
+- [x] Associar relatório ao documento de origem
 
 **Gate de saída:** um documento processado produz PDF final válido e armazenado.
 
@@ -218,13 +218,13 @@
 
 **Objetivo:** impedir falhas silenciosas e resultados inseguros.
 
-- [ ] Classificar tipos de erro
-- [ ] Implementar log mínimo por execução
-- [ ] Criar caminho de retry
-- [ ] Criar caminho de revisão humana
-- [ ] Criar status de baixa confiança
-- [ ] Criar status de erro técnico
-- [ ] Garantir que erro não seja interpretado como dado ausente
+- [x] Classificar tipos de erro
+- [x] Implementar log mínimo por execução
+- [x] Criar caminho de retry
+- [x] Criar caminho de revisão humana
+- [x] Criar status de baixa confiança
+- [x] Criar status de erro técnico
+- [x] Garantir que erro não seja interpretado como dado ausente
 - [ ] Validar comportamento de retomada
 
 **Gate de saída:** falhas e ambiguidades possuem destino claro.
@@ -281,17 +281,17 @@
 
 **Objetivo:** deixar o sistema operável e rastreável.
 
-- [ ] Atualizar `PRD.md`
-- [ ] Atualizar `ROADMAP.md`
-- [ ] Consolidar `LOG.md`
+- [ ] Atualizar `PRD.md` (sem mudança de requisito prevista; revisar no fechamento)
+- [x] Atualizar `ROADMAP.md`
+- [x] Consolidar `LOG.md`
 - [ ] Revisar `AGENTS.md`
-- [ ] Documentar implantação
-- [ ] Documentar operação
-- [ ] Documentar credenciais necessárias sem expor segredos
-- [ ] Documentar backup
-- [ ] Documentar recuperação
-- [ ] Documentar modelo Ollama utilizado
-- [ ] Documentar workflow final
+- [x] Documentar implantação
+- [x] Documentar operação
+- [x] Documentar credenciais necessárias sem expor segredos
+- [x] Documentar backup
+- [x] Documentar recuperação
+- [ ] Documentar modelo Ollama utilizado após benchmark na VPS
+- [x] Documentar workflow final
 - [x] Documentar serviço PDF → Markdown e gate n8n
 - [ ] Entregar arquivos e acessos definidos
 - [ ] Executar validação final
@@ -326,7 +326,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 
 | ID | Bloqueio | Responsável | Status | Impacto |
 |---|---|---|---|---|
-| EXT-001 | Acesso à VPS | Cliente | TODO | Bloqueia infraestrutura |
+| EXT-001 | Acesso à VPS | Cliente | DONE | VPS auditada; implantação em andamento |
 | EXT-002 | Acesso/credencial Google Drive | Cliente | TODO | Bloqueia integração |
 | EXT-003 | Acesso/credencial Gmail | Cliente | TODO | Bloqueia envio |
 | EXT-004 | PDFs reais/de exemplo | Cliente | DONE | Documentos recebidos; validação técnica segue na Fase 10 |
@@ -339,7 +339,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | Marco | Resultado esperado | Status |
 |---|---|---|
 | M1 | Governança criada | DONE |
-| M2 | Ambiente Docker + n8n + Ollama operacional | TODO |
+| M2 | Ambiente Docker + n8n + Ollama operacional | DOING |
 | M3 | Entrada pelo Drive funcionando | TODO |
 | M4 | Extração + Markdown funcionando | TODO |
 | M5 | Análise estruturada funcionando | TODO |

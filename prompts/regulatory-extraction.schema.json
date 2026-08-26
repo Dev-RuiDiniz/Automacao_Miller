@@ -11,8 +11,13 @@
     "estudos_clinicos_deferidos",
     "estudos_clinicos_indeferidos",
     "outros_atos",
+    "exigencias",
+    "pendencias",
     "categorias_nao_localizadas",
+    "evidencias_insuficientes",
+    "contradicoes",
     "avisos",
+    "controle_confianca",
     "revisao_humana"
   ],
   "properties": {
@@ -24,8 +29,24 @@
     "estudos_clinicos_deferidos": {"type": "array"},
     "estudos_clinicos_indeferidos": {"type": "array"},
     "outros_atos": {"type": "array"},
+    "exigencias": {"type": "array"},
+    "pendencias": {"type": "array"},
     "categorias_nao_localizadas": {"type": "array"},
+    "evidencias_insuficientes": {"type": "array", "items": {"type": "string"}},
+    "contradicoes": {"type": "array", "items": {"type": "string"}},
     "avisos": {"type": "array"},
+    "controle_confianca": {
+      "type": "object",
+      "required": ["status", "motivos"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["aceitavel", "baixa_confianca", "inconclusivo"]
+        },
+        "motivos": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
     "revisao_humana": {
       "type": "object",
       "required": ["necessaria", "motivos"],

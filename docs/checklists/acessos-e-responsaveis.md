@@ -10,8 +10,8 @@ Este documento deve registrar apenas situação, responsável e evidência de co
 
 | Item | Bloqueio relacionado | Responsável | Status | Evidência/observação |
 |---|---|---|---|---|
-| VPS Linux confirmada | EXT-001 | A definir | TODO |  |
-| Acesso administrativo seguro à VPS | EXT-001 | A definir | TODO |  |
+| VPS Linux confirmada | EXT-001 | Rui Diniz | DONE | Auditoria SSH realizada em 2026-08-26; Debian 13, 2 vCPU, 8 GB RAM e 99 GB NVMe |
+| Acesso administrativo seguro à VPS | EXT-001 | Rui Diniz | REVIEW | Acesso root funcional; rotação da senha e acesso por chave permanecem recomendados |
 | Google Drive autorizado | EXT-002 | A definir | TODO |  |
 | Gmail autorizado | EXT-003 | A definir | TODO |  |
 | PDFs reais ou de exemplo autorizados | EXT-004 | Miller | DONE | Documentos de referência enviados e registrados na matriz |
@@ -23,9 +23,9 @@ Este documento deve registrar apenas situação, responsável e evidência de co
 
 ### VPS — EXT-001
 
-- [ ] Provedor e ambiente confirmados.
-- [ ] Sistema Linux e recursos disponíveis confirmados.
-- [ ] Método de acesso SSH definido.
+- [x] Provedor e ambiente confirmados.
+- [x] Sistema Linux e recursos disponíveis confirmados.
+- [x] Método de acesso SSH definido.
 - [ ] Usuário administrativo adequado definido.
 - [ ] Política para firewall, backup e persistência alinhada.
 - [ ] Nenhuma chave privada ou senha foi registrada neste repositório.

@@ -597,6 +597,44 @@ Decisão:
 
 ---
 
+## 2026-08-26 — Implementacao da stack de homologacao
+
+**Tipo:** IMPLEMENTACAO / INFRAESTRUTURA
+**Status:** IMPLEMENTADO LOCALMENTE; IMPLANTACAO REMOTA EM ANDAMENTO
+
+**Contexto:**
+A VPS propria foi auditada antes da implantacao. O ambiente possui Debian 13,
+2 vCPU, 8 GB de RAM, 4 GB de swap, 99 GB de disco com aproximadamente 65 GB
+livres, Docker 29.5.2 e Docker Compose 5.1.4. Ja existem os projetos Docker
+`atendimento` e `rtk-renata`, com dois n8n ativos; eles nao devem ser alterados.
+
+**Decisao/Acao:**
+Criada a branch `feat/vps-staging-deployment`. Implementada stack isolada com
+n8n 2.30.5, PostgreSQL 15.18, Ollama 0.32.1, conversor PDF→Markdown e
+renderizador local de relatorios PDF. O modelo inicial definido e
+`qwen2.5:3b`, sujeito a benchmark de memoria e tempo na VPS. Adicionados
+controle de duplicidade por ID+SHA-256, tabela de rastreabilidade, retry de
+chamadas HTTP, workflow principal versionado e workflow separado de erros.
+
+**Arquivos afetados:**
+`docker-compose.yml`, `deploy/`, `infra/report_renderer/`,
+`infra/regulatory_analysis/`, `workflows/`, `prompts/`, `.env.example`,
+`tests/`, `README.md`, `ROADMAP.md` e `docs/checklists/acessos-e-responsaveis.md`.
+
+**Testes:**
+`python -m pytest -q` passou com 16 testes. Os dois exports n8n e o YAML do
+Compose foram validados localmente. A validacao de importacao no n8n e o
+processamento ponta a ponta dependem da implantacao e das credenciais Google.
+
+**Pendencias:**
+Implantar a stack na VPS em `/opt/automacao-miller`, carregar o modelo,
+configurar credenciais Google Drive/Gmail dentro do n8n, preencher IDs de
+pastas e destinatarios, importar os workflows e executar os cenarios da matriz.
+
+**Impacto:**
+O repositorio passa a conter uma base executavel e isolada para homologacao,
+sem reutilizar volumes, portas publicas ou credenciais dos projetos existentes.
+
 ## 10. Regra para o próximo agente
 
 Antes de iniciar qualquer tarefa:

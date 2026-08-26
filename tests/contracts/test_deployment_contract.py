@@ -18,9 +18,31 @@ def test_workflow_export_is_valid_and_contains_required_stages() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-v1.json").read_text(encoding="utf-8"))
     names = {node["name"] for node in workflow["nodes"]}
 
-    assert {"Google Drive - Search input PDFs", "PDF Converter", "Ollama - Extract", "Report Renderer", "Gmail - Send report"} <= names
+    assert {
+        "Google Drive - Search input PDFs",
+        "Google Drive - Move to processing",
+        "PDF Converter",
+        "Prepare AI context",
+        "Reliable AI page scope",
+        "Normalize AI response",
+        "Ollama - Extract",
+        "Report Renderer",
+        "Gmail - Send report",
+        "Route after email",
+    } <= names
     assert workflow["id"] == "automacao-regulatoria-mvp"
     assert workflow["active"] is False
+    assert workflow["settings"]["errorWorkflow"] == "automacao-regulatoria-error-handler"
+    converter = next(node for node in workflow["nodes"] if node["name"] == "PDF Converter")
+    parameters = converter["parameters"]["bodyParameters"]["parameters"]
+    assert {item["parameterType"] for item in parameters} == {"formBinaryData", "formData"}
+    assert next(item for item in parameters if item["parameterType"] == "formBinaryData")["inputDataFieldName"] == "data"
+    gmail = next(node for node in workflow["nodes"] if node["name"] == "Gmail - Send report")
+    assert gmail["parameters"]["options"]["attachmentsUi"]["attachmentsBinary"] == [{"property": "data"}]
+    assert workflow["connections"]["Duplicate gate"]["main"][0][0]["node"] == "Duplicate ignored"
+    assert workflow["connections"]["Duplicate gate"]["main"][1][0]["node"] == "Prepare Markdown file"
+    assert workflow["connections"]["Route after email"]["main"][0][0]["node"] == "State - Completed"
+    assert workflow["connections"]["Route after email"]["main"][1][0]["node"] == "State - Human review"
 
 
 def test_error_workflow_export_records_failures() -> None:

@@ -740,3 +740,45 @@ Antes de iniciar qualquer tarefa:
 7. ao terminar, atualizar esta memória.
 
 O agente não deve presumir que uma decisão ainda aberta já foi tomada.
+
+## 2026-08-26 - Fechamento do MVP na homologacao
+
+Data: 2026-08-26
+Tipo: INTEGRACAO / VALIDACAO / SEGURANCA
+Contexto: OAuth do Google, pastas do Drive, credencial PostgreSQL e workflow
+de erros estavam configurados na VPS de homologacao.
+Decisao/Acao: Corrigidos os parametros de compatibilidade do n8n 2.30.5 para
+busca, movimentacao e upload no Drive, multipart do conversor e anexo Gmail.
+O fluxo passou a persistir o Markdown antes da IA, reanexar o PDF do renderer
+antes do Gmail e decidir o estado somente depois do envio.
+Arquivos afetados: workflow principal, compose, contrato de implantacao e
+documentacao operacional.
+Testes: pytest local com 16 testes; PDF simples concluido com Markdown,
+relatorio e e-mail PDF; DOU 2026_08_24_ASSINADO_do1.pdf convertido com 128
+paginas e marcadores das paginas 71-75 e 79 conferidos. O DOU gerou relatorio
+e e-mail com anexo, mas ficou aguardando_revisao por baixa confianca. O banco
+registrou artefatos e nao houve erros persistidos em workflow_errors.
+Pendencias: revisao humana do DOU, simulacao dos erros externos, retomada
+apos falha, melhoria de inferencia para documentos extensos e rotacao da
+senha root exposta.
+Impacto: Homologacao funcional para o PDF simples e segura para o DOU,
+sem marcar conclusao quando a evidencia/regra de confianca nao permite.
+
+## 2026-08-26 - Verificacao final da stack
+
+Data: 2026-08-26
+Tipo: TESTE / OPERACAO
+Contexto: Foram feitas novas execucoes depois dos ajustes de roteamento,
+escopo de paginas e associacao de credenciais no n8n.
+Decisao/Acao: Mantido o DOU em Revisao, com Markdown integral, relatorio PDF
+e e-mail com anexo. O PDF simples concluido foi restaurado em Concluidos.
+Testes: Execucao final do DOU com confidence_status baixa_confianca,
+status aguardando_revisao e movimentacao para Revisao. Duplicidade final
+com documento concluido retornou ignored_duplicate sem chamar Ollama.
+docker compose ps mostrou os cinco servicos saudaveis; n8n permaneceu
+local-only e o workflow ativo com errorWorkflow associado. O healthz do n8n
+respondeu; conversor e renderer estavam saudaveis pelo Docker healthcheck.
+Pendencias: Os testes de falha externa e retomada ainda precisam de ambiente
+controlado. A revisao do DOU continua humana por politica de seguranca.
+Impacto: O criterio de nao concluir antes do envio foi preservado; o DOU nao
+foi falsamente aceito como classificacao regulatoria definitiva.

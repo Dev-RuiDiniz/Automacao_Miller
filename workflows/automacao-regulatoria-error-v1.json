@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automacao_miller.workflow_errors (source_document_id, status, current_stage, error_category, error_message, execution_id) VALUES ({{ JSON.stringify($json.source_document_id) }}, 'erro', {{ JSON.stringify($json.current_stage) }}, {{ JSON.stringify($json.error_category) }}, {{ JSON.stringify($json.error_message) }}, {{ JSON.stringify($json.execution_id) }});"
+        "query": "INSERT INTO automacao_miller.workflow_errors (source_document_id, status, current_stage, error_category, error_message, execution_id) VALUES ({{ $json.source_document_id ? String.fromCharCode(39) + String($json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }}, 'erro', {{ String.fromCharCode(39) + String($json.current_stage).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String($json.error_category).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String($json.error_message).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ $json.execution_id ? String.fromCharCode(39) + String($json.execution_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }});"
       },
       "id": "record-error",
       "name": "Record workflow error",

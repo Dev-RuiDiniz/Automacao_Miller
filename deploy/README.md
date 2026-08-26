@@ -52,3 +52,19 @@ Depois, abra `http://localhost:25678` no navegador.
   PostgreSQL no backup protegido.
 - O volume do Ollama pode ser recriado fazendo novo pull do modelo.
 - Nao exponha as portas internas dos servicos na Internet.
+
+## Configuracao n8n da homologacao
+
+O compose libera o acesso controlado a variaveis nao secretas para os nos
+internos do n8n. Isso e aceitavel somente nesta instancia isolada e local;
+nao publique o n8n nem habilite esse comportamento em ambientes multiusuario.
+Os IDs das pastas, URLs internas, modelo, destinatarios e timeouts entram no
+arquivo .env protegido do servidor.
+
+A credencial PostgreSQL do n8n usa host postgres, porta 5432 e SSL desativado
+na rede interna da stack. As credenciais Google Drive e Gmail sao criadas no
+n8n e nunca entram nos exports versionados.
+
+Para atualizar um workflow exportado, preserve a configuracao anterior,
+importe o JSON e reassocie as credenciais no n8n. Depois valide docker compose
+ps, os health checks, o tunel SSH e uma execucao de PDF de teste.

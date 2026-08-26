@@ -20,7 +20,24 @@ Nenhum ID de credencial e versionado neste repositorio.
 ## Reprocessamento autorizado
 
 O controle de duplicidade ignora um documento com o mesmo ID e SHA-256 ja
-concluido. Para reprocessar, o operador deve remover o registro correspondente
-da tabela de rastreabilidade somente com autorizacao registrada e executar
-novamente o documento. O registro removido e a autorizacao devem ser mantidos
-no log operacional fora do Git.
+concluido. Para reprocessar, o operador deve registrar a autorizacao no log
+operacional, alterar o registro para status aguardando_revisao e etapa
+reprocessamento_autorizado, devolver o arquivo para Entrada e executar
+novamente. O historico permanece no banco; nenhuma senha ou credencial deve
+ser registrada no Git.
+
+## Documentos extensos
+
+O Markdown integral continua sendo salvo no Drive. Para documentos com mais de
+20 paginas, a primeira analise do modelo usa as paginas 71-75 e 79 definidas
+para a homologacao. Esse recorte e marcado como baixa confianca e exige
+revisao humana; ele nao autoriza status concluido. O relatorio e o e-mail
+continuam sendo gerados para permitir a revisao.
+
+## Compatibilidade n8n
+
+O export versionado nao inclui IDs de credenciais. Depois de importar ou
+atualizar o workflow, associe novamente as credenciais Google Drive, Gmail e
+PostgreSQL no n8n. Na versao homologada do n8n, o Drive usa fileFolder para
+busca, folderId e inputDataFieldName para upload, e o Gmail usa
+options.attachmentsUi.attachmentsBinary.

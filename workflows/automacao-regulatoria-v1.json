@@ -7,7 +7,8 @@
     "saveManualExecutions": true,
     "saveExecutionProgress": true,
     "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "none"
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "automacao-regulatoria-error-handler"
   },
   "nodes": [
     {
@@ -20,7 +21,7 @@
     },
     {
       "parameters": {
-        "resource": "file",
+        "resource": "fileFolder",
         "operation": "search",
         "searchMethod": "query",
         "queryString": "={{ \"'\" + $env.GOOGLE_DRIVE_INPUT_FOLDER_ID + \"' in parents and mimeType = 'application/pdf' and trashed = false\" }}",
@@ -31,6 +32,19 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "move",
+        "fileId": "={{ $json.id }}",
+        "folderId": "={{ $env.GOOGLE_DRIVE_PROCESSING_FOLDER_ID }}"
+      },
+      "id": "drive-move-processing",
+      "name": "Google Drive - Move to processing",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [330, 0]
     },
     {
       "parameters": {
@@ -51,9 +65,7 @@
         "url": "={{ $env.PDF_CONVERTER_BASE_URL + '/v1/convert' }}",
         "sendBody": true,
         "contentType": "multipart-form-data",
-        "sendBinaryData": true,
-        "binaryPropertyName": "data",
-        "bodyParameters": {"parameters": [{"name": "source_document_id", "value": "={{ $('Google Drive - Search input PDFs').item.json.id }}"}]},
+        "bodyParameters": {"parameters": [{"parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data"}, {"parameterType": "formData", "name": "source_document_id", "value": "={{ $('Google Drive - Search input PDFs').item.json.id }}"}]},
         "options": {"timeout": "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 120000) }}"}
       },
       "id": "pdf-converter",
@@ -89,9 +101,9 @@
       "parameters": {
         "resource": "file",
         "operation": "upload",
-        "binaryPropertyName": "data",
+        "inputDataFieldName": "data",
         "name": "={{ $json.markdown_file_name }}",
-        "parents": "={{ [$env.GOOGLE_DRIVE_MARKDOWN_FOLDER_ID] }}"
+        "folderId": "={{ $env.GOOGLE_DRIVE_MARKDOWN_FOLDER_ID }}"
       },
       "id": "drive-upload-markdown",
       "name": "Google Drive - Upload Markdown",
@@ -102,7 +114,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automacao_miller.document_processing (source_document_id, source_sha256, source_filename, status, current_stage, attempt_count, started_at, execution_id, markdown_file_id) VALUES ({{ JSON.stringify($(\"Validate Markdown\").item.json.source_document_id) }}, {{ JSON.stringify($(\"Validate Markdown\").item.json.metadata.source_sha256) }}, {{ JSON.stringify($(\"Validate Markdown\").item.json.source_filename) }}, 'em_processamento', 'markdown_persistido', 1, NOW(), {{ JSON.stringify($execution.id) }}, {{ JSON.stringify($json.id || null) }}) ON CONFLICT (source_document_id, source_sha256) DO UPDATE SET status = 'em_processamento', current_stage = 'markdown_persistido', attempt_count = automacao_miller.document_processing.attempt_count + 1, updated_at = NOW(), markdown_file_id = EXCLUDED.markdown_file_id;"
+        "query": "INSERT INTO automacao_miller.document_processing (source_document_id, source_sha256, source_filename, status, current_stage, attempt_count, started_at, execution_id, markdown_file_id) VALUES ({{ String.fromCharCode(39) + String($('Validate Markdown').item.json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String($('Validate Markdown').item.json.metadata.source_sha256).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String($('Validate Markdown').item.json.source_filename).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'em_processamento', 'markdown_persistido', 1, NOW(), {{ String.fromCharCode(39) + String($execution.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ $json.id ? String.fromCharCode(39) + String($json.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }}) ON CONFLICT (source_document_id, source_sha256) DO UPDATE SET status = 'em_processamento', current_stage = 'markdown_persistido', attempt_count = automacao_miller.document_processing.attempt_count + 1, updated_at = NOW(), markdown_file_id = EXCLUDED.markdown_file_id;"
       },
       "id": "state-markdown",
       "name": "State - Markdown persisted",
@@ -112,11 +124,41 @@
     },
     {
       "parameters": {
+        "jsCode": "const source = $('Validate Markdown').item.json;\nconst pageCount = Number(source.metadata?.page_count || 0);\nlet analysisMarkdown = source.markdown;\nlet analysisScope = { type: 'full_document', page_count: pageCount };\nconst warnings = Array.isArray(source.warnings) ? [...source.warnings] : [];\nif (pageCount > 20) {\n  const pages = [71, 72, 73, 74, 75, 79];\n  const sections = pages.map((page) => {\n    const match = source.markdown.match(new RegExp('^## Página ' + page + '\\n([\\s\\S]*?)(?=^## Página |$)', 'm'));\n    return match ? '## Página ' + page + '\\n' + match[1].trim() : '';\n  }).filter(Boolean);\n  if (sections.length) {\n    analysisMarkdown = sections.join('\\n\\n');\n    analysisScope = { type: 'targeted_pages', page_count: pageCount, pages, reason: 'documento extenso; páginas de referência para homologação' };\n    warnings.push('analise IA limitada às páginas de referência 71-75 e 79; revisão humana obrigatória');\n  }\n}\nreturn [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: analysisScope, warnings } }];"
+      },
+      "id": "prepare-ai-context",
+      "name": "Prepare AI context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $json;\nconst pageCount = Number(source.metadata?.page_count || 0);\nif (pageCount <= 20) return [{ json: source }];\nconst pages = [71, 72, 73, 74, 75, 79];\nconst sections = pages.map((page) => {\n  const match = source.markdown.match(new RegExp('^## .+ ' + page + '\\r?\\n([\\s\\S]*?)(?=^## .+ \\d+\\r?\\n|(?![\\s\\S]))', 'm'));\n  return match ? '## Pagina ' + page + '\\n' + match[1].trim() : '';\n}).filter(Boolean);\nif (!sections.length) return [{ json: source }];\nreturn [{ json: { ...source, analysis_markdown: sections.join('\\n\\n'), analysis_scope: { type: 'targeted_pages', page_count: pageCount, pages, reason: 'documento extenso; páginas de referência para homologação' }, warnings: [...(source.warnings || []), 'analise IA limitada às páginas de referência 71-75 e 79; revisão humana obrigatória'] } }];"
+      },
+      "id": "ensure-ai-page-scope",
+      "name": "Ensure AI page scope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $json;\nconst pageCount = Number(source.metadata?.page_count || 0);\nif (pageCount <= 20) return [{ json: source }];\nconst wanted = new Set([71, 72, 73, 74, 75, 79]);\nconst lines = String(source.markdown || '').split(/\\r?\\n/);\nconst sections = [];\nlet currentPage = null;\nlet buffer = [];\nconst flush = () => { if (currentPage !== null && wanted.has(currentPage)) sections.push(buffer.join('\\n').trim()); };\nfor (const line of lines) {\n  const match = line.match(/^## .+ (\\d+)\\s*$/);\n  if (match) { flush(); currentPage = Number(match[1]); buffer = [line]; } else if (currentPage !== null) buffer.push(line);\n}\nflush();\nif (!sections.length) return [{ json: { ...source, warnings: [...(source.warnings || []), 'paginas de referencia nao localizadas; analise humana obrigatoria'] } }];\nreturn [{ json: { ...source, analysis_markdown: sections.join('\\n\\n'), analysis_scope: { type: 'targeted_pages', page_count: pageCount, pages: [...wanted], reason: 'documento extenso; páginas de referência para homologação' }, warnings: [...(source.warnings || []), 'analise IA limitada às páginas de referência 71-75 e 79; revisão humana obrigatória'] } }];"
+      },
+      "id": "reliable-ai-page-scope",
+      "name": "Reliable AI page scope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 0]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "http://ollama:11434/api/generate",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0 }, prompt: 'Voce e um extrator documental. Use somente o Markdown abaixo. Nao use conhecimento externo e nao invente campos. Retorne JSON valido com documento, medicamentos_deferidos, medicamentos_indeferidos, suplementos_deferidos, suplementos_indeferidos, estudos_clinicos_deferidos, estudos_clinicos_indeferidos, outros_atos, exigencias, pendencias, categorias_nao_localizadas, evidencias_insuficientes, contradicoes, avisos, controle_confianca e revisao_humana. Cada item localizado deve apontar para paginas_origem. Preserve cancelado fora de indeferido. Para dispositivo, use tipo_produto_relacionado=dispositivo. Contradicoes devem ser preservadas e exigir revisao.\n\nMARKDOWN:\n' + $('Validate Markdown').item.json.markdown } }}",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0 }, prompt: 'Voce e um extrator documental. Use somente o Markdown abaixo. Nao use conhecimento externo e nao invente campos. Retorne JSON valido com documento, medicamentos_deferidos, medicamentos_indeferidos, suplementos_deferidos, suplementos_indeferidos, estudos_clinicos_deferidos, estudos_clinicos_indeferidos, outros_atos, exigencias, pendencias, categorias_nao_localizadas, evidencias_insuficientes, contradicoes, avisos, controle_confianca e revisao_humana. Cada item localizado deve apontar para paginas_origem. Preserve cancelado fora de indeferido. Para dispositivo, use tipo_produto_relacionado=dispositivo. Contradicoes devem ser preservadas e exigir revisao.' + String.fromCharCode(10) + String.fromCharCode(10) + 'MARKDOWN:' + String.fromCharCode(10) + $('Prepare AI context').item.json.analysis_markdown }) }}",
         "options": {"timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 600000) }}"}
       },
       "id": "ollama-extract",
@@ -130,7 +172,17 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $json.response;\nif (!raw) throw new Error('IA: Ollama retornou resposta vazia');\nlet analysis;\ntry { analysis = JSON.parse(raw); } catch (error) { throw new Error('VALIDACAO: resposta do Ollama nao e JSON valido'); }\nconst required = ['documento','medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos','exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos','revisao_humana'];\nfor (const field of required) if (!(field in analysis)) throw new Error('VALIDACAO: campo obrigatorio ausente: ' + field);\nconst reasons = [];\nif (analysis.evidencias_insuficientes?.length) reasons.push('evidencia insuficiente');\nif (analysis.contradicoes?.length) reasons.push('contradicao');\nif (analysis.revisao_humana?.necessaria) reasons.push('revisao humana solicitada');\nconst categories = ['medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos'];\nfor (const category of categories) for (const item of (analysis[category] || [])) if (!item.paginas_origem?.length && !item.paginas?.length && !item.evidencias?.length) reasons.push('item sem evidencia de pagina');\nconst confidence_status = analysis.contradicoes?.length ? 'inconclusivo' : reasons.length ? 'baixa_confianca' : 'aceitavel';\nanalysis.controle_confianca = { status: confidence_status, motivos: [...new Set(reasons)] };\nconst source = $('Validate Markdown').item.json;\nreturn [{ json: { ...source, analysis, confidence_status, markdown_file_id: $('Google Drive - Upload Markdown').item.json.id } }];"
+        "jsCode": "const raw = $json.response;\nif (!raw) throw new Error('IA: Ollama retornou resposta vazia');\nlet analysis;\ntry { analysis = JSON.parse(raw); } catch (error) { throw new Error('VALIDACAO: resposta do Ollama nao e JSON valido'); }\nif (!analysis || typeof analysis !== 'object' || Array.isArray(analysis)) throw new Error('VALIDACAO: resposta do Ollama deve ser um objeto JSON');\nconst missingDocument = !analysis.documento || typeof analysis.documento !== 'object' || Array.isArray(analysis.documento);\nif (missingDocument) analysis.documento = {};\nconst requiredArrays = ['medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos','exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos'];\nfor (const field of requiredArrays) if (!Array.isArray(analysis[field])) analysis[field] = [];\nif (missingDocument) { analysis.evidencias_insuficientes.push({ descricao: 'A resposta da IA nao apresentou o objeto regulatorio esperado; validar manualmente contra as paginas de origem.', paginas_origem: [] }); analysis.revisao_humana = { necessaria: true, motivos: ['estrutura regulatoria ausente na resposta da IA'] }; }\nif (typeof analysis.revisao_humana === 'boolean') analysis.revisao_humana = { necessaria: analysis.revisao_humana, motivos: [] };\nif (!analysis.revisao_humana || typeof analysis.revisao_humana !== 'object') analysis.revisao_humana = { necessaria: false, motivos: [] };\nreturn [{ json: { ...$json, response: JSON.stringify(analysis) } }];"
+      },
+      "id": "normalize-ai-response",
+      "name": "Normalize AI response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.response;\nif (!raw) throw new Error('IA: Ollama retornou resposta vazia');\nlet analysis;\ntry { analysis = JSON.parse(raw); } catch (error) { throw new Error('VALIDACAO: resposta do Ollama nao e JSON valido'); }\nconst pageBuckets = Object.values(analysis.documento || {}).filter((page) => page && typeof page === 'object' && !Array.isArray(page));\nconst flatten = (field) => pageBuckets.flatMap((page) => Array.isArray(page[field]) ? page[field] : []);\nconst categories = ['medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos'];\nfor (const category of categories) {\n  const nested = flatten(category);\n  if (category === 'outros_atos') {\n    nested.push(...flatten('outras_atos'));\n    nested.push(...(Array.isArray(analysis.outros_atos) ? analysis.outros_atos : []));\n    nested.push(...(Array.isArray(analysis.cancelados) ? analysis.cancelados.map((item) => ({ ...item, status: 'cancelado' })) : []));\n    nested.push(...(Array.isArray(analysis.tipo_produto_relacionado) ? analysis.tipo_produto_relacionado.map((item) => ({ ...item, tipo_produto_relacionado: 'dispositivo' })) : []));\n  }\n  analysis[category] = nested;\n}\nfor (const field of ['exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos']) if (!Array.isArray(analysis[field])) analysis[field] = [];\nif (typeof analysis.revisao_humana === 'boolean') analysis.revisao_humana = { necessaria: analysis.revisao_humana, motivos: [] };\nif (!analysis.revisao_humana || typeof analysis.revisao_humana !== 'object') analysis.revisao_humana = { necessaria: false, motivos: [] };\nfor (const category of categories) for (const item of analysis[category]) if (item && item.pagina_origem && !item.paginas_origem?.length && !item.paginas?.length && !item.evidencias?.length) item.paginas_origem = [item.pagina_origem];\nconst required = ['documento', ...categories, 'exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos','revisao_humana'];\nfor (const field of required) if (!(field in analysis)) throw new Error('VALIDACAO: campo obrigatorio ausente: ' + field);\nconst reasons = [];\nif (analysis.evidencias_insuficientes.length) reasons.push('evidencia insuficiente');\nif (analysis.contradicoes.length) reasons.push('contradicao');\nif (analysis.revisao_humana.necessaria) reasons.push('revisao humana solicitada');\nfor (const category of categories) for (const item of analysis[category]) if (!item.paginas_origem?.length && !item.paginas?.length && !item.evidencias?.length) reasons.push('item sem evidencia de pagina');\nconst confidence_status = analysis.contradicoes.length ? 'inconclusivo' : reasons.length ? 'baixa_confianca' : 'aceitavel';\nanalysis.controle_confianca = { status: confidence_status, motivos: [...new Set(reasons)] };\nconst source = $('Validate Markdown').item.json;\nreturn [{ json: { ...source, analysis, confidence_status, markdown_file_id: $('Google Drive - Upload Markdown').item.json.id } }];"
       },
       "id": "parse-analysis",
       "name": "Validate and classify analysis",
@@ -180,9 +232,9 @@
       "parameters": {
         "resource": "file",
         "operation": "upload",
-        "binaryPropertyName": "data",
-        "name": "={{ $json.source_filename.replace(/\\.pdf$/i, '') + '-relatorio.pdf' }}",
-        "parents": "={{ [$env.GOOGLE_DRIVE_REPORT_FOLDER_ID] }}"
+        "inputDataFieldName": "data",
+        "name": "={{ $('Validate and classify analysis').item.json.source_filename.replace(/\\.pdf$/i, '') + '-relatorio.pdf' }}",
+        "folderId": "={{ $env.GOOGLE_DRIVE_REPORT_FOLDER_ID }}"
       },
       "id": "drive-upload-report",
       "name": "Google Drive - Upload Report",
@@ -192,30 +244,48 @@
     },
     {
       "parameters": {
+        "jsCode": "const report = $('Report Renderer').item;\nconst analysis = $('Validate and classify analysis').item.json;\nreturn [{ json: { ...$json, confidence_status: analysis.confidence_status, source_document_id: analysis.source_document_id }, binary: report.binary }];"
+      },
+      "id": "report-email-binary",
+      "name": "Reattach report PDF for email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, -100]
+    },
+    {
+      "parameters": {
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $env.REPORT_RECIPIENTS }}",
         "subject": "={{ 'Relatorio regulatorio - ' + $('Validate and classify analysis').item.json.source_filename }}",
         "emailType": "text",
         "message": "={{ 'Relatorio de apoio documental gerado. Documento: ' + $('Validate and classify analysis').item.json.source_filename + '. Revise o PDF antes de tomar qualquer decisao regulatoria.' }}",
-        "attachments": "data"
+        "options": {"attachmentsUi": {"attachmentsBinary": [{"property": "data"}]}}
       },
       "id": "gmail-send",
       "name": "Gmail - Send report",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [3080, -100]
+      "position": [3300, -100]
+    },
+    {
+      "parameters": {"conditions": {"boolean": [{"value1": "={{ $json.confidence_status === 'aceitavel' }}", "operation": "isTrue"}]}},
+      "id": "post-email-confidence-gate",
+      "name": "Route after email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [3520, -100]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE automacao_miller.document_processing SET status = 'concluido', current_stage = 'email_enviado', completed_at = NOW(), updated_at = NOW(), report_file_id = {{ JSON.stringify($('Google Drive - Upload Report').item.json.id) }} WHERE source_document_id = {{ JSON.stringify($('Validate and classify analysis').item.json.source_document_id) }} AND source_sha256 = {{ JSON.stringify($('Validate and classify analysis').item.json.metadata.source_sha256) }};"
+        "query": "UPDATE automacao_miller.document_processing SET status = 'concluido', current_stage = 'email_enviado', completed_at = NOW(), updated_at = NOW(), report_file_id = {{ String.fromCharCode(39) + String($('Google Drive - Upload Report').item.json.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} WHERE source_document_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND source_sha256 = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.metadata.source_sha256).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
       },
       "id": "state-complete",
       "name": "State - Completed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [3300, -100]
+      "position": [3740, -100]
     },
     {
       "parameters": {
@@ -228,13 +298,13 @@
       "name": "Google Drive - Move completed",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [3520, -100]
+      "position": [3960, -100]
     },
     {
       "parameters": {
         "resource": "file",
         "operation": "move",
-        "fileId": "={{ $json.source_document_id }}",
+        "fileId": "={{ $('Validate and classify analysis').item.json.source_document_id }}",
         "folderId": "={{ $env.GOOGLE_DRIVE_REVIEW_FOLDER_ID }}"
       },
       "id": "drive-move-review",
@@ -246,7 +316,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE automacao_miller.document_processing SET status = 'aguardando_revisao', current_stage = 'revisao_humana', updated_at = NOW(), error_category = 'validacao' WHERE source_document_id = {{ JSON.stringify($json.source_document_id) }} AND source_sha256 = {{ JSON.stringify($json.metadata.source_sha256) }};"
+        "query": "UPDATE automacao_miller.document_processing SET status = 'aguardando_revisao', current_stage = 'revisao_humana', updated_at = NOW(), error_category = 'validacao', report_file_id = {{ String.fromCharCode(39) + String($('Google Drive - Upload Report').item.json.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} WHERE source_document_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND source_sha256 = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.metadata.source_sha256).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
       },
       "id": "state-review",
       "name": "State - Human review",
@@ -257,7 +327,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT EXISTS (SELECT 1 FROM automacao_miller.document_processing WHERE source_document_id = {{ JSON.stringify($('Validate Markdown').item.json.source_document_id) }} AND source_sha256 = {{ JSON.stringify($('Validate Markdown').item.json.metadata.source_sha256) }} AND status = 'concluido') AS already_processed;"
+        "query": "SELECT EXISTS (SELECT 1 FROM automacao_miller.document_processing WHERE source_document_id = {{ String.fromCharCode(39) + String($('Validate Markdown').item.json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND source_sha256 = {{ String.fromCharCode(39) + String($('Validate Markdown').item.json.metadata.source_sha256).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND status = 'concluido') AS already_processed;"
       },
       "id": "state-check-duplicate",
       "name": "State - Check duplicate",
@@ -267,7 +337,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const context = $('Validate Markdown').item.json;\nreturn [{ json: { ...context, already_processed: Boolean($json.already_processed) } }];"
+        "jsCode": "const context = $('Validate Markdown').item.json;\nconst raw = $json.already_processed;\nconst alreadyProcessed = raw === true || raw === 't' || raw === 'true' || raw === 1 || raw === '1';\nreturn [{ json: { ...context, already_processed: alreadyProcessed } }];"
       },
       "id": "restore-context",
       "name": "Restore conversion context",
@@ -276,7 +346,7 @@
       "position": [1320, 220]
     },
     {
-      "parameters": {"conditions": {"boolean": [{"value1": "={{ !$json.already_processed }}", "operation": "isTrue"}]}},
+      "parameters": {"conditions": {"boolean": [{"value1": "={{ $json.already_processed === true }}", "operation": "isTrue"}]}},
       "id": "duplicate-gate",
       "name": "Duplicate gate",
       "type": "n8n-nodes-base.if",
@@ -296,24 +366,32 @@
   ],
   "connections": {
     "Monitor input PDFs": {"main": [[{"node": "Google Drive - Search input PDFs", "type": "main", "index": 0}]]},
-    "Google Drive - Search input PDFs": {"main": [[{"node": "Google Drive - Download PDF", "type": "main", "index": 0}]]},
+    "Google Drive - Search input PDFs": {"main": [[{"node": "Google Drive - Move to processing", "type": "main", "index": 0}]]},
+    "Google Drive - Move to processing": {"main": [[{"node": "Google Drive - Download PDF", "type": "main", "index": 0}]]},
     "Google Drive - Download PDF": {"main": [[{"node": "PDF Converter", "type": "main", "index": 0}]]},
     "PDF Converter": {"main": [[{"node": "Validate Markdown", "type": "main", "index": 0}]]},
     "Validate Markdown": {"main": [[{"node": "State - Check duplicate", "type": "main", "index": 0}]]},
     "State - Check duplicate": {"main": [[{"node": "Restore conversion context", "type": "main", "index": 0}]]},
     "Restore conversion context": {"main": [[{"node": "Duplicate gate", "type": "main", "index": 0}]]},
-    "Duplicate gate": {"main": [[{"node": "Prepare Markdown file", "type": "main", "index": 0}], [{"node": "Duplicate ignored", "type": "main", "index": 0}]]},
+    "Duplicate gate": {"main": [[{"node": "Duplicate ignored", "type": "main", "index": 0}], [{"node": "Prepare Markdown file", "type": "main", "index": 0}]]},
     "Prepare Markdown file": {"main": [[{"node": "Google Drive - Upload Markdown", "type": "main", "index": 0}]]},
     "Google Drive - Upload Markdown": {"main": [[{"node": "State - Markdown persisted", "type": "main", "index": 0}]]},
-    "State - Markdown persisted": {"main": [[{"node": "Ollama - Extract", "type": "main", "index": 0}]]},
-    "Ollama - Extract": {"main": [[{"node": "Validate and classify analysis", "type": "main", "index": 0}]]},
+    "State - Markdown persisted": {"main": [[{"node": "Prepare AI context", "type": "main", "index": 0}]]},
+    "Prepare AI context": {"main": [[{"node": "Ensure AI page scope", "type": "main", "index": 0}]]},
+    "Ensure AI page scope": {"main": [[{"node": "Reliable AI page scope", "type": "main", "index": 0}]]},
+    "Reliable AI page scope": {"main": [[{"node": "Ollama - Extract", "type": "main", "index": 0}]]},
+    "Ollama - Extract": {"main": [[{"node": "Normalize AI response", "type": "main", "index": 0}]]},
+    "Normalize AI response": {"main": [[{"node": "Validate and classify analysis", "type": "main", "index": 0}]]},
     "Validate and classify analysis": {"main": [[{"node": "Confidence gate", "type": "main", "index": 0}]]},
-    "Confidence gate": {"main": [[{"node": "Prepare report payload", "type": "main", "index": 0}], [{"node": "Google Drive - Move to review", "type": "main", "index": 0}]]},
+    "Confidence gate": {"main": [[{"node": "Prepare report payload", "type": "main", "index": 0}], [{"node": "Prepare report payload", "type": "main", "index": 0}]]},
     "Prepare report payload": {"main": [[{"node": "Report Renderer", "type": "main", "index": 0}]]},
     "Report Renderer": {"main": [[{"node": "Google Drive - Upload Report", "type": "main", "index": 0}]]},
-    "Google Drive - Upload Report": {"main": [[{"node": "Gmail - Send report", "type": "main", "index": 0}]]},
-    "Gmail - Send report": {"main": [[{"node": "State - Completed", "type": "main", "index": 0}]]},
+    "Google Drive - Upload Report": {"main": [[{"node": "Reattach report PDF for email", "type": "main", "index": 0}]]},
+    "Reattach report PDF for email": {"main": [[{"node": "Gmail - Send report", "type": "main", "index": 0}]]},
+    "Gmail - Send report": {"main": [[{"node": "Route after email", "type": "main", "index": 0}]]},
+    "Route after email": {"main": [[{"node": "State - Completed", "type": "main", "index": 0}], [{"node": "State - Human review", "type": "main", "index": 0}]]},
     "State - Completed": {"main": [[{"node": "Google Drive - Move completed", "type": "main", "index": 0}]]},
-    "Google Drive - Move to review": {"main": [[{"node": "State - Human review", "type": "main", "index": 0}]]}
+    "Google Drive - Move to review": {},
+    "State - Human review": {"main": [[{"node": "Google Drive - Move to review", "type": "main", "index": 0}]]}
   }
 }

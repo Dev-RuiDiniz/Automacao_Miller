@@ -27,7 +27,8 @@ docker compose up -d --build
 docker compose ps
 ```
 
-O modelo inicial deve ser carregado depois que o Ollama estiver saudavel:
+O modelo inicial definido para a homologacao e `qwen2.5:3b` e deve ser carregado
+depois que o Ollama estiver saudavel:
 
 ```bash
 docker compose exec ollama ollama pull qwen2.5:3b

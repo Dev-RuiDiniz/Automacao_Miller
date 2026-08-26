@@ -19,6 +19,7 @@ def test_workflow_export_is_valid_and_contains_required_stages() -> None:
     names = {node["name"] for node in workflow["nodes"]}
 
     assert {"Google Drive - Search input PDFs", "PDF Converter", "Ollama - Extract", "Report Renderer", "Gmail - Send report"} <= names
+    assert workflow["id"] == "automacao-regulatoria-mvp"
     assert workflow["active"] is False
 
 
@@ -27,3 +28,4 @@ def test_error_workflow_export_records_failures() -> None:
     names = {node["name"] for node in workflow["nodes"]}
 
     assert {"Error Trigger", "Normalize error context", "Record workflow error"} <= names
+    assert workflow["id"] == "automacao-regulatoria-error-handler"

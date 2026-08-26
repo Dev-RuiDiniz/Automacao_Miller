@@ -1,5 +1,6 @@
 {
   "name": "Automacao Regulatoria - Error Handler",
+  "id": "automacao-regulatoria-error-handler",
   "active": false,
   "settings": {"executionOrder": "v1"},
   "nodes": [

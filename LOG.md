@@ -600,7 +600,7 @@ Decisão:
 ## 2026-08-26 — Implementacao da stack de homologacao
 
 **Tipo:** IMPLEMENTACAO / INFRAESTRUTURA
-**Status:** IMPLEMENTADO LOCALMENTE; IMPLANTACAO REMOTA EM ANDAMENTO
+**Status:** IMPLEMENTADO E IMPLANTADO NA VPS DE HOMOLOGACAO; INTEGRACOES GOOGLE PENDENTES
 
 **Contexto:**
 A VPS propria foi auditada antes da implantacao. O ambiente possui Debian 13,
@@ -623,17 +623,54 @@ chamadas HTTP, workflow principal versionado e workflow separado de erros.
 
 **Testes:**
 `python -m pytest -q` passou com 16 testes. Os dois exports n8n e o YAML do
-Compose foram validados localmente. A validacao de importacao no n8n e o
-processamento ponta a ponta dependem da implantacao e das credenciais Google.
+Compose foram validados localmente. A stack remota iniciou com todos os cinco
+servicos saudaveis; o endpoint interno do Ollama respondeu via n8n com
+`qwen2.5:3b` em aproximadamente 61 segundos no primeiro carregamento.
 
 **Pendencias:**
-Implantar a stack na VPS em `/opt/automacao-miller`, carregar o modelo,
-configurar credenciais Google Drive/Gmail dentro do n8n, preencher IDs de
-pastas e destinatarios, importar os workflows e executar os cenarios da matriz.
+Configurar credenciais Google Drive/Gmail dentro do n8n, preencher IDs de
+pastas e destinatarios, importar/ativar os workflows e executar os cenarios da
+matriz. A importacao via CLI requer IDs n8n nos exports; isso foi corrigido no
+repositorio e sera reaplicado na VPS apos o push desta alteracao.
 
 **Impacto:**
 O repositorio passa a conter uma base executavel e isolada para homologacao,
 sem reutilizar volumes, portas publicas ou credenciais dos projetos existentes.
+
+## 2026-08-26 — Auditoria e implantacao da VPS de homologacao
+
+**Tipo:** AUDITORIA / INFRAESTRUTURA / MODELO
+**Status:** CONCLUIDO COM PENDENCIAS DE INTEGRACAO
+
+**Contexto:**
+A auditoria confirmou Debian 13.6, kernel 6.12.85, 2 vCPU, 7.8 GiB de RAM,
+4 GiB de swap, aproximadamente 65 GiB livres, Docker 29.5.2 e Compose 5.1.4.
+Os projetos `atendimento` e `rtk-renata` permaneceram sem alteracao.
+
+**Decisao/Acao:**
+A stack foi instalada em `/opt/automacao-miller` com volumes e rede proprios,
+n8n publicado somente em `127.0.0.1:25678`. O PostgreSQL, Ollama, conversor e
+renderizador nao possuem portas publicadas. O modelo `qwen2.5:3b` foi baixado,
+carregado e validado pelo endpoint HTTP interno a partir do container n8n.
+As portas UFW 3000, 5432, 8000 e 8080 foram removidas somente apos confirmacao
+de que nao havia listener nessas portas; SSH, HTTP, HTTPS e portas dos projetos
+existentes foram preservados.
+
+**Testes:**
+`docker compose config --quiet`, `docker compose ps`, health checks dos cinco
+servicos, readiness do n8n, health checks do conversor/renderizador, existencia
+das tabelas de rastreabilidade e inferencia HTTP do Ollama.
+
+**Pendencias:**
+Credenciais Google, IDs das pastas, destinatarios, importacao efetiva dos
+workflows e testes ponta a ponta continuam pendentes. A senha root usada nesta
+sessao foi exposta no contexto da tarefa e deve ser rotacionada imediatamente;
+o acesso root por senha nao deve ser desativado antes de validar uma chave SSH
+alternativa.
+
+**Impacto:**
+A homologacao possui infraestrutura operacional e isolada, mas ainda nao pode
+ser considerada aceita ponta a ponta sem Drive/Gmail autorizados.
 
 ## 10. Regra para o próximo agente
 

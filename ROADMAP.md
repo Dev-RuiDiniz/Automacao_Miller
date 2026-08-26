@@ -12,9 +12,9 @@
 
 ## 2. Status geral
 
-**Estado atual:** Fases 0–9 implementadas no repositório; implantação da homologação em andamento
+**Estado atual:** stack de homologação implantada; integrações Google e validação ponta a ponta pendentes
 **MVP:** definido  
-**Infraestrutura:** VPS auditada; stack Docker isolada versionada e aguardando implantação remota
+**Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
 **Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
@@ -62,13 +62,13 @@
 - [x] Provisionar/confirmar VPS
 - [ ] Atualizar sistema operacional
 - [ ] Configurar usuário administrativo adequado
-- [ ] Configurar firewall e acesso SSH
+- [x] Configurar firewall e acesso SSH
 - [x] Instalar Docker
 - [x] Instalar Docker Compose, se utilizado
-- [ ] Criar estrutura persistente de volumes
-- [ ] Configurar política de restart
-- [ ] Definir backup das configurações
-- [ ] Validar recursos disponíveis da VPS
+- [x] Criar estrutura persistente de volumes
+- [x] Configurar política de restart
+- [x] Definir backup das configurações
+- [x] Validar recursos disponíveis da VPS
 
 **Referência de infraestrutura:**
 
@@ -85,10 +85,10 @@
 
 **Objetivo:** disponibilizar a camada de orquestração.
 
-- [ ] Implantar n8n self-hosted
-- [ ] Configurar persistência
+- [x] Implantar n8n self-hosted
+- [x] Configurar persistência
 - [ ] Configurar credenciais fora do código
-- [ ] Validar acesso ao painel
+- [x] Validar acesso ao painel
 - [x] Definir workflow principal
 - [x] Definir tratamento de erros
 - [x] Definir estratégia de retry
@@ -105,14 +105,14 @@
 
 **Objetivo:** disponibilizar IA local compatível com a VPS.
 
-- [ ] Instalar Ollama
+- [x] Instalar Ollama
 - [x] Selecionar modelo inicial leve e quantizado
-- [ ] Registrar modelo e versão no `LOG.md`
-- [ ] Validar memória e CPU
-- [ ] Executar teste básico de inferência
-- [ ] Medir tempo aproximado de resposta
-- [ ] Definir timeout do workflow
-- [ ] Validar chamada do Ollama a partir do n8n
+- [x] Registrar modelo e versão no `LOG.md`
+- [x] Validar memória e CPU
+- [x] Executar teste básico de inferência
+- [x] Medir tempo aproximado de resposta
+- [x] Definir timeout do workflow
+- [x] Validar chamada do Ollama a partir do n8n
 
 **Gate de saída:** modelo local respondendo de forma estável no ambiente.
 
@@ -148,7 +148,7 @@
 - [x] Gerar representação Markdown com `## Página N`
 - [x] Preservar metadados básicos, hash e versão do conversor
 - [x] Criar contrato HTTP `/healthz` e `/v1/convert`
-- [ ] Implantar o serviço no Docker da VPS
+- [x] Implantar o serviço no Docker da VPS
 - [ ] Persistir o Markdown no Google Drive
 - [ ] Validar documentos de exemplo
 
@@ -189,8 +189,8 @@
 - [x] Diferenciar campos encontrados, ausentes e inconclusivos
 - [x] Gerar relatório
 - [x] Converter relatório para PDF
-- [ ] Validar legibilidade do PDF
-- [x] Salvar PDF no Google Drive
+- [x] Validar legibilidade do PDF
+- [ ] Salvar PDF no Google Drive (aguarda credencial Google)
 - [x] Associar relatório ao documento de origem
 
 **Gate de saída:** um documento processado produz PDF final válido e armazenado.
@@ -290,7 +290,7 @@
 - [x] Documentar credenciais necessárias sem expor segredos
 - [x] Documentar backup
 - [x] Documentar recuperação
-- [ ] Documentar modelo Ollama utilizado após benchmark na VPS
+- [x] Documentar modelo Ollama utilizado após benchmark na VPS
 - [x] Documentar workflow final
 - [x] Documentar serviço PDF → Markdown e gate n8n
 - [ ] Entregar arquivos e acessos definidos
@@ -339,7 +339,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | Marco | Resultado esperado | Status |
 |---|---|---|
 | M1 | Governança criada | DONE |
-| M2 | Ambiente Docker + n8n + Ollama operacional | DOING |
+| M2 | Ambiente Docker + n8n + Ollama operacional | DONE |
 | M3 | Entrada pelo Drive funcionando | TODO |
 | M4 | Extração + Markdown funcionando | TODO |
 | M5 | Análise estruturada funcionando | TODO |

@@ -741,6 +741,42 @@ Antes de iniciar qualquer tarefa:
 
 O agente não deve presumir que uma decisão ainda aberta já foi tomada.
 
+## 2026-09-06 — Landing privada e gateway de upload
+
+**Tipo:** ARQUITETURA / IMPLEMENTAÇÃO
+**Status:** IMPLEMENTADO LOCALMENTE; HOMOLOGAÇÃO PENDENTE
+
+**Contexto:**
+Foi solicitada uma entrada por navegador para envio de PDFs, acompanhamento por
+protocolo e download do relatório final, preservando o n8n como orquestrador.
+
+**Decisão/Ação:**
+Criados uma landing responsiva, um gateway FastAPI com tokens separado para
+acesso externo e interno, persistência PostgreSQL/volume, idempotência por
+SHA-256, endpoints de status/download e workflows n8n de intake e reconciliação.
+O Gmail permanece obrigatório além do download na landing.
+
+**Arquivos/Componentes afetados:**
+`infra/upload_gateway/`, `tests/upload_gateway/`, `docker-compose.yml`,
+`.env.example`, `workflows/automacao-regulatoria-intake-v1.json`,
+`workflows/automacao-regulatoria-completion-v1.json`, `PRD.md`, `ROADMAP.md` e
+`workflows/README.md`.
+
+**Testes:**
+`python -m pytest -q` passou com 22 testes. A validação Docker, importação dos
+workflows no n8n, configuração de tokens/Caddy e teste ponta a ponta permanecem
+pendentes.
+
+**Pendências:**
+Preservar a alteração local existente no Compose da VPS, configurar segredos no
+ambiente autorizado, importar/associar credenciais nos workflows e executar os
+cenários de Drive, Ollama, relatório e Gmail.
+
+**Impacto:**
+A entrada passa a ser assíncrona e rastreável, sem expor credenciais internas;
+o PDF original continua no Drive e o relatório só é baixado após status
+`concluido`.
+
 ## 2026-08-26 - Fechamento do MVP na homologacao
 
 Data: 2026-08-26

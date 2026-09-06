@@ -74,6 +74,7 @@ Componentes definidos para o projeto:
 - **Gmail:** envio automático dos relatórios;
 - **Docker:** empacotamento e implantação dos serviços;
 - **VPS Linux:** hospedagem do ambiente.
+- **Landing/API de upload:** entrada privada, protocolo, status e download controlado do relatório.
 
 Infraestrutura de referência apresentada na proposta:
 
@@ -108,6 +109,11 @@ Armazenamento no Google Drive
         ↓
 Envio automático por Gmail
 ```
+
+Quando o documento for enviado pela landing, o fluxo começa pelo gateway de
+upload, que persiste o arquivo, gera um protocolo e encaminha a execução ao
+n8n. O Google Drive continua sendo o armazenamento oficial do PDF original e
+dos artefatos do processamento.
 
 ---
 
@@ -192,6 +198,18 @@ Cada documento deve possuir estado de processamento identificável, permitindo d
 - aguardando revisão;
 - com erro.
 
+### RF-15 — Landing privada
+
+O sistema deve oferecer uma landing protegida por link privado para receber
+PDFs por seleção ou arrastar e soltar, retornar um protocolo, consultar o
+status assíncrono e liberar o relatório final para download quando concluído.
+
+### RF-16 — Gateway de upload
+
+O gateway deve validar o conteúdo do arquivo, calcular SHA-256, impedir
+duplicidade acidental, persistir o upload em volume controlado e encaminhar o
+protocolo ao n8n sem expor credenciais de integrações ao navegador.
+
 ---
 
 ## 8. Regras de negócio
@@ -243,6 +261,17 @@ Depois da conversão, o Markdown persistido é a única fonte documental permiti
 ### RN-12 — Status regulatório preservado
 
 O sistema deve diferenciar, no mínimo, `deferido`, `indeferido`, `cancelado` e `outro`. Um ato cancelado não pode ser incluído automaticamente como indeferido.
+
+### RN-13 — Acesso privado da landing
+
+As rotas de upload, consulta e download devem exigir o token do link privado.
+Rotas internas de arquivo e atualização de status devem exigir token separado
+e permanecer disponíveis somente na rede interna do Docker/VPS.
+
+### RN-14 — Download condicionado
+
+O relatório só pode ser liberado pela landing quando o processamento estiver
+`concluido` e o arquivo estiver dentro do volume de artefatos permitido.
 
 ---
 
@@ -371,7 +400,9 @@ O MVP poderá ser considerado entregue quando:
 13. um caso de falha de conversão impedir a extração e ser identificado;
 14. um caso de baixa confiança puder ser encaminhado para revisão;
 15. houver documentação mínima de operação;
-16. os testes de funcionamento definidos no repositório estiverem aprovados.
+16. os testes de funcionamento definidos no repositório estiverem aprovados;
+17. a landing protegida aceitar um PDF, gerar protocolo e mostrar seu status;
+18. o relatório final puder ser baixado somente após conclusão válida.
 
 ---
 

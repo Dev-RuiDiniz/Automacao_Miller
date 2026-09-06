@@ -63,6 +63,31 @@ services:
     mem_limit: 512m
     networks: [internal]
 
+  upload-gateway:
+    build:
+      context: .
+      dockerfile: infra/upload_gateway/Dockerfile
+    restart: unless-stopped
+    expose: ["8085"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-n8n}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-n8n}
+      UPLOAD_STORAGE_DIR: /data/submissions
+      LANDING_ACCESS_TOKEN: ${LANDING_ACCESS_TOKEN}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      N8N_SUBMISSION_WEBHOOK_URL: ${N8N_SUBMISSION_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-intake}
+    volumes:
+      - automacao_miller_submission_data:/data/submissions
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8085/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    networks: [internal]
+
   n8n:
     image: n8nio/n8n:2.30.5
     restart: unless-stopped
@@ -95,12 +120,15 @@ services:
       PDF_CONVERTER_BASE_URL: ${PDF_CONVERTER_BASE_URL:-http://pdf-converter:8080}
       PDF_CONVERTER_TIMEOUT_SECONDS: ${PDF_CONVERTER_TIMEOUT_SECONDS:-120}
       REPORT_RECIPIENTS: ${REPORT_RECIPIENTS}
+      UPLOAD_GATEWAY_BASE_URL: ${UPLOAD_GATEWAY_BASE_URL:-http://upload-gateway:8085}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
       WORKFLOW_TIMEOUT_SECONDS: ${WORKFLOW_TIMEOUT_SECONDS:-600000}
       EXECUTIONS_DATA_PRUNE: "true"
       EXECUTIONS_DATA_MAX_AGE: ${EXECUTIONS_DATA_MAX_AGE:-168}
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-America/Sao_Paulo}
     volumes:
       - automacao_miller_n8n_data:/home/node/.n8n
+      - automacao_miller_submission_data:/data/submissions
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,6 +151,7 @@ volumes:
   automacao_miller_postgres_data:
   automacao_miller_ollama_data:
   automacao_miller_n8n_data:
+  automacao_miller_submission_data:
 
 networks:
   internal:

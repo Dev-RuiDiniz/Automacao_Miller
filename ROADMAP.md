@@ -99,6 +99,25 @@
 
 **Gate de saída:** n8n estável e pronto para receber integrações.
 
+## Fase 2A — Landing e gateway de upload
+
+**Objetivo:** oferecer entrada privada por navegador, protocolo assíncrono e
+download controlado do relatório.
+
+- [x] Criar landing responsiva com seleção e arrastar/soltar
+- [x] Criar API de upload, status e download
+- [x] Validar token privado e token interno separado
+- [x] Calcular SHA-256 e impedir duplicidade acidental
+- [x] Persistir uploads e relatórios em volume compartilhado
+- [x] Criar workflow n8n de intake
+- [x] Criar workflow n8n de atualização de status
+- [ ] Configurar tokens no ambiente autorizado
+- [ ] Configurar Caddy/HTTPS para a landing
+- [ ] Validar fluxo de homologação ponta a ponta
+
+**Gate de saída:** um usuário autorizado consegue enviar um PDF, acompanhar o
+protocolo e baixar o relatório final sem acesso às credenciais internas.
+
 ---
 
 ## 7. Fase 3 — Ollama
@@ -261,6 +280,8 @@
 - [ ] Falha no Gmail
 - [ ] Documento duplicado
 - [ ] Reprocessamento autorizado
+- [ ] Entrada pela landing privada
+- [ ] Atualização de status e download do relatório pela landing
 
 ### Validação
 

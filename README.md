@@ -45,6 +45,10 @@ Envio automático por Gmail
 
 O fluxo é orquestrado pelo **n8n**. A análise é executada pelo **Ollama** no próprio servidor, reduzindo a dependência de APIs externas de IA e mantendo os documentos dentro do ambiente configurado para a operação.
 
+Na homologação, a entrada também pode ser feita por uma landing privada: o
+usuário envia ou arrasta um PDF, recebe um protocolo e acompanha o processamento
+até o download controlado do relatório final.
+
 ## Informações que podem ser organizadas
 
 Conforme o conteúdo de cada documento, o sistema pode estruturar:
@@ -121,6 +125,7 @@ O projeto está atualmente com a stack de homologação versionada e implantada 
 - [ROADMAP.md](ROADMAP.md) — fases, marcos, pendências e bloqueios.
 - [LOG.md](LOG.md) — decisões, alterações e memória operacional.
 - [AGENTS.md](AGENTS.md) — regras de atuação e governança do repositório.
+- [workflows/README.md](workflows/README.md) — operação dos workflows, incluindo a entrada da landing.
 
 ## Responsáveis
 

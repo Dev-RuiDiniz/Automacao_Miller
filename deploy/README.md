@@ -68,3 +68,13 @@ n8n e nunca entram nos exports versionados.
 Para atualizar um workflow exportado, preserve a configuracao anterior,
 importe o JSON e reassocie as credenciais no n8n. Depois valide docker compose
 ps, os health checks, o tunel SSH e uma execucao de PDF de teste.
+
+## Landing de upload
+
+O serviço `upload-gateway` atende a landing e utiliza o volume
+`automacao_miller_submission_data`, compartilhado com o n8n para disponibilizar
+relatórios concluídos. Configure `LANDING_ACCESS_TOKEN` para o link privado e
+`INTERNAL_API_TOKEN` para as chamadas internas. Importe os workflows de intake
+e conclusão descritos em `workflows/README.md` e associe as credenciais no n8n.
+O serviço deve ser publicado atrás de HTTPS/Caddy; não exponha diretamente a
+porta interna 8085.

@@ -41,3 +41,12 @@ atualizar o workflow, associe novamente as credenciais Google Drive, Gmail e
 PostgreSQL no n8n. Na versao homologada do n8n, o Drive usa fileFolder para
 busca, folderId e inputDataFieldName para upload, e o Gmail usa
 options.attachmentsUi.attachmentsBinary.
+
+## Landing privada
+
+Importe `automacao-regulatoria-intake-v1.json` e
+`automacao-regulatoria-completion-v1.json`. O intake salva o PDF recebido na
+pasta de entrada do Drive e o workflow de conclusão consulta o vínculo por
+SHA-256, copia o relatório para o volume compartilhado e atualiza o protocolo
+da landing. Mantenha ambos inativos até associar as credenciais e configurar
+`LANDING_ACCESS_TOKEN`, `INTERNAL_API_TOKEN` e as URLs internas no ambiente.

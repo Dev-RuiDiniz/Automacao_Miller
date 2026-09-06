@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agente Regulatório | Enviar documento</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, system-ui, sans-serif; color: #172033; background: #f4f7fb; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(680px, calc(100% - 32px)); padding: 42px 0; }
+    .eyebrow { color: #4666d8; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+    h1 { font-size: clamp(2rem, 6vw, 3.6rem); line-height: 1.02; margin: 12px 0; }
+    .intro { color: #5b6475; font-size: 1.05rem; line-height: 1.6; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 22px; padding: 26px; box-shadow: 0 18px 50px #23365b12; }
+    #dropzone { border: 2px dashed #b7c3dc; border-radius: 16px; padding: 42px 20px; text-align: center; cursor: pointer; transition: .2s; }
+    #dropzone.active, #dropzone:hover { border-color: #4666d8; background: #f4f6ff; }
+    #dropzone strong { display: block; font-size: 1.1rem; margin-bottom: 8px; }
+    #dropzone span { color: #697386; font-size: .9rem; }
+    button { border: 0; border-radius: 10px; padding: 12px 18px; background: #4666d8; color: white; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .hidden { display: none; }
+    #filename { margin: 16px 0; font-weight: 600; }
+    #message { margin-top: 18px; line-height: 1.5; }
+    .status { margin-top: 22px; padding: 16px; border-radius: 12px; background: #f4f7fb; }
+    .error { color: #b42318; } .success { color: #087443; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">DB Tecnologia</div>
+  <h1>Envie seu documento regulatório.</h1>
+  <p class="intro">Faça o upload de um PDF e acompanhe a preparação do relatório por protocolo.</p>
+  <section class="card">
+    <div id="dropzone" tabindex="0" role="button" aria-label="Selecionar PDF">
+      <strong>Arraste o PDF para cá</strong>
+      <span>ou clique para selecionar um arquivo de até 100 MB</span>
+      <input id="file" type="file" accept="application/pdf,.pdf" class="hidden">
+    </div>
+    <p id="filename"></p>
+    <button id="send" disabled>Enviar documento</button>
+    <div id="message" role="status"></div>
+    <div id="status" class="status hidden"></div>
+  </section>
+</main>
+<script>
+  const maxBytes = 100 * 1024 * 1024;
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token') || '';
+  const dropzone = document.querySelector('#dropzone');
+  const fileInput = document.querySelector('#file');
+  const send = document.querySelector('#send');
+  const filename = document.querySelector('#filename');
+  const message = document.querySelector('#message');
+  const statusBox = document.querySelector('#status');
+  let selected;
+  let protocol;
+  const headers = () => ({ 'X-Landing-Token': token });
+  function choose(file) {
+    message.className = '';
+    if (!file || !file.name.toLowerCase().endsWith('.pdf')) return message.textContent = 'Selecione um arquivo PDF.';
+    if (file.size > maxBytes) return message.textContent = 'O arquivo excede o limite de 100 MB.';
+    selected = file; filename.textContent = file.name; send.disabled = false; message.textContent = '';
+  }
+  dropzone.onclick = () => fileInput.click();
+  dropzone.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); };
+  fileInput.onchange = () => choose(fileInput.files[0]);
+  ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, e => { e.preventDefault(); dropzone.classList.add('active'); }));
+  ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, e => { e.preventDefault(); dropzone.classList.remove('active'); }));
+  dropzone.ondrop = e => choose(e.dataTransfer.files[0]);
+  send.onclick = async () => {
+    send.disabled = true; message.className = ''; message.textContent = 'Enviando documento...';
+    const body = new FormData(); body.append('file', selected);
+    try {
+      const response = await fetch('/api/v1/submissions', { method: 'POST', headers: headers(), body });
+      const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Não foi possível enviar o documento.');
+      protocol = data.submission_id; message.className = 'success'; message.textContent = `Protocolo: ${protocol}`; poll();
+    } catch (error) { message.className = 'error'; message.textContent = error.message; send.disabled = false; }
+  };
+  async function poll() {
+    const response = await fetch(`/api/v1/submissions/${protocol}`, { headers: headers() });
+    const data = await response.json(); if (!response.ok) return;
+    statusBox.classList.remove('hidden'); statusBox.innerHTML = `<strong>Status: ${data.status}</strong>${data.message ? `<br>${data.message}` : ''}`;
+    if (data.status === 'concluido') {
+      statusBox.innerHTML += `<br><br><a href="/api/v1/submissions/${protocol}/report?token=${encodeURIComponent(token)}">Baixar relatório PDF</a>`;
+    } else if (data.status !== 'erro' && data.status !== 'aguardando_revisao') setTimeout(poll, 4000);
+  }
+</script>
+</body>
+</html>

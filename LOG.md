@@ -597,6 +597,136 @@ Decisão:
 
 ---
 
+## 2026-08-26 — Implementacao da stack de homologacao
+
+**Tipo:** IMPLEMENTACAO / INFRAESTRUTURA
+**Status:** IMPLEMENTADO E IMPLANTADO NA VPS DE HOMOLOGACAO; INTEGRACOES GOOGLE PENDENTES
+
+**Contexto:**
+A VPS propria foi auditada antes da implantacao. O ambiente possui Debian 13,
+2 vCPU, 8 GB de RAM, 4 GB de swap, 99 GB de disco com aproximadamente 65 GB
+livres, Docker 29.5.2 e Docker Compose 5.1.4. Ja existem os projetos Docker
+`atendimento` e `rtk-renata`, com dois n8n ativos; eles nao devem ser alterados.
+
+**Decisao/Acao:**
+Criada a branch `feat/vps-staging-deployment`. Implementada stack isolada com
+n8n 2.30.5, PostgreSQL 15.18, Ollama 0.32.1, conversor PDF→Markdown e
+renderizador local de relatorios PDF. O modelo inicial definido e
+`qwen2.5:3b`, sujeito a benchmark de memoria e tempo na VPS. Adicionados
+controle de duplicidade por ID+SHA-256, tabela de rastreabilidade, retry de
+chamadas HTTP, workflow principal versionado e workflow separado de erros.
+
+**Arquivos afetados:**
+`docker-compose.yml`, `deploy/`, `infra/report_renderer/`,
+`infra/regulatory_analysis/`, `workflows/`, `prompts/`, `.env.example`,
+`tests/`, `README.md`, `ROADMAP.md` e `docs/checklists/acessos-e-responsaveis.md`.
+
+**Testes:**
+`python -m pytest -q` passou com 16 testes. Os dois exports n8n e o YAML do
+Compose foram validados localmente. A stack remota iniciou com todos os cinco
+servicos saudaveis; o endpoint interno do Ollama respondeu via n8n com
+`qwen2.5:3b` em aproximadamente 61 segundos no primeiro carregamento.
+
+**Pendencias:**
+Configurar credenciais Google Drive/Gmail dentro do n8n, preencher IDs de
+pastas e destinatarios, ativar o workflow principal e executar os cenarios da
+matriz. Os workflows foram importados com sucesso apos a criacao do usuario
+proprietario no n8n.
+
+**Impacto:**
+O repositorio passa a conter uma base executavel e isolada para homologacao,
+sem reutilizar volumes, portas publicas ou credenciais dos projetos existentes.
+
+## 2026-08-26 — Auditoria e implantacao da VPS de homologacao
+
+**Tipo:** AUDITORIA / INFRAESTRUTURA / MODELO
+**Status:** CONCLUIDO COM PENDENCIAS DE INTEGRACAO
+
+**Contexto:**
+A auditoria confirmou Debian 13.6, kernel 6.12.85, 2 vCPU, 7.8 GiB de RAM,
+4 GiB de swap, aproximadamente 65 GiB livres, Docker 29.5.2 e Compose 5.1.4.
+Os projetos `atendimento` e `rtk-renata` permaneceram sem alteracao.
+
+**Decisao/Acao:**
+A stack foi instalada em `/opt/automacao-miller` com volumes e rede proprios,
+n8n publicado somente em `127.0.0.1:25678`. O PostgreSQL, Ollama, conversor e
+renderizador nao possuem portas publicadas. O modelo `qwen2.5:3b` foi baixado,
+carregado e validado pelo endpoint HTTP interno a partir do container n8n.
+As portas UFW 3000, 5432, 8000 e 8080 foram removidas somente apos confirmacao
+de que nao havia listener nessas portas; SSH, HTTP, HTTPS e portas dos projetos
+existentes foram preservados.
+
+**Testes:**
+`docker compose config --quiet`, `docker compose ps`, health checks dos cinco
+servicos, readiness do n8n, health checks do conversor/renderizador, existencia
+das tabelas de rastreabilidade e inferencia HTTP do Ollama.
+
+**Pendencias:**
+Credenciais Google, IDs das pastas, destinatarios, ativacao dos workflows e
+testes ponta a ponta continuam pendentes. A senha root usada nesta
+sessao foi exposta no contexto da tarefa e deve ser rotacionada imediatamente;
+o acesso root por senha nao deve ser desativado antes de validar uma chave SSH
+alternativa.
+
+**Impacto:**
+A homologacao possui infraestrutura operacional e isolada, mas ainda nao pode
+ser considerada aceita ponta a ponta sem Drive/Gmail autorizados.
+
+## 2026-08-26 — Configuracao inicial do n8n
+
+**Tipo:** CONFIGURACAO / ACESSO
+**Status:** CONCLUIDO
+
+**Contexto:**
+O n8n novo exigiu a configuracao inicial de proprietario antes de aceitar a
+importacao por CLI.
+
+**Decisao/Acao:**
+Foi criada uma conta proprietaria administrativa fora do repositorio. O login
+foi testado pelo tunel SSH, e os workflows principal e de erros foram
+importados e mantidos inativos. O acesso deve ser entregue por canal seguro;
+nenhuma senha foi registrada no Git.
+
+**Testes:**
+Login HTTP 200 pelo tunel, listagem autenticada dos dois workflows com
+`active=false` e confirmacao dos IDs versionados.
+
+**Pendencias:**
+Associar credenciais OAuth do Google, configurar IDs das pastas e destinatarios
+e somente depois ativar o workflow principal.
+
+**Impacto:**
+O painel esta acessivel localmente e pronto para configuracao autorizada das
+integracoes, sem exposicao publica da porta 25678.
+
+## 2026-08-26 — Estrutura do Drive de homologação
+
+**Tipo:** INTEGRACAO / CONFIGURACAO
+**Status:** PASTAS CRIADAS; AUTORIZACAO OAUTH PENDENTE
+
+**Contexto:**
+Foi solicitada a preparação do Drive pessoal para o primeiro teste do MVP.
+
+**Decisão/Ação:**
+Criada a pasta principal `Automacao Miller - Homologacao` e as subpastas
+Entrada, Processamento, Concluídos, Revisão, Erros, Markdown e Relatórios.
+Os IDs foram gravados somente no `.env` protegido da VPS em
+`/opt/automacao-miller`; nenhum ID ou segredo foi incluído no Git. O destinatário
+de teste foi configurado como `rui.pdiniz@gmail.com`, e as credenciais Google
+foram associadas aos nós correspondentes do workflow principal.
+
+**Testes:**
+Listagem do Drive confirmou as sete subpastas. O `.env` remoto permaneceu com
+permissão 600 e o n8n reiniciou saudável após a configuração.
+
+**Pendências:**
+Concluir o consentimento OAuth no n8n, configurar a credencial PostgreSQL,
+validar os nós Google e executar o primeiro processamento real.
+
+**Impacto:**
+O ambiente de homologação está com a estrutura de armazenamento preparada,
+sem ativar o workflow antes da autorização e validação das integrações.
+
 ## 10. Regra para o próximo agente
 
 Antes de iniciar qualquer tarefa:
@@ -610,3 +740,45 @@ Antes de iniciar qualquer tarefa:
 7. ao terminar, atualizar esta memória.
 
 O agente não deve presumir que uma decisão ainda aberta já foi tomada.
+
+## 2026-08-26 - Fechamento do MVP na homologacao
+
+Data: 2026-08-26
+Tipo: INTEGRACAO / VALIDACAO / SEGURANCA
+Contexto: OAuth do Google, pastas do Drive, credencial PostgreSQL e workflow
+de erros estavam configurados na VPS de homologacao.
+Decisao/Acao: Corrigidos os parametros de compatibilidade do n8n 2.30.5 para
+busca, movimentacao e upload no Drive, multipart do conversor e anexo Gmail.
+O fluxo passou a persistir o Markdown antes da IA, reanexar o PDF do renderer
+antes do Gmail e decidir o estado somente depois do envio.
+Arquivos afetados: workflow principal, compose, contrato de implantacao e
+documentacao operacional.
+Testes: pytest local com 16 testes; PDF simples concluido com Markdown,
+relatorio e e-mail PDF; DOU 2026_08_24_ASSINADO_do1.pdf convertido com 128
+paginas e marcadores das paginas 71-75 e 79 conferidos. O DOU gerou relatorio
+e e-mail com anexo, mas ficou aguardando_revisao por baixa confianca. O banco
+registrou artefatos e nao houve erros persistidos em workflow_errors.
+Pendencias: revisao humana do DOU, simulacao dos erros externos, retomada
+apos falha, melhoria de inferencia para documentos extensos e rotacao da
+senha root exposta.
+Impacto: Homologacao funcional para o PDF simples e segura para o DOU,
+sem marcar conclusao quando a evidencia/regra de confianca nao permite.
+
+## 2026-08-26 - Verificacao final da stack
+
+Data: 2026-08-26
+Tipo: TESTE / OPERACAO
+Contexto: Foram feitas novas execucoes depois dos ajustes de roteamento,
+escopo de paginas e associacao de credenciais no n8n.
+Decisao/Acao: Mantido o DOU em Revisao, com Markdown integral, relatorio PDF
+e e-mail com anexo. O PDF simples concluido foi restaurado em Concluidos.
+Testes: Execucao final do DOU com confidence_status baixa_confianca,
+status aguardando_revisao e movimentacao para Revisao. Duplicidade final
+com documento concluido retornou ignored_duplicate sem chamar Ollama.
+docker compose ps mostrou os cinco servicos saudaveis; n8n permaneceu
+local-only e o workflow ativo com errorWorkflow associado. O healthz do n8n
+respondeu; conversor e renderer estavam saudaveis pelo Docker healthcheck.
+Pendencias: Os testes de falha externa e retomada ainda precisam de ambiente
+controlado. A revisao do DOU continua humana por politica de seguranca.
+Impacto: O criterio de nao concluir antes do envio foi preservado; o DOU nao
+foi falsamente aceito como classificacao regulatoria definitiva.

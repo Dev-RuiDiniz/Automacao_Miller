@@ -12,9 +12,9 @@
 
 ## 2. Status geral
 
-**Estado atual:** Fase 0 — preparação interna concluída; aguardando acessos e insumos externos  
+**Estado atual:** stack de homologação implantada; PDF simples validado ponta a ponta; DOU processado e encaminhado para revisão humana
 **MVP:** definido  
-**Infraestrutura:** definida em nível de proposta; conversor PDF → Markdown implementado e ainda não implantado
+**Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
 **Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
@@ -51,7 +51,7 @@
 
 **Gate de saída:** governança versionada e acessos mínimos identificados.
 
-**Status da fase:** preparação interna concluída. O gate final permanece pendente dos bloqueios externos `EXT-001` a `EXT-005`.
+**Status da fase:** preparação interna concluída. Os acessos de homologação foram validados; permanecem pendências de segurança, revisão humana e simulação de falhas.
 
 ---
 
@@ -59,16 +59,16 @@
 
 **Objetivo:** preparar o ambiente Linux para execução do sistema.
 
-- [ ] Provisionar/confirmar VPS
+- [x] Provisionar/confirmar VPS
 - [ ] Atualizar sistema operacional
 - [ ] Configurar usuário administrativo adequado
-- [ ] Configurar firewall e acesso SSH
-- [ ] Instalar Docker
-- [ ] Instalar Docker Compose, se utilizado
-- [ ] Criar estrutura persistente de volumes
-- [ ] Configurar política de restart
-- [ ] Definir backup das configurações
-- [ ] Validar recursos disponíveis da VPS
+- [x] Configurar firewall e acesso SSH
+- [x] Instalar Docker
+- [x] Instalar Docker Compose, se utilizado
+- [x] Criar estrutura persistente de volumes
+- [x] Configurar política de restart
+- [x] Definir backup das configurações
+- [x] Validar recursos disponíveis da VPS
 
 **Referência de infraestrutura:**
 
@@ -85,17 +85,17 @@
 
 **Objetivo:** disponibilizar a camada de orquestração.
 
-- [ ] Implantar n8n self-hosted
-- [ ] Configurar persistência
-- [ ] Configurar credenciais fora do código
-- [ ] Validar acesso ao painel
-- [ ] Definir workflow principal
-- [ ] Definir tratamento de erros
-- [ ] Definir estratégia de retry
-- [ ] Definir rastreabilidade por documento
-- [ ] Integrar gate HTTP PDF → Markdown
-- [ ] Persistir Markdown no Google Drive antes da extração
-- [ ] Impedir chamada ao Ollama antes da conversão validada
+- [x] Implantar n8n self-hosted
+- [x] Configurar persistência
+- [x] Configurar credenciais fora do código
+- [x] Validar acesso ao painel
+- [x] Definir workflow principal
+- [x] Definir tratamento de erros
+- [x] Definir estratégia de retry
+- [x] Definir rastreabilidade por documento
+- [x] Integrar gate HTTP PDF → Markdown
+- [x] Persistir Markdown no Google Drive antes da extração
+- [x] Impedir chamada ao Ollama antes da conversão validada
 
 **Gate de saída:** n8n estável e pronto para receber integrações.
 
@@ -105,14 +105,14 @@
 
 **Objetivo:** disponibilizar IA local compatível com a VPS.
 
-- [ ] Instalar Ollama
-- [ ] Selecionar modelo inicial leve e quantizado
-- [ ] Registrar modelo e versão no `LOG.md`
-- [ ] Validar memória e CPU
-- [ ] Executar teste básico de inferência
-- [ ] Medir tempo aproximado de resposta
-- [ ] Definir timeout do workflow
-- [ ] Validar chamada do Ollama a partir do n8n
+- [x] Instalar Ollama
+- [x] Selecionar modelo inicial leve e quantizado
+- [x] Registrar modelo e versão no `LOG.md`
+- [x] Validar memória e CPU
+- [x] Executar teste básico de inferência
+- [x] Medir tempo aproximado de resposta
+- [x] Definir timeout do workflow
+- [x] Validar chamada do Ollama a partir do n8n
 
 **Gate de saída:** modelo local respondendo de forma estável no ambiente.
 
@@ -122,16 +122,16 @@
 
 **Objetivo:** criar entrada automática e armazenamento dos resultados.
 
-- [ ] Configurar credenciais do Google Drive
-- [ ] Definir pasta de entrada
-- [ ] Definir pasta de processamento
-- [ ] Definir pasta de concluídos
-- [ ] Definir pasta de revisão
-- [ ] Definir pasta de erro
-- [ ] Configurar monitoramento de novos PDFs
-- [ ] Implementar controle contra duplicidade
-- [ ] Validar download do documento
-- [ ] Validar upload dos artefatos finais
+- [x] Configurar credenciais do Google Drive
+- [x] Definir pasta de entrada
+- [x] Definir pasta de processamento
+- [x] Definir pasta de concluídos
+- [x] Definir pasta de revisão
+- [x] Definir pasta de erro
+- [x] Configurar monitoramento de novos PDFs
+- [x] Implementar controle contra duplicidade
+- [x] Validar download do documento
+- [x] Validar upload dos artefatos finais
 
 **Gate de saída:** um PDF de teste pode entrar e ser recuperado automaticamente pelo workflow.
 
@@ -148,9 +148,9 @@
 - [x] Gerar representação Markdown com `## Página N`
 - [x] Preservar metadados básicos, hash e versão do conversor
 - [x] Criar contrato HTTP `/healthz` e `/v1/convert`
-- [ ] Implantar o serviço no Docker da VPS
-- [ ] Persistir o Markdown no Google Drive
-- [ ] Validar documentos de exemplo
+- [x] Implantar o serviço no Docker da VPS
+- [x] Persistir o Markdown no Google Drive
+- [x] Validar documentos de exemplo
 
 **Observação:** OCR comercial pago está fora do escopo inicial.
 
@@ -168,12 +168,12 @@
 - [x] Definir campos de medicamentos
 - [x] Definir campos de suplementos alimentares
 - [x] Definir campos de ensaios clínicos e tipo de produto relacionado
-- [ ] Identificar exigências
-- [ ] Identificar pendências
-- [ ] Definir política de evidência insuficiente
-- [ ] Definir controle de confiança
-- [ ] Definir regra de conteúdo contraditório
-- [ ] Definir regra de revisão humana
+- [x] Identificar exigências
+- [x] Identificar pendências
+- [x] Definir política de evidência insuficiente
+- [x] Definir controle de confiança
+- [x] Definir regra de conteúdo contraditório
+- [x] Definir regra de revisão humana
 - [ ] Criar conjunto de documentos de validação
 
 **Gate de saída:** saída estruturada consistente nos casos de referência.
@@ -184,14 +184,14 @@
 
 **Objetivo:** transformar a análise em artefato final padronizado.
 
-- [ ] Definir template do relatório
-- [ ] Mapear dados estruturados para o relatório
-- [ ] Diferenciar campos encontrados, ausentes e inconclusivos
-- [ ] Gerar relatório
-- [ ] Converter relatório para PDF
-- [ ] Validar legibilidade do PDF
-- [ ] Salvar PDF no Google Drive
-- [ ] Associar relatório ao documento de origem
+- [x] Definir template do relatório
+- [x] Mapear dados estruturados para o relatório
+- [x] Diferenciar campos encontrados, ausentes e inconclusivos
+- [x] Gerar relatório
+- [x] Converter relatório para PDF
+- [x] Validar legibilidade do PDF
+- [x] Salvar PDF no Google Drive
+- [x] Associar relatório ao documento de origem
 
 **Gate de saída:** um documento processado produz PDF final válido e armazenado.
 
@@ -201,14 +201,14 @@
 
 **Objetivo:** entregar automaticamente o relatório.
 
-- [ ] Configurar credenciais Gmail
-- [ ] Definir remetente autorizado
-- [ ] Definir destinatários/regras de destinatário
-- [ ] Criar assunto e corpo padrão
-- [ ] Anexar ou referenciar relatório conforme regra aprovada
-- [ ] Enviar e-mail de teste
+- [x] Configurar credenciais Gmail
+- [x] Definir remetente autorizado
+- [x] Definir destinatários/regras de destinatário
+- [x] Criar assunto e corpo padrão
+- [x] Anexar ou referenciar relatório conforme regra aprovada
+- [x] Enviar e-mail de teste
 - [ ] Tratar falha de envio
-- [ ] Impedir status `concluído` quando envio obrigatório falhar
+- [x] Impedir status `concluído` quando envio obrigatório falhar
 
 **Gate de saída:** relatório de teste enviado com sucesso.
 
@@ -218,13 +218,13 @@
 
 **Objetivo:** impedir falhas silenciosas e resultados inseguros.
 
-- [ ] Classificar tipos de erro
-- [ ] Implementar log mínimo por execução
-- [ ] Criar caminho de retry
-- [ ] Criar caminho de revisão humana
-- [ ] Criar status de baixa confiança
-- [ ] Criar status de erro técnico
-- [ ] Garantir que erro não seja interpretado como dado ausente
+- [x] Classificar tipos de erro
+- [x] Implementar log mínimo por execução
+- [x] Criar caminho de retry
+- [x] Criar caminho de revisão humana
+- [x] Criar status de baixa confiança
+- [x] Criar status de erro técnico
+- [x] Garantir que erro não seja interpretado como dado ausente
 - [ ] Validar comportamento de retomada
 
 **Gate de saída:** falhas e ambiguidades possuem destino claro.
@@ -241,12 +241,12 @@
 - [x] Conversor: PDF inválido
 - [x] Conversor: PDF sem camada textual
 - [x] API: health check e contrato de conversão
-- [ ] PDF válido
+- [x] PDF válido
 - [ ] PDF com status regulatório
 - [ ] PDF com medicamentos
 - [ ] PDF com suplementos
 - [ ] PDF com ensaios clínicos
-- [ ] PDF de referência DOU com 128 páginas
+- [x] PDF de referência DOU com 128 páginas
 - [ ] PDF de referência: medicamento deferido e indeferido
 - [ ] PDF de referência: suplemento deferido, cancelado e ausência de indeferido
 - [ ] PDF de referência: ensaio clínico relacionado a dispositivo
@@ -281,20 +281,20 @@
 
 **Objetivo:** deixar o sistema operável e rastreável.
 
-- [ ] Atualizar `PRD.md`
-- [ ] Atualizar `ROADMAP.md`
-- [ ] Consolidar `LOG.md`
+- [ ] Atualizar `PRD.md` (sem mudança de requisito prevista; revisar no fechamento)
+- [x] Atualizar `ROADMAP.md`
+- [x] Consolidar `LOG.md`
 - [ ] Revisar `AGENTS.md`
-- [ ] Documentar implantação
-- [ ] Documentar operação
-- [ ] Documentar credenciais necessárias sem expor segredos
-- [ ] Documentar backup
-- [ ] Documentar recuperação
-- [ ] Documentar modelo Ollama utilizado
-- [ ] Documentar workflow final
+- [x] Documentar implantação
+- [x] Documentar operação
+- [x] Documentar credenciais necessárias sem expor segredos
+- [x] Documentar backup
+- [x] Documentar recuperação
+- [x] Documentar modelo Ollama utilizado após benchmark na VPS
+- [x] Documentar workflow final
 - [x] Documentar serviço PDF → Markdown e gate n8n
 - [ ] Entregar arquivos e acessos definidos
-- [ ] Executar validação final
+- [x] Executar validação final técnica; aceite regulatório do DOU permanece em revisão humana
 
 **Gate de saída:** operação pode ser entendida por outro responsável técnico sem depender exclusivamente do desenvolvedor original.
 
@@ -326,11 +326,11 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 
 | ID | Bloqueio | Responsável | Status | Impacto |
 |---|---|---|---|---|
-| EXT-001 | Acesso à VPS | Cliente | TODO | Bloqueia infraestrutura |
-| EXT-002 | Acesso/credencial Google Drive | Cliente | TODO | Bloqueia integração |
-| EXT-003 | Acesso/credencial Gmail | Cliente | TODO | Bloqueia envio |
+| EXT-001 | Acesso à VPS | Cliente | DONE | VPS auditada; implantação em andamento |
+| EXT-002 | Acesso/credencial Google Drive | Cliente | DONE | OAuth validado e credencial configurada |
+| EXT-003 | Acesso/credencial Gmail | Cliente | DONE | OAuth validado e envio testado |
 | EXT-004 | PDFs reais/de exemplo | Cliente | DONE | Documentos recebidos; validação técnica segue na Fase 10 |
-| EXT-005 | Definição dos destinatários | Cliente | TODO | Bloqueia regra de envio |
+| EXT-005 | Definição dos destinatários | Cliente | DONE | Destinatário de homologação configurado |
 
 ---
 
@@ -339,15 +339,15 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | Marco | Resultado esperado | Status |
 |---|---|---|
 | M1 | Governança criada | DONE |
-| M2 | Ambiente Docker + n8n + Ollama operacional | TODO |
-| M3 | Entrada pelo Drive funcionando | TODO |
-| M4 | Extração + Markdown funcionando | TODO |
-| M5 | Análise estruturada funcionando | TODO |
-| M6 | Relatório + PDF funcionando | TODO |
-| M7 | Gmail funcionando | TODO |
-| M8 | Revisão humana + erros funcionando | TODO |
-| M9 | Testes ponta a ponta aprovados | TODO |
-| M10 | Documentação e entrega | TODO |
+| M2 | Ambiente Docker + n8n + Ollama operacional | DONE |
+| M3 | Entrada pelo Drive funcionando | DONE |
+| M4 | Extração + Markdown funcionando | DONE |
+| M5 | Análise estruturada funcionando | REVIEW |
+| M6 | Relatório + PDF funcionando | DONE |
+| M7 | Gmail funcionando | DONE |
+| M8 | Revisão humana + erros funcionando | REVIEW |
+| M9 | Testes ponta a ponta aprovados | REVIEW |
+| M10 | Documentação e entrega | DOING |
 
 ---
 
@@ -362,3 +362,31 @@ Ao concluir uma atividade:
 5. não apagar itens históricos — usar `CANCELLED` quando removidos do escopo.
 
 Este arquivo deve refletir a realidade do projeto, e não apenas a intenção inicial.
+## 20. Fechamento da homologacao - 2026-08-26
+
+Estado atualizado: stack Docker isolada operacional em /opt/automacao-miller,
+n8n local em 127.0.0.1:25678, PostgreSQL proprio, Ollama qwen2.5:3b,
+conversor e renderizador saudaveis. OAuth Drive/Gmail, pastas, destinatario,
+credencial PostgreSQL e workflow de erros configurados fora do Git.
+
+Concluido e validado:
+
+- [x] PDF simples ponta a ponta, com Markdown e relatorio salvos no Drive.
+- [x] PDF simples enviado ao Gmail com anexo PDF.
+- [x] Status simples concluido gravado como email_enviado somente apos envio.
+- [x] DOU convertido integralmente com page_count 128; paginas 71-75 e 79
+      presentes no Markdown e conferidas por marcadores de conteudo.
+- [x] DOU com relatorio PDF salvo no Drive e enviado ao Gmail com anexo.
+- [x] DOU encaminhado para aguardando_revisao e pasta Revisao, pois o modelo
+      retornou estrutura generica e a politica de confianca impediu conclusao.
+- [x] Duplicidade bloqueada por documento/hash, com reprocessamento operacional
+      autorizado sem apagar o historico.
+- [x] Export versionado sem credenciais; credenciais permanecem somente no n8n/VPS.
+
+Pendencias reais:
+
+- [ ] Rotacionar imediatamente a senha root exposta e validar chave SSH alternativa.
+- [ ] Executar a revisao humana do DOU e validar classificacoes e evidencias.
+- [ ] Ajustar a inferencia para classificacao completa de documentos extensos.
+- [ ] Simular falhas de Drive, Gmail, Ollama, PDF e renderizador e validar workflow_errors.
+- [ ] Validar retomada apos falha e manter autorizacao de reprocessamento no log operacional.

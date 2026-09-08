@@ -851,3 +851,37 @@ pela landing.
 **Impacto:**
 A interface não dependerá mais de credenciais na URL para o uso normal, sem
 remover o mecanismo legado antes da validação completa da homologação.
+
+## 2026-09-08 — Ativação do acesso da landing na VPS
+
+**Tipo:** DEPLOY / SEGURANÇA / TESTE
+**Status:** CONCLUÍDO; FLUXO DE DOCUMENTO PENDENTE
+
+**Contexto:**
+Após a implementação do login, foram geradas credenciais aleatórias de
+homologação e solicitada a ativação no servidor para permitir o teste da
+interface.
+
+**Decisão/Ação:**
+Preservado o `.env` anterior em backup restrito, configurados usuário, hash
+PBKDF2, segredo de sessão, tokens de integração e cookie seguro, atualizado o
+checkout da VPS para `de93fb9` e reconstruído o gateway. O hash foi protegido
+com aspas simples no `.env` porque contém `$`.
+
+**Arquivos/Componentes afetados:**
+`.env` protegido da VPS, backup `.env.before-auth-20260908`, gateway de upload,
+n8n e stack Docker de homologação. As credenciais de teste foram salvas apenas
+na Área de Trabalho local e no ambiente protegido do servidor.
+
+**Testes:**
+HTTPS: login `200`, upload protegido com sessão `200`, logout `200` e acesso
+posterior sem sessão `403`. Landing sem sessão retorna a página de login; n8n
+retorna readiness `200`; todos os seis serviços permanecem saudáveis.
+
+**Pendências:**
+Enviar um PDF autorizado pela landing e validar protocolo, processamento,
+relatório, download e os cenários de falha/retomada.
+
+**Impacto:**
+A landing agora possui acesso operacional por usuário e senha em HTTPS, sem
+expor a senha ou o hash no Git.

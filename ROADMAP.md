@@ -113,9 +113,9 @@ download controlado do relatório.
 - [x] Criar workflow n8n de atualização de status
 - [x] Criar página de acesso com usuário e senha
 - [x] Criar sessão HttpOnly, expiração e logout
-- [ ] Configurar usuário, hash da senha e segredo da sessão no ambiente autorizado
-- [ ] Configurar tokens no ambiente autorizado
-- [ ] Configurar Caddy/HTTPS para a landing
+- [x] Configurar usuário, hash da senha e segredo da sessão no ambiente autorizado
+- [x] Configurar tokens no ambiente autorizado
+- [x] Configurar Caddy/HTTPS para a landing
 - [ ] Validar fluxo de homologação ponta a ponta
 
 **Gate de saída:** um usuário autorizado consegue enviar um PDF, acompanhar o
@@ -414,3 +414,22 @@ Pendencias reais:
 - [ ] Ajustar a inferencia para classificacao completa de documentos extensos.
 - [ ] Simular falhas de Drive, Gmail, Ollama, PDF e renderizador e validar workflow_errors.
 - [ ] Validar retomada apos falha e manter autorizacao de reprocessamento no log operacional.
+
+## 21. Ativação do acesso da landing - 2026-09-08
+
+Estado atualizado: login por usuário e senha configurado na VPS, com sessão
+segura em HTTPS e compatibilidade mantida para o token legado.
+
+Concluído e validado:
+
+- [x] Credenciais aleatórias de homologação geradas e entregues em arquivo local protegido.
+- [x] `.env` da VPS atualizado com backup restrito anterior à alteração.
+- [x] Gateway reconstruído no commit `de93fb9`.
+- [x] Login, sessão, logout e bloqueio pós-logout validados pelo domínio HTTPS.
+- [x] n8n, gateway, conversor, renderer, PostgreSQL e Ollama saudáveis.
+
+Pendências reais:
+
+- [ ] Executar upload de um PDF de teste autorizado pela landing.
+- [ ] Confirmar protocolo, processamento, relatório e download pela interface.
+- [ ] Executar os cenários de falha externa e retomada já previstos.

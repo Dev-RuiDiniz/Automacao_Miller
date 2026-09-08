@@ -93,3 +93,7 @@ Use `AUTH_SESSION_TTL_SECONDS` para definir a duração da sessão e mantenha
 `SESSION_COOKIE_SECURE=true` quando o acesso estiver atrás de HTTPS. O token
 privado anterior continua disponível para compatibilidade, mas não substitui a
 configuração do login.
+
+O valor de `LANDING_PASSWORD_HASH` contém caracteres `$`; mantenha-o entre
+aspas simples no `.env` da VPS para impedir que o Docker Compose interprete
+partes do hash como variáveis de ambiente.

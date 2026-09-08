@@ -210,6 +210,15 @@ O gateway deve validar o conteúdo do arquivo, calcular SHA-256, impedir
 duplicidade acidental, persistir o upload em volume controlado e encaminhar o
 protocolo ao n8n sem expor credenciais de integrações ao navegador.
 
+### RF-17 — Acesso por usuário e senha
+
+A landing deve oferecer uma página de acesso com usuário e senha antes da tela
+de upload. As credenciais devem ser configuradas somente no ambiente autorizado;
+a senha deve ser armazenada como hash e a autenticação deve criar uma sessão
+segura em cookie. O acesso legado por token privado pode permanecer disponível
+para compatibilidade operacional, mas não deve expor o token na interface de
+login.
+
 ---
 
 ## 8. Regras de negócio
@@ -272,6 +281,13 @@ e permanecer disponíveis somente na rede interna do Docker/VPS.
 
 O relatório só pode ser liberado pela landing quando o processamento estiver
 `concluido` e o arquivo estiver dentro do volume de artefatos permitido.
+
+### RN-15 — Sessão de acesso
+
+A sessão da landing deve usar cookie `HttpOnly`, `SameSite=Lax`, prazo de
+expiração configurável e assinatura baseada em segredo do ambiente. O logout
+deve invalidar o cookie local. Usuário, hash da senha, segredo de sessão e
+tokens não podem ser versionados.
 
 ---
 

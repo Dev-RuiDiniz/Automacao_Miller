@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
+import hmac
+import json
 import os
 import secrets
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -11,13 +16,17 @@ from typing import Any, Protocol
 
 import httpx
 import psycopg
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
 STATUSES = {"recebido", "processando", "aguardando_revisao", "concluido", "erro"}
 STATIC_DIR = Path(__file__).with_name("static")
+SESSION_COOKIE_NAME = "landing_session"
+PASSWORD_HASH_SCHEME = "pbkdf2_sha256"
+PASSWORD_HASH_ITERATIONS = 310_000
+DEFAULT_SESSION_TTL_SECONDS = 8 * 60 * 60
 
 
 @dataclass
@@ -155,6 +164,11 @@ def settings() -> dict[str, str]:
         "storage_dir": os.getenv("UPLOAD_STORAGE_DIR", "/data/submissions"),
         "landing_token": os.getenv("LANDING_ACCESS_TOKEN", ""),
         "internal_token": os.getenv("INTERNAL_API_TOKEN", ""),
+        "landing_username": os.getenv("LANDING_USERNAME", ""),
+        "landing_password_hash": os.getenv("LANDING_PASSWORD_HASH", ""),
+        "session_secret": os.getenv("AUTH_SESSION_SECRET", ""),
+        "session_ttl_seconds": os.getenv("AUTH_SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TTL_SECONDS)),
+        "session_cookie_secure": os.getenv("SESSION_COOKIE_SECURE", "true"),
         "n8n_webhook_url": os.getenv("N8N_SUBMISSION_WEBHOOK_URL", ""),
     }
 
@@ -169,6 +183,83 @@ app = FastAPI(title="Regulatory Upload Gateway", version="1.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+def _b64encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _b64decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def hash_password(password: str, *, salt: bytes | None = None, iterations: int = PASSWORD_HASH_ITERATIONS) -> str:
+    password_bytes = password.encode("utf-8")
+    salt = salt or secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password_bytes, salt, iterations)
+    return f"{PASSWORD_HASH_SCHEME}${iterations}${_b64encode(salt)}${_b64encode(digest)}"
+
+
+def verify_password(password: str, encoded: str) -> bool:
+    try:
+        scheme, raw_iterations, raw_salt, raw_digest = encoded.split("$", 3)
+        if scheme != PASSWORD_HASH_SCHEME:
+            return False
+        iterations = int(raw_iterations)
+        if iterations < 100_000 or iterations > 2_000_000:
+            return False
+        salt = _b64decode(raw_salt)
+        expected = _b64decode(raw_digest)
+    except (TypeError, ValueError):
+        return False
+    actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    return secrets.compare_digest(actual, expected)
+
+
+def session_ttl_seconds() -> int:
+    try:
+        return max(300, min(int(settings()["session_ttl_seconds"]), 7 * 24 * 60 * 60))
+    except ValueError:
+        return DEFAULT_SESSION_TTL_SECONDS
+
+
+def session_cookie_secure() -> bool:
+    return settings()["session_cookie_secure"].strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _create_session(username: str) -> str:
+    secret = settings()["session_secret"]
+    issued_at = int(time.time())
+    payload = {"sub": username, "exp": issued_at + session_ttl_seconds()}
+    encoded_payload = _b64encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signature = hmac.new(secret.encode("utf-8"), encoded_payload.encode("ascii"), hashlib.sha256).digest()
+    return f"{encoded_payload}.{_b64encode(signature)}"
+
+
+def _session_username(request: Request) -> str | None:
+    secret = settings()["session_secret"]
+    raw_session = request.cookies.get(SESSION_COOKIE_NAME, "")
+    if not secret or "." not in raw_session:
+        return None
+    encoded_payload, supplied_signature = raw_session.split(".", 1)
+    expected_signature = hmac.new(secret.encode("utf-8"), encoded_payload.encode("ascii"), hashlib.sha256).digest()
+    try:
+        valid_signature = secrets.compare_digest(_b64decode(supplied_signature), expected_signature)
+        payload = json.loads(_b64decode(encoded_payload))
+    except (ValueError, TypeError, binascii.Error, json.JSONDecodeError):
+        return None
+    if not valid_signature or not isinstance(payload, dict):
+        return None
+    if not isinstance(payload.get("sub"), str) or not isinstance(payload.get("exp"), int):
+        return None
+    if payload["exp"] <= int(time.time()):
+        return None
+    return payload["sub"]
+
+
+def _valid_landing_token(supplied: str | None) -> bool:
+    expected = settings()["landing_token"]
+    return bool(expected and supplied and secrets.compare_digest(supplied, expected))
+
+
 @app.on_event("startup")
 def startup() -> None:
     Path(settings()["storage_dir"]).mkdir(parents=True, exist_ok=True)
@@ -176,13 +267,71 @@ def startup() -> None:
 
 
 def require_landing_access(
+    request: Request,
     x_landing_token: str | None = Header(default=None),
     token: str | None = None,
 ) -> None:
-    expected = settings()["landing_token"]
-    supplied = x_landing_token or token or ""
-    if not expected or not secrets.compare_digest(supplied, expected):
-        raise HTTPException(status_code=403, detail="Acesso privado inválido.")
+    if _valid_landing_token(x_landing_token or token) or _session_username(request):
+        return
+    raise HTTPException(status_code=403, detail="Acesso privado inválido.")
+
+
+def _auth_is_configured() -> bool:
+    config = settings()
+    return bool(config["landing_username"] and config["landing_password_hash"] and config["session_secret"])
+
+
+def _login_error(message: str, status_code: int = 401) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"detail": message})
+
+
+@app.post("/auth/login")
+def login(payload: dict[str, Any], response: Response) -> dict[str, Any]:
+    if not _auth_is_configured():
+        return _login_error("O acesso por usuário e senha ainda não foi configurado.", 503)
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+    configured_username = settings()["landing_username"]
+    username_matches = secrets.compare_digest(username, configured_username)
+    password_matches = verify_password(password, settings()["landing_password_hash"])
+    if not username_matches or not password_matches:
+        return _login_error("Usuário ou senha inválidos.")
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        _create_session(configured_username),
+        max_age=session_ttl_seconds(),
+        httponly=True,
+        secure=session_cookie_secure(),
+        samesite="lax",
+        path="/",
+    )
+    return {"ok": True, "redirect": "/upload"}
+
+
+@app.post("/auth/logout")
+def logout(response: Response) -> dict[str, bool]:
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return {"ok": True}
+
+
+@app.get("/")
+def landing_entry(request: Request) -> Response:
+    legacy_token = request.headers.get("X-Landing-Token") or request.query_params.get("token")
+    if _valid_landing_token(legacy_token):
+        return FileResponse(STATIC_DIR / "index.html")
+    if _session_username(request):
+        return RedirectResponse(url="/upload", status_code=303)
+    return FileResponse(STATIC_DIR / "login.html")
+
+
+@app.get("/upload", dependencies=[Depends(require_landing_access)])
+def landing() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok", "service": "upload-gateway"}
 
 
 def require_internal_access(x_internal_token: str | None = Header(default=None)) -> None:
@@ -200,16 +349,6 @@ def public_submission(item: Submission) -> dict[str, Any]:
         "updated_at": item.updated_at,
         "message": item.message,
     }
-
-
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
-    return {"status": "ok", "service": "upload-gateway"}
-
-
-@app.get("/", dependencies=[Depends(require_landing_access)])
-def landing() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.post("/api/v1/submissions", status_code=202, dependencies=[Depends(require_landing_access)])

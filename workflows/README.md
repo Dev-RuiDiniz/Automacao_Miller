@@ -50,3 +50,8 @@ pasta de entrada do Drive e o workflow de conclusão consulta o vínculo por
 SHA-256, copia o relatório para o volume compartilhado e atualiza o protocolo
 da landing. Mantenha ambos inativos até associar as credenciais e configurar
 `LANDING_ACCESS_TOKEN`, `INTERNAL_API_TOKEN` e as URLs internas no ambiente.
+
+A landing possui uma página de acesso com usuário e senha. Configure
+`LANDING_USERNAME`, `LANDING_PASSWORD_HASH` e `AUTH_SESSION_SECRET` somente na
+VPS; a senha é verificada por hash e a sessão usa cookie `HttpOnly`. O acesso
+por token continua disponível para compatibilidade e testes automatizados.

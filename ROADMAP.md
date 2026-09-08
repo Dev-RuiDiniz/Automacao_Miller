@@ -111,6 +111,9 @@ download controlado do relatório.
 - [x] Persistir uploads e relatórios em volume compartilhado
 - [x] Criar workflow n8n de intake
 - [x] Criar workflow n8n de atualização de status
+- [x] Criar página de acesso com usuário e senha
+- [x] Criar sessão HttpOnly, expiração e logout
+- [ ] Configurar usuário, hash da senha e segredo da sessão no ambiente autorizado
 - [ ] Configurar tokens no ambiente autorizado
 - [ ] Configurar Caddy/HTTPS para a landing
 - [ ] Validar fluxo de homologação ponta a ponta

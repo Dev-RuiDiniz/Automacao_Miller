@@ -818,3 +818,36 @@ Pendencias: Os testes de falha externa e retomada ainda precisam de ambiente
 controlado. A revisao do DOU continua humana por politica de seguranca.
 Impacto: O criterio de nao concluir antes do envio foi preservado; o DOU nao
 foi falsamente aceito como classificacao regulatoria definitiva.
+
+## 2026-09-08 — Acesso da landing por usuário e senha
+
+**Tipo:** SEGURANÇA / IMPLEMENTAÇÃO
+**Status:** IMPLEMENTADO LOCALMENTE; CONFIGURAÇÃO DA VPS PENDENTE
+
+**Contexto:**
+Foi solicitada uma página de acesso para a landing de homologação, que até
+então dependia apenas do token privado no link.
+
+**Decisão/Ação:**
+Adicionar login por usuário e senha com hash PBKDF2, sessão assinada em cookie
+`HttpOnly`, expiração configurável e logout. O token privado existente será
+mantido para compatibilidade operacional e testes automatizados. Nenhuma
+credencial real será criada ou versionada pelo repositório.
+
+**Arquivos afetados:**
+`infra/upload_gateway/`, `tests/upload_gateway/test_api.py`, `.env.example`,
+`docker-compose.yml`, `deploy/README.md`, `workflows/README.md`, `PRD.md` e
+`ROADMAP.md`.
+
+**Testes:**
+Serão executados casos de login válido, credencial inválida, sessão protegida,
+logout, expiração e compatibilidade com o token legado.
+
+**Pendências:**
+Configurar usuário, hash da senha, segredo de sessão e cookie seguro no `.env`
+da VPS; reconstruir o gateway; testar login, upload, acompanhamento e download
+pela landing.
+
+**Impacto:**
+A interface não dependerá mais de credenciais na URL para o uso normal, sem
+remover o mecanismo legado antes da validação completa da homologação.

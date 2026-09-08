@@ -78,3 +78,18 @@ relatórios concluídos. Configure `LANDING_ACCESS_TOKEN` para o link privado e
 e conclusão descritos em `workflows/README.md` e associe as credenciais no n8n.
 O serviço deve ser publicado atrás de HTTPS/Caddy; não exponha diretamente a
 porta interna 8085.
+
+### Acesso por usuário e senha
+
+A landing abre uma página de acesso antes do upload. Configure no `.env` da
+VPS `LANDING_USERNAME`, `LANDING_PASSWORD_HASH` e `AUTH_SESSION_SECRET`.
+Gere o hash sem registrar a senha no Git:
+
+```bash
+docker compose run --rm upload-gateway python -m infra.upload_gateway.password_hash
+```
+
+Use `AUTH_SESSION_TTL_SECONDS` para definir a duração da sessão e mantenha
+`SESSION_COOKIE_SECURE=true` quando o acesso estiver atrás de HTTPS. O token
+privado anterior continua disponível para compatibilidade, mas não substitui a
+configuração do login.

@@ -10,6 +10,11 @@ def make_client(tmp_path: Path) -> TestClient:
     gateway.store.initialize()
     gateway.os.environ["LANDING_ACCESS_TOKEN"] = "landing-test"
     gateway.os.environ["INTERNAL_API_TOKEN"] = "internal-test"
+    gateway.os.environ["LANDING_USERNAME"] = "operador"
+    gateway.os.environ["LANDING_PASSWORD_HASH"] = gateway.hash_password("senha-teste")
+    gateway.os.environ["AUTH_SESSION_SECRET"] = "session-secret-test"
+    gateway.os.environ["AUTH_SESSION_TTL_SECONDS"] = "3600"
+    gateway.os.environ["SESSION_COOKIE_SECURE"] = "false"
     gateway.os.environ.pop("N8N_SUBMISSION_WEBHOOK_URL", None)
     gateway.os.environ["UPLOAD_STORAGE_DIR"] = str(tmp_path)
     return TestClient(gateway.app)
@@ -17,9 +22,51 @@ def make_client(tmp_path: Path) -> TestClient:
 
 def test_landing_requires_private_token(tmp_path: Path) -> None:
     client = make_client(tmp_path)
-    assert client.get("/").status_code == 403
+    assert client.get("/").status_code == 200
+    assert client.get("/upload").status_code == 403
     response = client.post("/api/v1/submissions", files={"file": ("a.pdf", b"%PDF-1.7 test", "application/pdf")})
     assert response.status_code == 403
+
+
+def test_login_creates_session_and_unlocks_upload(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    invalid = client.post("/auth/login", json={"username": "operador", "password": "errada"})
+    assert invalid.status_code == 401
+    login = client.post("/auth/login", json={"username": "operador", "password": "senha-teste"})
+    assert login.status_code == 200
+    assert login.json() == {"ok": True, "redirect": "/upload"}
+    assert "HttpOnly" in login.headers["set-cookie"]
+    assert "SameSite=lax" in login.headers["set-cookie"]
+    assert client.get("/upload").status_code == 200
+
+
+def test_login_reports_missing_configuration(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    monkeypatch.delenv("LANDING_PASSWORD_HASH")
+    response = client.post("/auth/login", json={"username": "operador", "password": "senha-teste"})
+    assert response.status_code == 503
+
+
+def test_logout_removes_session(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    client.post("/auth/login", json={"username": "operador", "password": "senha-teste"})
+    assert client.get("/upload").status_code == 200
+    assert client.post("/auth/logout").status_code == 200
+    assert client.get("/upload").status_code == 403
+
+
+def test_expired_session_is_rejected(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    client.post("/auth/login", json={"username": "operador", "password": "senha-teste"})
+    original_time = gateway.time.time
+    monkeypatch.setattr(gateway.time, "time", lambda: original_time() + gateway.session_ttl_seconds() + 1)
+    assert client.get("/upload").status_code == 403
+
+
+def test_legacy_token_still_unlocks_upload(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    assert client.get("/?token=landing-test").status_code == 200
+    assert client.get("/upload?token=landing-test").status_code == 200
 
 
 def test_upload_returns_protocol_and_status(tmp_path: Path) -> None:

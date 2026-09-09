@@ -23,7 +23,7 @@ docker run --rm \
 
 for migration in 002_internal_repository.sql 003_panel_operations.sql; do
   docker compose -f "${COMPOSE_FILE}" exec -T postgres \
-    sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+    sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
     < "${STACK_DIR}/deploy/postgres/init/${migration}"
 done
 

@@ -153,7 +153,7 @@ BEGIN
             dp.status, 'migracao_legacy', dp.attempt_count, dp.started_at, dp.updated_at,
             dp.completed_at, dp.markdown_file_id, dp.report_file_id, COALESCE(dp.updated_at, NOW())
         FROM automacao_miller.document_processing dp
-        ON CONFLICT (submission_id) DO NOTHING;
+        ON CONFLICT DO NOTHING;
 
         INSERT INTO automacao_miller.processing_attempts (
             submission_id, attempt_number, execution_id, current_stage, status,

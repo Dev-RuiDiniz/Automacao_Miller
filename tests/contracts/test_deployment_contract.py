@@ -82,6 +82,16 @@ def test_internal_repository_schema_contract() -> None:
     assert "UNIQUE (submission_id, artifact_type, version)" in schema
 
 
+def test_reconciliation_returns_protocols_for_dispatch() -> None:
+    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-reconcile-v1.json").read_text(encoding="utf-8"))
+    query = next(node for node in workflow["nodes"] if node["name"] == "State - Find pending documents")["parameters"]["query"]
+    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch pending document")
+
+    assert query.startswith("WITH reset_deliveries AS")
+    assert "SELECT submission_id FROM reset" in query
+    assert "submission_id: $json.submission_id" in dispatch["parameters"]["jsonBody"]
+
+
 def test_manual_delivery_schema_and_workflow_contract() -> None:
     schema = (ROOT / "deploy" / "postgres" / "init" / "003_panel_operations.sql").read_text(encoding="utf-8")
     for table in ("report_recipients", "document_recipients", "email_deliveries"):

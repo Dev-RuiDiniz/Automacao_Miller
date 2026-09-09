@@ -1078,3 +1078,35 @@ validar conversão, Ollama, relatório, revisão, envio manual e download.
 **Impacto:**
 O workflow deixa de depender da saída vazia do nó de auditoria para localizar o
 PDF original.
+
+## 2026-09-09 — Correção da reconciliação de protocolos pendentes
+
+**Tipo:** BUG / WORKFLOW / HOMOLOGAÇÃO
+**Status:** CORRIGIDO NO REPOSITÓRIO; REPUBLICAÇÃO E RETESTE PENDENTES
+
+**Contexto:**
+Durante a retomada do documento de homologação, a reconciliação executava várias
+sentenças SQL no mesmo nó e o n8n não entregava o resultado final ao nó HTTP.
+Isso causava chamadas internas sem `submission_id` e tentativas inválidas.
+
+**Decisão/Ação:**
+A consulta foi consolidada em CTEs com um `SELECT` final único, mantendo a
+recuperação de entregas e documentos presos e garantindo que cada item enviado
+ao webhook contenha o protocolo. Foi adicionada uma asserção de contrato.
+
+**Arquivos afetados:**
+`workflows/automacao-regulatoria-reconcile-v1.json` e
+`tests/contracts/test_deployment_contract.py`.
+
+**Testes:**
+`python -m pytest -q` passou com 38 testes e os exports JSON foram validados.
+Na VPS, os logs confirmaram o sintoma anterior: chamadas de reconciliação
+chegavam ao fluxo interno sem protocolo.
+
+**Pendências:**
+Republicar a reconciliação, reativá-la após o teste manual e concluir o fluxo
+ponta a ponta com revisão, envio Gmail e download.
+
+**Impacto:**
+A reconciliação passa a produzir uma fila explícita de protocolos e deixa de
+disparar execuções inválidas.

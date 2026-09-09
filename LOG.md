@@ -1151,3 +1151,14 @@ Arquivos afetados: `docker-compose.yml`, `.env.example`, `deploy/README.md`, `wo
 Testes: A executar após recriação do serviço n8n na VPS e nova execução ponta a ponta.
 Pendências: Retomar o processamento do PDF sintético de homologação e validar artefatos, envio manual e download.
 Impacto: Permite que os nós de leitura e escrita de arquivos usem o repositório interno sem expor caminhos ao navegador.
+
+## 2026-09-09 — Correção de contexto e tamanho dos artefatos internos
+
+Data: 2026-09-09
+Tipo: Correção de homologação
+Contexto: Com o acesso ao volume liberado, o processamento chegou à persistência dos artefatos. O registro do Markdown ainda usava dados de um nó anterior e o tamanho do PDF renderizado chegava como texto formatado, causando chave `undefined` e valor `NaN` no PostgreSQL.
+Decisão/Ação: Fazer o registro do Markdown consultar o nó que cria as chaves internas e calcular o tamanho do relatório a partir do buffer binário antes da persistência.
+Arquivos afetados: `workflows/automacao-regulatoria-internal-v1.json` e `tests/contracts/test_deployment_contract.py`.
+Testes: A executar localmente e na VPS após republicação do workflow.
+Pendências: Confirmar processamento completo, envio manual pelo Gmail, download e cenários de falha/retomada.
+Impacto: O pipeline passa a registrar chaves e tamanhos numéricos consistentes para Markdown, análise e relatório.

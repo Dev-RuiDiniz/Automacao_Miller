@@ -74,6 +74,12 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert "n8n-nodes-base.googleDrive" not in node_types
     assert "automacao_miller.documents" in next(node for node in workflow["nodes"] if node["name"] == "State - Claim document")["parameters"]["query"]
     assert "/data/artifacts/" in " ".join(json.dumps(node["parameters"]) for node in workflow["nodes"])
+    markdown_state = next(node for node in workflow["nodes"] if node["name"] == "State - Markdown persisted")
+    assert "Internal Storage - Prepare keys" in markdown_state["parameters"]["query"]
+    report_file = next(node for node in workflow["nodes"] if node["name"] == "Prepare report file")
+    assert "getBinaryDataBuffer" in report_file["parameters"]["jsCode"]
+    report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
+    assert "$json.report_size_bytes" in report_state["parameters"]["query"]
 
 
 def test_internal_repository_schema_contract() -> None:

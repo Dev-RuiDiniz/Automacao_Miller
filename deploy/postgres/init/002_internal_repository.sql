@@ -165,6 +165,11 @@ BEGIN
             COALESCE(dp.started_at, dp.updated_at, NOW()), dp.completed_at
         FROM automacao_miller.document_processing dp
         WHERE dp.attempt_count > 0
+          AND EXISTS (
+              SELECT 1
+              FROM automacao_miller.documents d
+              WHERE d.submission_id = dp.source_document_id
+          )
         ON CONFLICT (submission_id, attempt_number) DO NOTHING;
     END IF;
 END $$;

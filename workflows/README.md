@@ -7,10 +7,13 @@ inativos até a validação no n8n:
 
 1. `automacao-regulatoria-internal-v1.json` — recebe o protocolo, reivindica o
    documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
-   artefatos, envia o relatório por Gmail e atualiza o status;
-2. `automacao-regulatoria-internal-reconcile-v1.json` — recupera documentos
+   artefatos e deixa o documento em `aguardando_envio` ou `aguardando_revisao`;
+2. `automacao-regulatoria-send-report-v1.json` — recebe a solicitação manual do
+   painel, reivindica a entrega, lê o relatório do volume, envia pelo Gmail e
+   marca `concluido` somente após sucesso;
+3. `automacao-regulatoria-internal-reconcile-v1.json` — recupera documentos
    presos em processamento e redispara pendências;
-3. `automacao-regulatoria-internal-error-v1.json` — registra categoria, etapa,
+4. `automacao-regulatoria-internal-error-v1.json` — registra categoria, etapa,
    execução, tentativa e mensagem no PostgreSQL.
 
 Os exports `automacao-regulatoria-v1.json`, `automacao-regulatoria-intake-v1.json`,
@@ -34,7 +37,8 @@ O gateway e o n8n compartilham `/data/artifacts`, proveniente do volume Docker
 
 O PostgreSQL é a fonte de verdade. As tabelas principais são
 `documents`, `artifacts`, `processing_attempts`, `analysis_results`,
-`human_reviews` e `workflow_errors`. Os workflows devem gravar somente chaves
+`human_reviews`, `workflow_errors`, `report_recipients`, `document_recipients` e
+`email_deliveries`. Os workflows devem gravar somente chaves
 relativas, nunca caminhos absolutos.
 
 Associe no n8n apenas as credenciais PostgreSQL e Gmail. Nenhum ID de credencial
@@ -50,7 +54,18 @@ do PostgreSQL. Para autorizar reprocessamento, registre a decisão em
 
 Resultados com baixa confiança, contradição ou evidência insuficiente ficam em
 `aguardando_revisao`. O relatório pode ser gerado para análise humana, mas o
-download público só é liberado quando o PostgreSQL indicar `concluido`.
+download oficial só é liberado quando o PostgreSQL indicar `concluido`. O
+operador visualiza o PDF, Markdown e JSON pelo painel autenticado antes de
+solicitar o envio.
+
+## Painel e envio manual
+
+O gateway oferece `/upload` para a fila, `/new` para upload,
+`/submissions/{id}/view` para o detalhe e `/settings/recipients` para a lista
+de destinatários. As APIs autenticadas mantêm os destinatários padrão e o
+snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
+`submission_id` e `delivery_id`; não consulta pastas do Drive e não usa
+`REPORT_RECIPIENTS` como fonte operacional.
 
 ## Documentos extensos
 
@@ -65,7 +80,7 @@ Configure `LANDING_ACCESS_TOKEN`, `INTERNAL_API_TOKEN`,
 `UPLOAD_GATEWAY_BASE_URL` no ambiente protegido. Gmail e PostgreSQL devem ser
 associados após a importação dos exports.
 
-Para consultar ou reprocessar, use o protocolo e as tabelas internas. Não use
+Para consultar ou reprocessar, use o painel, o protocolo e as tabelas internas. Não use
 pastas do Drive para representar estados. Arquivos antigos do Drive não são
 apagados automaticamente e só podem entrar por procedimento de importação
 controlada futuro.

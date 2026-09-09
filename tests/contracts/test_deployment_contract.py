@@ -64,7 +64,8 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert workflow["id"] == "automacao-regulatoria-internal"
     assert workflow["active"] is False
     assert workflow["settings"]["errorWorkflow"] == "automacao-regulatoria-internal-error-handler"
-    assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "Gmail - Send report", "State - Human review"} <= names
+    assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "State - Human review", "Post-report confidence gate", "State - Awaiting manual send"} <= names
+    assert "Gmail - Send report" not in names
     assert "n8n-nodes-base.googleDrive" not in node_types
     assert "automacao_miller.documents" in next(node for node in workflow["nodes"] if node["name"] == "State - Claim document")["parameters"]["query"]
     assert "/data/artifacts/" in " ".join(json.dumps(node["parameters"]) for node in workflow["nodes"])
@@ -77,6 +78,18 @@ def test_internal_repository_schema_contract() -> None:
     assert "ADD COLUMN IF NOT EXISTS submission_id" in schema
     assert "legacy_report_file_id" in schema
     assert "UNIQUE (submission_id, artifact_type, version)" in schema
+
+
+def test_manual_delivery_schema_and_workflow_contract() -> None:
+    schema = (ROOT / "deploy" / "postgres" / "init" / "003_panel_operations.sql").read_text(encoding="utf-8")
+    for table in ("report_recipients", "document_recipients", "email_deliveries"):
+        assert f"CREATE TABLE IF NOT EXISTS automacao_miller.{table}" in schema
+    assert "aguardando_envio" in schema
+    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-send-report-v1.json").read_text(encoding="utf-8"))
+    names = {node["name"] for node in workflow["nodes"]}
+    assert workflow["active"] is False
+    assert {"Panel - Request report send", "State - Claim email delivery", "Gmail - Send report", "State - Report sent"} <= names
+    assert "report_recipients" in (ROOT / "infra" / "upload_gateway" / "app.py").read_text(encoding="utf-8")
 
 
 def test_reconciliation_and_internal_error_workflows_are_database_driven() -> None:

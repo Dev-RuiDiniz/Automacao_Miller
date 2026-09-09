@@ -80,6 +80,7 @@ services:
       AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:-28800}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       N8N_SUBMISSION_WEBHOOK_URL: ${N8N_SUBMISSION_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-internal}
+      N8N_REPORT_EMAIL_WEBHOOK_URL: ${N8N_REPORT_EMAIL_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-send-report}
     volumes:
       - automacao_miller_artifacts_data:/data/artifacts
     depends_on:

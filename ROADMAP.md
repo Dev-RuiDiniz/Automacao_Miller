@@ -146,6 +146,27 @@ download controlado do relatório.
 **Gate de saída:** um usuário autorizado consegue enviar um PDF, acompanhar o
 protocolo e baixar o relatório final sem acesso às credenciais internas.
 
+## Fase 2C — Painel operacional e envio manual
+
+**Objetivo:** permitir que o operador autenticado acompanhe os protocolos,
+confira os artefatos, mantenha destinatários e controle a entrega por Gmail.
+
+- [x] Criar fila com indicadores, busca, filtros e estados vazios
+- [x] Criar detalhe com metadados, linha do tempo, tentativas e erros
+- [x] Criar visualização autenticada de PDF, Markdown e JSON
+- [x] Criar cadastro de destinatários padrão e substituição por documento
+- [x] Criar revisão humana com liberação ou reprocessamento
+- [x] Criar tabelas de destinatários e entregas no PostgreSQL
+- [x] Separar o envio manual em workflow n8n próprio
+- [x] Bloquear download oficial antes da confirmação do Gmail
+- [ ] Aplicar schema e migrar destinatários na homologação
+- [ ] Validar envio real, falha, retry e auditoria no Gmail
+- [ ] Liberar o painel após backup e validação ponta a ponta
+
+**Gate de saída:** operador autenticado consegue revisar um relatório, escolher
+destinatários, solicitar uma única entrega, confirmar o resultado e baixar o
+PDF somente após `concluido`.
+
 ---
 
 ## 7. Fase 3 — Ollama
@@ -253,16 +274,16 @@ documentos.
 
 ## 12. Fase 8 — Gmail
 
-**Objetivo:** entregar automaticamente o relatório.
+**Objetivo:** entregar o relatório mediante solicitação manual do operador.
 
 - [x] Configurar credenciais Gmail
 - [x] Definir remetente autorizado
-- [x] Definir destinatários/regras de destinatário
+- [x] Definir a estrutura de destinatários padrão e por documento
 - [x] Criar assunto e corpo padrão
 - [x] Anexar ou referenciar relatório conforme regra aprovada
 - [x] Enviar e-mail de teste
 - [ ] Tratar falha de envio
-- [x] Impedir status `concluído` quando envio obrigatório falhar
+- [x] Impedir status `concluído` quando o envio solicitado falhar
 
 **Gate de saída:** relatório de teste enviado com sucesso.
 
@@ -400,11 +421,12 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | M4 | Extração + Markdown funcionando | DONE |
 | M5 | Análise estruturada funcionando | REVIEW |
 | M6 | Relatório + PDF funcionando | DONE |
-| M7 | Gmail funcionando | DONE |
+| M7 | Gmail funcionando na homologação histórica | DONE |
 | M8 | Revisão humana + erros funcionando | REVIEW |
 | M9 | Testes ponta a ponta aprovados | REVIEW |
 | M10 | Documentação e entrega | DOING |
 | M11 | Repositório interno landing-only implementado | REVIEW |
+| M12 | Painel operacional e envio manual implementados | REVIEW |
 
 ---
 

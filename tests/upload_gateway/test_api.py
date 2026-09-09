@@ -169,3 +169,65 @@ def test_internal_status_rejects_invalid_token_and_status(tmp_path: Path) -> Non
         json={"status": "desconhecido"},
     )
     assert invalid.status_code == 422
+
+
+def test_operational_pages_require_session_or_private_token(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    for path in ("/upload", "/new", "/settings/recipients"):
+        assert client.get(path).status_code == 403
+    headers = {"X-Landing-Token": "landing-test"}
+    for path in ("/upload", "/new", "/settings/recipients"):
+        assert client.get(path, headers=headers).status_code == 200
+
+
+def test_queue_detail_and_internal_artifact_viewers(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
+    submission_id = created["submission_id"]
+    markdown = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    analysis = tmp_path / "objects" / "aa" / "bb" / "analysis-v1.json"
+    markdown.parent.mkdir(parents=True)
+    markdown.write_text("# Evidência", encoding="utf-8")
+    analysis.write_text('{"confidence": 0.91}', encoding="utf-8")
+    gateway.store.artifacts[submission_id].extend([
+        {"artifact_id": 2, "artifact_type": "markdown", "version": 1, "storage_key": str(markdown.relative_to(tmp_path)).replace("\\", "/"), "sha256": "a" * 64, "size_bytes": markdown.stat().st_size, "mime_type": "text/markdown", "created_at": gateway.now()},
+        {"artifact_id": 3, "artifact_type": "analysis_json", "version": 1, "storage_key": str(analysis.relative_to(tmp_path)).replace("\\", "/"), "sha256": "b" * 64, "size_bytes": analysis.stat().st_size, "mime_type": "application/json", "created_at": gateway.now()},
+    ])
+    queue = client.get("/api/v1/submissions", headers=headers)
+    assert queue.status_code == 200 and queue.json()["total"] == 1
+    detail = client.get(f"/api/v1/submissions/{submission_id}", headers=headers)
+    assert detail.status_code == 200 and len(detail.json()["artifacts"]) == 3
+    assert client.get(f"/api/v1/submissions/{submission_id}/artifacts/markdown", headers=headers).text == "# Evidência"
+    assert client.get(f"/api/v1/submissions/{submission_id}/artifacts/analysis_json", headers=headers).json()["confidence"] == 0.91
+    assert client.get(f"/submissions/{submission_id}/view", headers=headers).status_code == 200
+
+
+def test_recipients_are_validated_deduplicated_and_used_for_manual_send(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    saved = client.put("/api/v1/settings/report-recipients", headers=headers, json={"recipients": ["OPS@EXAMPLE.COM", "ops@example.com", {"email": "review@example.com", "label": "Revisão"}]})
+    assert saved.status_code == 200
+    assert [item["email"] for item in saved.json()["items"]] == ["ops@example.com", "review@example.com"]
+    assert client.put("/api/v1/settings/report-recipients", headers=headers, json={"recipients": ["invalid"]}).status_code == 422
+    created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
+    submission_id = created["submission_id"]
+    gateway.store.update(submission_id, status="aguardando_envio")
+    monkeypatch.setattr(gateway, "dispatch_webhook", lambda *_args, **_kwargs: None)
+    sent = client.post(f"/api/v1/submissions/{submission_id}/send-report", headers=headers, json={"recipients": ["custom@example.com", "CUSTOM@example.com"]})
+    assert sent.status_code == 202
+    assert sent.json()["delivery"]["recipient_emails"] == ["custom@example.com"]
+    assert client.post(f"/api/v1/submissions/{submission_id}/send-report", headers=headers, json={"recipients": ["custom@example.com"]}).status_code == 409
+
+
+def test_human_review_can_release_or_request_reprocessing(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
+    submission_id = created["submission_id"]
+    gateway.store.update(submission_id, status="aguardando_revisao")
+    monkeypatch.setattr(gateway, "dispatch_webhook", lambda *_args, **_kwargs: None)
+    response = client.post(f"/api/v1/submissions/{submission_id}/review", headers=headers, json={"decision": "liberar_envio", "notes": "Evidências conferidas."})
+    assert response.status_code == 200
+    assert response.json()["submission"]["status"] == "aguardando_envio"
+    assert client.post(f"/api/v1/submissions/{submission_id}/review", headers=headers, json={"decision": "reprocessar", "notes": ""}).status_code == 409

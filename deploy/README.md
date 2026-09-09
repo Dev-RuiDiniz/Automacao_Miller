@@ -39,6 +39,10 @@ docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB
   < deploy/postgres/init/002_internal_repository.sql
 ```
 
+Em uma instalação já existente, aplique também
+`deploy/postgres/init/003_panel_operations.sql` para criar destinatários,
+destinatários por documento, entregas de e-mail e o status `aguardando_envio`.
+
 ## Repositório e permissões
 
 O volume novo `automacao_miller_artifacts_data` é montado em
@@ -61,10 +65,15 @@ Google Drive não são apagados.
 
 ## Workflows
 
-Importe os três exports internos descritos em `workflows/README.md`:
-processamento, reconciliação e erros. Associe somente PostgreSQL e Gmail,
-configure o webhook interno e valide uma execução completa antes de ativar os
+Importe os quatro exports internos descritos em `workflows/README.md`:
+processamento, envio manual, reconciliação e erros. Associe somente PostgreSQL
+e Gmail, configure os webhooks `N8N_SUBMISSION_WEBHOOK_URL` e
+`N8N_REPORT_EMAIL_WEBHOOK_URL` e valide uma execução completa antes de ativar os
 workflows. Os exports que usam Drive devem permanecer inativos como histórico.
+
+O processamento termina em `aguardando_envio`. O operador confere os artefatos
+no painel, escolhe os destinatários e solicita o envio. O download oficial fica
+bloqueado até o workflow registrar a confirmação do Gmail e `concluido`.
 
 ## Operação e backup
 

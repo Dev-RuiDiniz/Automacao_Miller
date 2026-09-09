@@ -17,7 +17,7 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 - Identifica informações regulatórias relevantes quando elas estão presentes no documento.
 - Estrutura os resultados para facilitar a leitura e a conferência.
 - Gera relatórios padronizados em PDF.
-- Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e envia o resultado por Gmail.
+- Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e permite o envio manual por Gmail após conferência.
 - Sinaliza baixa confiança, ambiguidade, contradições e falhas para revisão humana.
 - Mantém o processamento rastreável, com estados de recebido, em processamento, concluído, aguardando revisão ou com erro.
 
@@ -40,7 +40,11 @@ Relatório padronizado
         ↓
 PDF final no volume privado
         ↓
-Envio automático por Gmail
+Documento em aguardando envio
+        ↓
+Conferência no painel
+        ↓
+Envio manual por Gmail e liberação do download
 ```
 
 O fluxo é orquestrado pelo **n8n**. A análise é executada pelo **Ollama** no próprio servidor, reduzindo a dependência de APIs externas de IA e mantendo os documentos dentro do ambiente configurado para a operação.
@@ -54,6 +58,12 @@ Os arquivos ficam organizados por SHA-256 em
 `objects/ab/cd/<sha256>/original.pdf`, com versões de Markdown, análise JSON e
 relatório PDF no mesmo diretório. O banco guarda somente chaves relativas,
 estados, tentativas, erros, análises e revisões humanas.
+
+O painel autenticado em `/upload` apresenta a fila, os indicadores e os detalhes
+de cada protocolo. O operador pode abrir o PDF, Markdown e JSON, registrar uma
+revisão, configurar destinatários padrão e solicitar o envio. O relatório só
+fica disponível para download oficial depois que o workflow manual confirmar o
+envio no Gmail e marcar o documento como `concluido`.
 
 ## Informações que podem ser organizadas
 
@@ -74,8 +84,8 @@ A ausência de uma informação é diferenciada de uma falha técnica de leitura
 
 ### Usuário operacional
 
-Envia documentos pela landing privada e consulta os relatórios gerados, os
-estados do processamento e os casos encaminhados para revisão.
+Envia documentos pela landing privada, opera a fila, confere artefatos,
+seleciona destinatários e solicita o envio dos relatórios.
 
 ### Revisor humano
 
@@ -109,7 +119,10 @@ O MVP foi dimensionado inicialmente para uma infraestrutura de baixo custo, suje
 
 O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs iniciado pela landing, a persistência operacional em PostgreSQL, o armazenamento interno em volume privado, a integração com Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização para revisão humana, os testes e a documentação de operação.
 
-Não fazem parte do escopo inicial OCR comercial pago, painel administrativo personalizado, aplicativo mobile, fine-tuning, modelo proprietário, revisão jurídica, responsabilidade técnica regulatória ou integrações não descritas na proposta.
+Não fazem parte do escopo inicial OCR comercial pago, aplicativo mobile,
+fine-tuning, modelo proprietário, revisão jurídica, responsabilidade técnica
+regulatória ou integrações não descritas na proposta. O painel operacional
+autenticado faz parte da entrada e da operação do MVP.
 
 ## Implantação e próximos passos
 

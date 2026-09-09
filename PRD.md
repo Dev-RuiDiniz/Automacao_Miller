@@ -17,7 +17,7 @@ Na homologação anterior, a entrada e os artefatos ainda passavam pelo Google D
 Esta é a arquitetura aprovada para a próxima implementação; a migração deve
 ser concluída antes de considerar o repositório interno como operacional.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado, gerar um PDF final, armazenar os arquivos em volume privado do Docker e enviar o resultado automaticamente por Gmail. O PostgreSQL será a fonte de verdade dos metadados, estados, tentativas, erros e vínculos entre documento e artefatos.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado e gerar um PDF final. O PostgreSQL será a fonte de verdade dos metadados, estados, tentativas, erros, vínculos, destinatários e entregas; o volume privado do Docker armazenará os arquivos. O envio por Gmail será solicitado manualmente pelo operador após a conferência dos artefatos.
 
 A IA deve atuar como ferramenta de apoio à leitura, classificação, organização e geração de relatórios. O sistema **não substitui análise humana especializada** em questões jurídicas, médicas ou regulatórias.
 
@@ -77,7 +77,7 @@ Componentes definidos para o projeto:
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
 - **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
-- **Gmail:** envio automático dos relatórios;
+- **Gmail:** envio manual do relatório após a aprovação operacional;
 - **Docker:** empacotamento e implantação dos serviços;
 - **VPS Linux:** hospedagem do ambiente.
 - **Landing/API de upload:** entrada privada, protocolo, status e download controlado do relatório.
@@ -113,7 +113,13 @@ Conversão para PDF
         ↓
 Armazenamento do relatório no volume privado e registro no PostgreSQL
         ↓
-Envio automático por Gmail
+Documento em aguardando_envio
+        ↓
+Conferência interna de PDF, Markdown e JSON
+        ↓
+Envio manual por Gmail
+        ↓
+Documento concluído e download oficial liberado
 ```
 
 Quando o documento for enviado pela landing, o gateway persiste atomicamente o
@@ -199,9 +205,14 @@ relatório associados ao PDF de origem, devem ser salvos no volume privado do
 Docker. O PostgreSQL deve registrar o tipo, caminho interno, hash, tamanho e
 vínculo de cada artefato.
 
-### RF-12 — Envio por e-mail
+### RF-12 — Envio manual por e-mail
 
-O PDF final deve ser enviado automaticamente pelo Gmail conforme destinatários e regras configuradas no workflow.
+Depois de gerar e persistir o PDF final, o workflow deve colocar o documento em
+`aguardando_envio`. O operador autenticado deve visualizar os artefatos,
+selecionar os destinatários padrão ou substituí-los para aquele documento e
+solicitar o envio pelo Gmail. O status só pode mudar para `concluido` após a
+confirmação do Gmail; uma falha deve ser registrada em `email_deliveries` e
+permitir nova tentativa controlada.
 
 ### RF-13 — Tratamento de erros
 
@@ -217,17 +228,31 @@ Cada documento deve possuir estado de processamento identificável, permitindo d
 - aguardando revisão;
 - com erro.
 
-### RF-15 — Landing privada
+### RF-15 — Painel operacional autenticado
 
-O sistema deve oferecer uma landing protegida por link privado para receber
-PDFs por seleção ou arrastar e soltar, retornar um protocolo, consultar o
-status assíncrono e liberar o relatório final para download quando concluído.
+O sistema deve oferecer login por sessão, painel de fila com busca, filtros,
+indicadores, detalhes do protocolo, linha do tempo, tentativas, erros, revisão
+humana e configuração de destinatários. O detalhe deve permitir visualizar o
+relatório PDF, o Markdown e o JSON da análise antes do envio.
 
 ### RF-16 — Gateway de upload
 
 O gateway deve validar o conteúdo do arquivo, calcular SHA-256, impedir
 duplicidade acidental, persistir o upload em volume controlado e encaminhar o
 protocolo ao n8n sem expor credenciais de integrações ao navegador.
+
+### RF-17 — Download e visualização controlados
+
+As visualizações autenticadas podem ocorrer enquanto o documento aguarda envio
+ou revisão. O download oficial do relatório deve responder somente quando o
+documento estiver em `concluido`; nenhuma chave absoluta ou caminho do volume
+pode ser exposto ao navegador.
+
+### RF-18 — Destinatários e auditoria de entrega
+
+O sistema deve manter destinatários padrão ativos ou inativos, destinatários
+específicos por documento e um snapshot de cada solicitação de envio, com
+status, execução, tentativa, erro, responsável e datas.
 
 ### RF-17 — Acesso por usuário e senha
 
@@ -389,7 +414,7 @@ O projeto contempla:
 - geração de relatórios;
 - conversão para PDF;
 - armazenamento automático;
-- envio automático por e-mail;
+- envio manual por e-mail após conferência no painel;
 - tratamento básico de erros;
 - regra para revisão humana;
 - testes;
@@ -434,13 +459,15 @@ O MVP poderá ser considerado entregue quando:
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
 11. o PDF final for armazenado no volume privado e associado ao documento no PostgreSQL;
-12. o e-mail automático for enviado pelo Gmail;
-13. um caso de falha de conversão impedir a extração e ser identificado;
-14. um caso de baixa confiança puder ser encaminhado para revisão;
-15. houver documentação mínima de operação;
-16. os testes de funcionamento definidos no repositório estiverem aprovados;
-17. a landing protegida aceitar um PDF, gerar protocolo e mostrar seu status;
-18. o relatório final puder ser baixado somente após conclusão válida.
+12. o relatório puder ser visualizado internamente antes do envio;
+13. o envio manual for confirmado pelo Gmail e registrado no PostgreSQL;
+14. um caso de falha de conversão impedir a extração e ser identificado;
+15. um caso de baixa confiança puder ser encaminhado para revisão;
+16. a fila, o detalhe, os destinatários e a revisão forem operáveis pela sessão autenticada;
+17. houver documentação mínima de operação;
+18. os testes de funcionamento definidos no repositório estiverem aprovados;
+19. a landing protegida aceitar um PDF, gerar protocolo e mostrar seu status;
+20. o relatório final puder ser baixado somente após conclusão válida.
 
 ---
 

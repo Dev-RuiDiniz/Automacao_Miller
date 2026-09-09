@@ -975,3 +975,41 @@ então ativar o processamento interno.
 O PostgreSQL passa a controlar o ciclo de vida do documento e o volume privado
 passa a ser o repositório operacional. Pastas e IDs do Drive deixam de
 representar estados; arquivos históricos do Drive permanecem preservados.
+
+## 2026-09-09 — Painel operacional e envio manual
+
+**Tipo:** FUNCIONAL / ARQUITETURA / IMPLEMENTAÇÃO
+**Status:** IMPLEMENTADO NO REPOSITÓRIO; HOMOLOGAÇÃO PENDENTE
+
+**Contexto:**
+Foi definido que o operador deve conferir o relatório antes do envio e escolher
+os destinatários pela interface, mantendo a landing como única origem oficial.
+
+**Decisão/Ação:**
+Criado painel autenticado com fila, indicadores, detalhe de protocolo, linha do
+tempo, histórico, visualização de PDF, Markdown e JSON, revisão humana e tela de
+destinatários padrão. O relatório agora permanece em `aguardando_envio` até uma
+solicitação manual. Criadas as tabelas `report_recipients`,
+`document_recipients` e `email_deliveries`, as rotas de operação e o workflow
+n8n separado para reivindicar a entrega e enviar pelo Gmail. O download oficial
+continua bloqueado até o status `concluido`.
+
+**Arquivos afetados:**
+`infra/upload_gateway/app.py`, `infra/upload_gateway/static/`,
+`deploy/postgres/init/003_panel_operations.sql`, `docker-compose.yml`,
+`.env.example`, `workflows/`, `tests/`, `PRD.md`, `ROADMAP.md`,
+`README.md`, `workflows/README.md` e `deploy/README.md`.
+
+**Testes:**
+Testes de contrato e API cobrem autenticação, fila, artefatos, duplicidade de
+destinatários, envio concorrente e revisão. A validação real do PostgreSQL,
+n8n e Gmail ainda depende da homologação autorizada.
+
+**Pendências:**
+Aplicar a migração 003, importar o workflow de envio, migrar destinatários,
+fazer backup conjunto e validar envio, falha, retry e download ponta a ponta.
+
+**Impacto:**
+O envio passa a ser uma decisão operacional auditável. O painel exibe os
+artefatos internos sem expor caminhos do volume e o Gmail deixa de determinar
+sozinho o fluxo de novos documentos.

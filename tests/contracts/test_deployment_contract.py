@@ -16,6 +16,9 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "ARTIFACT_STORAGE_DIR" in compose
     assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
     assert "automacao_miller_submission_data:" in compose
+    assert '"${ARTIFACTS_GID:-10002}"' in compose
+    entrypoint = (ROOT / "infra" / "upload_gateway" / "entrypoint.sh").read_text(encoding="utf-8")
+    assert "chmod 2770" in entrypoint
 
 
 def test_workflow_export_is_valid_and_contains_required_stages() -> None:

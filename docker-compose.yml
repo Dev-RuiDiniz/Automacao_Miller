@@ -83,6 +83,8 @@ services:
       N8N_REPORT_EMAIL_WEBHOOK_URL: ${N8N_REPORT_EMAIL_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-send-report}
     volumes:
       - automacao_miller_artifacts_data:/data/artifacts
+    group_add:
+      - "${ARTIFACTS_GID:-10002}"
     depends_on:
       postgres:
         condition: service_healthy

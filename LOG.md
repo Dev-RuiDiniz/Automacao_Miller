@@ -1228,3 +1228,33 @@ produtiva deve ocorrer em janela de manutenção previamente aprovada.
 
 **Impacto:** O manifesto passa a identificar corretamente o banco PostgreSQL
 sem alterar os dados do backup.
+
+## 2026-09-09 — Ajuste para documentos extensos no Ollama
+
+**Tipo:** BUG / IA / HOMOLOGAÇÃO
+**Status:** CORRIGIDO; RETESTE EM EXECUÇÃO
+
+**Contexto:** O PDF `2026_08_24_ASSINADO_do1.pdf`, com 128 páginas e
+24.053.052 bytes, foi recebido e convertido para Markdown com 1.585.605 bytes.
+Na primeira análise, o Ollama devolveu somente uma resposta parcial de 134
+caracteres, que não era JSON válido, e a tentativa ficou registrada como erro.
+
+**Decisão/Ação:** Limitar o contexto enviado ao Ollama a 18.000 caracteres,
+preservando as páginas de referência e um aviso para revisão humana; definir
+`num_predict=2048`; remover cercas Markdown antes da validação JSON; e aplicar
+bit setgid nos diretórios do volume para manter o grupo compartilhado entre n8n
+e gateway.
+
+**Arquivos afetados:** `workflows/automacao-regulatoria-internal-v1.json`,
+`infra/upload_gateway/entrypoint.sh`, `docker-compose.yml` e
+`tests/contracts/test_deployment_contract.py`.
+
+**Testes:** 38 testes locais aprovados antes do reteste; a falha original foi
+reproduzida na execução 5756 e classificada na etapa `Normalize AI response`.
+
+**Pendências:** Republicar os ajustes na VPS e confirmar a geração do relatório
+com o documento real.
+
+**Impacto:** Documentos extensos deixam de exceder silenciosamente o contexto
+do modelo; quando a evidência for reduzida, o resultado continuará sinalizado
+para revisão humana.

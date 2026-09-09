@@ -1013,3 +1013,36 @@ fazer backup conjunto e validar envio, falha, retry e download ponta a ponta.
 O envio passa a ser uma decisão operacional auditável. O painel exibe os
 artefatos internos sem expor caminhos do volume e o Gmail deixa de determinar
 sozinho o fluxo de novos documentos.
+
+## 2026-09-09 — Publicação em homologação da VPS
+
+**Tipo:** DEPLOY / HOMOLOGAÇÃO
+**Status:** PUBLICADO; TESTE PONTA A PONTA PENDENTE
+
+**Contexto:**
+O branch `feat/landing-upload` foi integrado em `main` e a atualização foi
+solicitada para teste na VPS de homologação.
+
+**Decisão/Ação:**
+`main` foi publicado no GitHub. Na VPS, o checkout foi atualizado para o commit
+`5263c50` do painel e depois para os ajustes de migração subsequentes. Foi feito
+backup conjunto do PostgreSQL e do volume, o volume legado foi copiado para o
+repositório interno, as migrações do schema foram aplicadas, os serviços foram
+reconstruídos e os quatro workflows internos foram importados como inativos.
+
+**Testes:**
+Todos os serviços Docker ficaram saudáveis, o gateway respondeu `200` no
+health check e as tabelas `report_recipients`, `document_recipients` e
+`email_deliveries` foram confirmadas no PostgreSQL. O backup gerou manifestos
+no diretório protegido da VPS.
+
+**Pendências:**
+Associar as credenciais PostgreSQL e Gmail aos workflows importados, migrar os
+destinatários atuais para a tela, executar upload real, revisar artefatos,
+enviar pelo Gmail e confirmar o download após `concluido`. Os workflows foram
+mantidos inativos até essa validação.
+
+**Impacto:**
+A versão merged está disponível na VPS sem apagar o volume antigo ou os
+arquivos históricos do Drive. A ativação permanece controlada para evitar
+processamento sem credenciais e sem validação operacional.

@@ -12,7 +12,7 @@
 
 ## 2. Status geral
 
-**Estado atual:** stack de homologação implantada; PDF simples validado ponta a ponta; DOU processado e encaminhado para revisão humana; arquitetura de repositório interno aprovada para a próxima evolução
+**Estado atual:** stack de homologação implantada; repositório interno e painel publicados; workflows internos ativos; validação ponta a ponta em andamento após correção do caminho do PDF entre as etapas do n8n
 **MVP:** definido  
 **Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
 **Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
@@ -115,14 +115,14 @@ um repositório interno controlado pelo PostgreSQL e por volume privado do Docke
 - [x] Criar reconciliação de documentos presos e workflow de erros interno
 - [x] Criar rotina de backup conjunto e migração controlada do volume antigo
 - [ ] Validar upload, reprocessamento, revisão e download no repositório interno
-- [ ] Executar backup e cópia dos dados na VPS de homologação
-- [ ] Ativar workflows internos após validação ponta a ponta
+- [x] Executar backup e cópia dos dados na VPS de homologação
+- [x] Ativar workflows internos após associação das credenciais e desativação dos históricos
 
 **Gate de saída:** o processamento completo ocorre sem depender do Google Drive
 para armazenar ou organizar os arquivos.
 
-**Status da fase:** implementação versionada; homologação, backup e ativação
-pendentes.
+**Status da fase:** backup, migração e ativação inicial concluídos; validação
+ponta a ponta e correções de homologação em andamento.
 
 ## Fase 2A — Landing e gateway de upload
 
@@ -159,7 +159,7 @@ confira os artefatos, mantenha destinatários e controle a entrega por Gmail.
 - [x] Criar tabelas de destinatários e entregas no PostgreSQL
 - [x] Separar o envio manual em workflow n8n próprio
 - [x] Bloquear download oficial antes da confirmação do Gmail
-- [ ] Aplicar schema e migrar destinatários na homologação
+- [x] Aplicar schema e migrar destinatários na homologação
 - [ ] Validar envio real, falha, retry e auditoria no Gmail
 - [ ] Liberar o painel após backup e validação ponta a ponta
 

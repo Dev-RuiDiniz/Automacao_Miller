@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "filePath": "={{ '/data/artifacts/' + $json.source_storage_key }}",
+        "filePath": "={{ '/data/artifacts/' + $('Claim guard').item.json.source_storage_key }}",
         "dataPropertyName": "data"
       },
       "id": "read-source",

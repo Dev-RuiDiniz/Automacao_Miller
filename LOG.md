@@ -1046,3 +1046,35 @@ mantidos inativos até essa validação.
 A versão merged está disponível na VPS sem apagar o volume antigo ou os
 arquivos históricos do Drive. A ativação permanece controlada para evitar
 processamento sem credenciais e sem validação operacional.
+
+## 2026-09-09 — Correção do contexto de armazenamento no workflow interno
+
+**Tipo:** BUG / WORKFLOW / HOMOLOGAÇÃO
+**Status:** CORRIGIDO NO REPOSITÓRIO; REPUBLICAÇÃO E RETESTE PENDENTES
+
+**Contexto:**
+O primeiro upload pela API autenticada alcançou o workflow interno e criou a
+tentativa no PostgreSQL, mas a leitura do PDF falhou porque o nó de registro da
+tentativa não devolve os campos do documento ao próximo nó.
+
+**Decisão/Ação:**
+O nó de leitura passou a obter `source_storage_key` diretamente do `Claim guard`,
+preservando o contexto original entre a auditoria no PostgreSQL e a leitura do
+volume privado. Foi adicionada uma asserção de contrato para impedir a regressão.
+
+**Arquivos afetados:**
+`workflows/automacao-regulatoria-internal-v1.json` e
+`tests/contracts/test_deployment_contract.py`.
+
+**Testes:**
+`python -m pytest -q` passou com 37 testes; exports JSON e `git diff --check`
+foram validados. A execução na VPS confirmou o erro original em
+`Internal Storage - Read PDF` com `/data/artifacts/undefined`.
+
+**Pendências:**
+Republicar o workflow corrigido na VPS, reprocessar o documento de homologação e
+validar conversão, Ollama, relatório, revisão, envio manual e download.
+
+**Impacto:**
+O workflow deixa de depender da saída vazia do nó de auditoria para localizar o
+PDF original.

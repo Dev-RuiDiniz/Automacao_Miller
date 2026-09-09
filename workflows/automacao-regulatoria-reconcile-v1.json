@@ -1,6 +1,6 @@
 {
   "name": "Automacao Regulatoria - Reconciliação Interna",
-  "id": "automacao-regulatoria-internal-reconcile",
+  "id": "automacao-reg-internal-reconcile",
   "active": false,
   "settings": {
     "executionOrder": "v1",

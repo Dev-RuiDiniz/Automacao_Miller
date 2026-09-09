@@ -63,7 +63,7 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
 
     assert workflow["id"] == "automacao-regulatoria-internal"
     assert workflow["active"] is False
-    assert workflow["settings"]["errorWorkflow"] == "automacao-regulatoria-internal-error-handler"
+    assert workflow["settings"]["errorWorkflow"] == "automacao-reg-error-handler"
     assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "State - Human review", "Post-report confidence gate", "State - Awaiting manual send"} <= names
     assert "Gmail - Send report" not in names
     assert "n8n-nodes-base.googleDrive" not in node_types

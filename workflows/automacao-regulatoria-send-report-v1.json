@@ -8,7 +8,7 @@
     "saveExecutionProgress": true,
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none",
-    "errorWorkflow": "automacao-regulatoria-internal-error-handler"
+    "errorWorkflow": "automacao-reg-error-handler"
   },
   "nodes": [
     {

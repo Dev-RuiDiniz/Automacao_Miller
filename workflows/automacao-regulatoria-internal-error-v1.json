@@ -1,6 +1,6 @@
 {
   "name": "Automacao Regulatoria - Erros Internos",
-  "id": "automacao-regulatoria-internal-error-handler",
+  "id": "automacao-reg-error-handler",
   "active": false,
   "settings": {"executionOrder": "v1", "saveManualExecutions": true, "saveDataErrorExecution": "all", "saveDataSuccessExecution": "none"},
   "nodes": [

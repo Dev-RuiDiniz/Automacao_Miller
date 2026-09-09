@@ -1162,3 +1162,14 @@ Arquivos afetados: `workflows/automacao-regulatoria-internal-v1.json` e `tests/c
 Testes: A executar localmente e na VPS após republicação do workflow.
 Pendências: Confirmar processamento completo, envio manual pelo Gmail, download e cenários de falha/retomada.
 Impacto: O pipeline passa a registrar chaves e tamanhos numéricos consistentes para Markdown, análise e relatório.
+
+## 2026-09-09 — Correção do tamanho do artefato de análise
+
+Data: 2026-09-09
+Tipo: Correção de homologação
+Contexto: A análise era gravada corretamente no volume, mas o registro PostgreSQL consultava um nó anterior à criação de `analysis_size_bytes`, deixando o tamanho como zero.
+Decisão/Ação: Ajustar a persistência para usar o contexto do nó `Prepare analysis file`, que contém a chave e o tamanho calculados do JSON.
+Arquivos afetados: `workflows/automacao-regulatoria-internal-v1.json` e `tests/contracts/test_deployment_contract.py`.
+Testes: A executar localmente e na VPS após republicação.
+Pendências: Retestar o documento, concluir envio Gmail, download e recuperação.
+Impacto: O catálogo de artefatos passa a registrar o tamanho real do JSON de análise.

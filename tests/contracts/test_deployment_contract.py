@@ -14,6 +14,7 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "automacao_miller_n8n_data" in compose
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
     assert "ARTIFACT_STORAGE_DIR" in compose
+    assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
     assert "automacao_miller_submission_data:" in compose
 
 

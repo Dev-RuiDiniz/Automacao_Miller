@@ -1140,3 +1140,14 @@ execuções inválidas e concluir a validação do documento de homologação.
 **Impacto:**
 Chamadas repetidas, documentos já reivindicados e consultas sem resultado não
 criam tentativas órfãs nem erros de chave estrangeira.
+
+## 2026-09-09 — Liberação do volume privado para os nós de arquivo do n8n
+
+Data: 2026-09-09
+Tipo: Correção de homologação
+Contexto: A execução interna já resolvia a chave relativa correta, mas o n8n recusava `/data/artifacts` por manter o diretório padrão `/home/node/.n8n-files` como único caminho permitido.
+Decisão/Ação: Configurar `N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts` no serviço n8n e documentar a dependência entre essa variável e o volume privado.
+Arquivos afetados: `docker-compose.yml`, `.env.example`, `deploy/README.md`, `workflows/README.md` e contrato de implantação.
+Testes: A executar após recriação do serviço n8n na VPS e nova execução ponta a ponta.
+Pendências: Retomar o processamento do PDF sintético de homologação e validar artefatos, envio manual e download.
+Impacto: Permite que os nós de leitura e escrita de arquivos usem o repositório interno sem expor caminhos ao navegador.

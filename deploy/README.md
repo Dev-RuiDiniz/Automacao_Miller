@@ -63,6 +63,11 @@ O script faz o backup antes da cópia, preserva o volume antigo, replica os
 arquivos em `legacy/submissions` e aplica a migração do PostgreSQL. Arquivos do
 Google Drive não são apagados.
 
+O n8n aplica uma restrição adicional aos nós de leitura e escrita de arquivos:
+`N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts`. Essa variável precisa permanecer
+alinhada ao ponto de montagem do volume; sem ela, o n8n recusa o acesso ao
+repositório e mantém o documento em erro.
+
 ## Workflows
 
 Importe os quatro exports internos descritos em `workflows/README.md`:

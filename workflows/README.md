@@ -44,6 +44,9 @@ relativas, nunca caminhos absolutos.
 Associe no n8n apenas as credenciais PostgreSQL e Gmail. Nenhum ID de credencial
 é versionado neste repositório. A variável `ARTIFACTS_GID` deve representar o
 grupo compartilhado que permite ao gateway e ao n8n ler e gravar no volume.
+Além das permissões do volume, o n8n deve receber
+`N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts`, que libera os nós de arquivo
+somente dentro do repositório privado compartilhado.
 
 ## Reprocessamento e revisão
 

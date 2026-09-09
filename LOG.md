@@ -1219,10 +1219,12 @@ para remover somente `CR` e `LF`.
 **Arquivos afetados:** `deploy/backup/backup.sh`.
 
 **Testes:** O dump e o arquivo compactado do backup anterior foram validados
-com SHA-256, `pg_restore --list` e listagem do arquivo compactado. O backup
-seguinte será gerado após a publicação desta correção.
+com SHA-256, `pg_restore --list` e listagem do arquivo compactado. Após a
+publicação, o backup final `20260909T202426Z` foi gerado com banco `n8n`,
+volume `automacao_miller_artifacts_data`, hashes válidos e manifesto protegido.
 
-**Pendências:** Republicar a correção na VPS e gerar o manifesto final.
+**Pendências:** Nenhuma para a rotina de backup da homologação. A restauração
+produtiva deve ocorrer em janela de manutenção previamente aprovada.
 
 **Impacto:** O manifesto passa a identificar corretamente o banco PostgreSQL
 sem alterar os dados do backup.

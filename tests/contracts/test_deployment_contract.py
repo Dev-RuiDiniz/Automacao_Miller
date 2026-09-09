@@ -67,6 +67,8 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "State - Human review", "Post-report confidence gate", "State - Awaiting manual send"} <= names
     read_pdf = next(node for node in workflow["nodes"] if node["name"] == "Internal Storage - Read PDF")
     assert "$('Claim guard').item.json.source_storage_key" in read_pdf["parameters"]["filePath"]
+    claim_guard = next(node for node in workflow["nodes"] if node["name"] == "Claim guard")
+    assert "item.json?.submission_id" in claim_guard["parameters"]["jsCode"]
     assert "Gmail - Send report" not in names
     assert "n8n-nodes-base.googleDrive" not in node_types
     assert "automacao_miller.documents" in next(node for node in workflow["nodes"] if node["name"] == "State - Claim document")["parameters"]["query"]

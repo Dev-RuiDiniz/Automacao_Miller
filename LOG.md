@@ -1110,3 +1110,33 @@ ponta a ponta com revisão, envio Gmail e download.
 **Impacto:**
 A reconciliação passa a produzir uma fila explícita de protocolos e deixa de
 disparar execuções inválidas.
+
+## 2026-09-09 — Proteção contra itens vazios no claim interno
+
+**Tipo:** BUG / WORKFLOW / HOMOLOGAÇÃO
+**Status:** CORRIGIDO NO REPOSITÓRIO; REPUBLICAÇÃO E RETESTE PENDENTES
+
+**Contexto:**
+O nó PostgreSQL pode devolver um item JSON vazio quando nenhum documento é
+reivindicado. O `Claim guard` aceitava esse item e o nó seguinte tentava criar
+uma tentativa com `submission_id` nulo.
+
+**Decisão/Ação:**
+O guard passou a filtrar explicitamente itens sem `submission_id`, impedindo
+execuções inválidas e preservando a idempotência do processamento.
+
+**Arquivos afetados:**
+`workflows/automacao-regulatoria-internal-v1.json` e
+`tests/contracts/test_deployment_contract.py`.
+
+**Testes:**
+`python -m pytest -q` passou com 38 testes; exports JSON e `git diff --check`
+foram validados.
+
+**Pendências:**
+Republicar esta proteção na VPS, confirmar que a reconciliação não gera novas
+execuções inválidas e concluir a validação do documento de homologação.
+
+**Impacto:**
+Chamadas repetidas, documentos já reivindicados e consultas sem resultado não
+criam tentativas órfãs nem erros de chave estrangeira.

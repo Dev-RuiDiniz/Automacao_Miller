@@ -33,7 +33,7 @@
     },
     {
       "parameters": {
-        "jsCode": "if (!$input.all().length) return []; return items;"
+        "jsCode": "const items = $input.all(); return items.filter(item => String(item.json?.submission_id || '').trim());"
       },
       "id": "claim-guard",
       "name": "Claim guard",

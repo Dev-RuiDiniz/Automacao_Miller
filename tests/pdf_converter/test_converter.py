@@ -26,6 +26,7 @@ def test_convert_pdf_emits_metadata_and_page_markers() -> None:
     assert result["metadata"]["source_document_id"] == "drive-file-123"
     assert result["metadata"]["page_count"] == 2
     assert result["metadata"]["source_sha256"]
+    assert result["metadata"]["markdown_sha256"]
     assert "## Página 1" in result["markdown"]
     assert "## Página 2" in result["markdown"]
     assert "Medicamento deferido" in result["markdown"]

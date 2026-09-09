@@ -17,18 +17,18 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 - Identifica informações regulatórias relevantes quando elas estão presentes no documento.
 - Estrutura os resultados para facilitar a leitura e a conferência.
 - Gera relatórios padronizados em PDF.
-- Armazena os artefatos no Google Drive e envia o resultado por Gmail.
+- Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e permite o envio manual por Gmail após conferência.
 - Sinaliza baixa confiança, ambiguidade, contradições e falhas para revisão humana.
 - Mantém o processamento rastreável, com estados de recebido, em processamento, concluído, aguardando revisão ou com erro.
 
 ## Como funciona
 
 ```text
-PDF no Google Drive
+PDF recebido pela landing privada
         ↓
 Conversão obrigatória para Markdown
         ↓
-Persistência do Markdown e das evidências
+Persistência interna no volume e no PostgreSQL
         ↓
 Extração estruturada
         ↓
@@ -38,12 +38,32 @@ Dados estruturados
         ↓
 Relatório padronizado
         ↓
-PDF final no Google Drive
+PDF final no volume privado
         ↓
-Envio automático por Gmail
+Documento em aguardando envio
+        ↓
+Conferência no painel
+        ↓
+Envio manual por Gmail e liberação do download
 ```
 
 O fluxo é orquestrado pelo **n8n**. A análise é executada pelo **Ollama** no próprio servidor, reduzindo a dependência de APIs externas de IA e mantendo os documentos dentro do ambiente configurado para a operação.
+
+O fluxo ativo inicia exclusivamente pela landing privada. O gateway grava o PDF
+no volume `automacao_miller_artifacts_data`, registra o documento no PostgreSQL
+e chama o webhook interno do n8n. O Google Drive permanece apenas nos exports
+históricos da homologação anterior e não participa do processamento ativo.
+
+Os arquivos ficam organizados por SHA-256 em
+`objects/ab/cd/<sha256>/original.pdf`, com versões de Markdown, análise JSON e
+relatório PDF no mesmo diretório. O banco guarda somente chaves relativas,
+estados, tentativas, erros, análises e revisões humanas.
+
+O painel autenticado em `/upload` apresenta a fila, os indicadores e os detalhes
+de cada protocolo. O operador pode abrir o PDF, Markdown e JSON, registrar uma
+revisão, configurar destinatários padrão e solicitar o envio. O relatório só
+fica disponível para download oficial depois que o workflow manual confirmar o
+envio no Gmail e marcar o documento como `concluido`.
 
 ## Informações que podem ser organizadas
 
@@ -64,7 +84,8 @@ A ausência de uma informação é diferenciada de uma falha técnica de leitura
 
 ### Usuário operacional
 
-Adiciona documentos à pasta configurada do Google Drive e consulta os relatórios gerados, os estados do processamento e os casos encaminhados para revisão.
+Envia documentos pela landing privada, opera a fila, confere artefatos,
+seleciona destinatários e solicita o envio dos relatórios.
 
 ### Revisor humano
 
@@ -96,9 +117,12 @@ O MVP foi dimensionado inicialmente para uma infraestrutura de baixo custo, suje
 
 ## Escopo inicial
 
-O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs, as integrações com Google Drive e Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização para revisão humana, os testes e a documentação de operação.
+O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs iniciado pela landing, a persistência operacional em PostgreSQL, o armazenamento interno em volume privado, a integração com Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização para revisão humana, os testes e a documentação de operação.
 
-Não fazem parte do escopo inicial OCR comercial pago, painel administrativo personalizado, aplicativo mobile, fine-tuning, modelo proprietário, revisão jurídica, responsabilidade técnica regulatória ou integrações não descritas na proposta.
+Não fazem parte do escopo inicial OCR comercial pago, aplicativo mobile,
+fine-tuning, modelo proprietário, revisão jurídica, responsabilidade técnica
+regulatória ou integrações não descritas na proposta. O painel operacional
+autenticado faz parte da entrada e da operação do MVP.
 
 ## Implantação e próximos passos
 
@@ -107,13 +131,15 @@ O prazo comercial de referência é de até **10 dias úteis** após a aprovaç�
 Para iniciar a implantação, são necessários:
 
 1. VPS Linux ou confirmação da infraestrutura disponível;
-2. acessos autorizados ao Google Drive e ao Gmail;
-3. definição das pastas de entrada, processamento, revisão e resultados;
+2. acesso autorizado ao Gmail;
+3. definição dos limites de armazenamento, política de backup e responsáveis pela operação;
 4. arquivos PDF reais ou de exemplo para validação;
 5. definição dos destinatários dos relatórios;
 6. responsáveis pela validação e revisão humana.
 
-O projeto está atualmente em **planejamento e preparação para implantação**. A operação produtiva depende da configuração do ambiente, das integrações e da aprovação dos testes de ponta a ponta.
+O projeto está com a stack de homologação versionada e a migração para o
+repositório interno implementada no código. A ativação depende do backup
+conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
 
 ## Documentação do projeto
 
@@ -121,6 +147,7 @@ O projeto está atualmente em **planejamento e preparação para implantação**
 - [ROADMAP.md](ROADMAP.md) — fases, marcos, pendências e bloqueios.
 - [LOG.md](LOG.md) — decisões, alterações e memória operacional.
 - [AGENTS.md](AGENTS.md) — regras de atuação e governança do repositório.
+- [workflows/README.md](workflows/README.md) — operação dos workflows, incluindo a entrada da landing.
 
 ## Responsáveis
 

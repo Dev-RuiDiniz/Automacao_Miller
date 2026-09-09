@@ -1,0 +1,55 @@
+{
+  "name": "Automacao Regulatoria - Reconciliação Interna",
+  "id": "automacao-regulatoria-internal-reconcile",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "automacao-regulatoria-internal-error-handler"
+  },
+  "nodes": [
+    {
+      "parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 1}]}},
+      "id": "reconcile-schedule",
+      "name": "Reconciliation schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automacao_miller.email_deliveries SET status = 'solicitado', error_message = 'Entrega recuperada após timeout.', execution_id = NULL WHERE status = 'enviando' AND requested_at < NOW() - INTERVAL '15 minutes'; WITH stale AS (SELECT submission_id FROM automacao_miller.documents WHERE status = 'em_processamento' AND updated_at < NOW() - INTERVAL '15 minutes'), closed_attempts AS (UPDATE automacao_miller.processing_attempts pa SET status = 'erro', current_stage = 'reconciliacao', error_category = 'infraestrutura', error_message = 'Tentativa recuperada após timeout.', finished_at = NOW() FROM stale WHERE pa.submission_id = stale.submission_id AND pa.status = 'em_processamento'), reset AS (UPDATE automacao_miller.documents d SET status = 'recebido', current_stage = 'reconciliacao', updated_at = NOW(), message = 'Retomada automática após timeout.' FROM stale WHERE d.submission_id = stale.submission_id RETURNING d.submission_id) SELECT submission_id FROM reset UNION SELECT submission_id FROM automacao_miller.documents WHERE status = 'recebido' ORDER BY submission_id LIMIT 20;"
+      },
+      "id": "find-pending",
+      "name": "State - Find pending documents",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_PROCESSING_WEBHOOK_URL || 'http://n8n:5678/webhook/automacao-regulatoria-internal' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ submission_id: $json.submission_id, source: 'reconciliation' }) }}",
+        "options": {"timeout": 10000}
+      },
+      "id": "dispatch-pending",
+      "name": "Dispatch pending document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "position": [500, 0]
+    }
+  ],
+  "connections": {
+    "Reconciliation schedule": {"main": [[{"node": "State - Find pending documents", "type": "main", "index": 0}]]},
+    "State - Find pending documents": {"main": [[{"node": "Dispatch pending document", "type": "main", "index": 0}]]}
+  }
+}

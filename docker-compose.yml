@@ -1,0 +1,163 @@
+services:
+  postgres:
+    image: postgres:15.18-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+      POSTGRES_USER: ${POSTGRES_USER:-n8n}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - automacao_miller_postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    networks: [internal]
+
+  ollama:
+    image: ollama/ollama:0.32.1
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-1}
+      OLLAMA_MAX_LOADED_MODELS: ${OLLAMA_MAX_LOADED_MODELS:-1}
+    volumes:
+      - automacao_miller_ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    mem_limit: 3g
+    networks: [internal]
+
+  pdf-converter:
+    build:
+      context: .
+      dockerfile: infra/pdf_converter/Dockerfile
+    restart: unless-stopped
+    expose: ["8080"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    networks: [internal]
+
+  report-renderer:
+    build:
+      context: .
+      dockerfile: infra/report_renderer/Dockerfile
+    restart: unless-stopped
+    expose: ["8091"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    networks: [internal]
+
+  upload-gateway:
+    build:
+      context: .
+      dockerfile: infra/upload_gateway/Dockerfile
+    restart: unless-stopped
+    expose: ["8085"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-n8n}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-n8n}
+      ARTIFACT_STORAGE_DIR: ${ARTIFACT_STORAGE_DIR:-/data/artifacts}
+      LANDING_ACCESS_TOKEN: ${LANDING_ACCESS_TOKEN}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      LANDING_USERNAME: ${LANDING_USERNAME}
+      LANDING_PASSWORD_HASH: ${LANDING_PASSWORD_HASH}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
+      AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:-28800}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      N8N_SUBMISSION_WEBHOOK_URL: ${N8N_SUBMISSION_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-internal}
+      N8N_REPORT_EMAIL_WEBHOOK_URL: ${N8N_REPORT_EMAIL_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-send-report}
+    volumes:
+      - automacao_miller_artifacts_data:/data/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8085/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    networks: [internal]
+
+  n8n:
+    image: n8nio/n8n:2.30.5
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_HOST_PORT:-25678}:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_HOST: 127.0.0.1
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-http://localhost:25678}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:25678/}
+      N8N_SECURE_COOKIE: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      ARTIFACT_STORAGE_DIR: /data/artifacts
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      PDF_CONVERTER_BASE_URL: ${PDF_CONVERTER_BASE_URL:-http://pdf-converter:8080}
+      PDF_CONVERTER_TIMEOUT_SECONDS: ${PDF_CONVERTER_TIMEOUT_SECONDS:-120}
+      REPORT_RECIPIENTS: ${REPORT_RECIPIENTS}
+      UPLOAD_GATEWAY_BASE_URL: ${UPLOAD_GATEWAY_BASE_URL:-http://upload-gateway:8085}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      WORKFLOW_TIMEOUT_SECONDS: ${WORKFLOW_TIMEOUT_SECONDS:-600000}
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: ${EXECUTIONS_DATA_MAX_AGE:-168}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-America/Sao_Paulo}
+    volumes:
+      - automacao_miller_n8n_data:/home/node/.n8n
+      - automacao_miller_artifacts_data:/data/artifacts
+    group_add:
+      - "${ARTIFACTS_GID:-10002}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pdf-converter:
+        condition: service_healthy
+      report-renderer:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz/readiness >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+    mem_limit: 1536m
+    networks: [internal]
+
+volumes:
+  automacao_miller_postgres_data:
+  automacao_miller_ollama_data:
+  automacao_miller_n8n_data:
+  automacao_miller_submission_data:
+  automacao_miller_artifacts_data:
+    name: ${ARTIFACT_VOLUME_NAME:-automacao_miller_artifacts_data}
+
+networks:
+  internal:
+    driver: bridge

@@ -74,6 +74,18 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 - Docker;
 - Linux em VPS.
 
+### Arquitetura aprovada para evolução
+
+- PostgreSQL como fonte de verdade operacional;
+- volume privado do Docker para PDFs, Markdown e relatórios;
+- Google Drive apenas para importação temporária durante a transição;
+- Gmail para envio;
+- n8n para orquestração;
+- Ollama para análise local.
+
+Essa arquitetura ainda não está implementada nos workflows versionados. A
+homologação vigente registrada nos eventos históricos continua usando o Drive.
+
 ### Fluxo de referência
 
 ```text
@@ -597,6 +609,136 @@ Decisão:
 
 ---
 
+## 2026-08-26 — Implementacao da stack de homologacao
+
+**Tipo:** IMPLEMENTACAO / INFRAESTRUTURA
+**Status:** IMPLEMENTADO E IMPLANTADO NA VPS DE HOMOLOGACAO; INTEGRACOES GOOGLE PENDENTES
+
+**Contexto:**
+A VPS propria foi auditada antes da implantacao. O ambiente possui Debian 13,
+2 vCPU, 8 GB de RAM, 4 GB de swap, 99 GB de disco com aproximadamente 65 GB
+livres, Docker 29.5.2 e Docker Compose 5.1.4. Ja existem os projetos Docker
+`atendimento` e `rtk-renata`, com dois n8n ativos; eles nao devem ser alterados.
+
+**Decisao/Acao:**
+Criada a branch `feat/vps-staging-deployment`. Implementada stack isolada com
+n8n 2.30.5, PostgreSQL 15.18, Ollama 0.32.1, conversor PDF→Markdown e
+renderizador local de relatorios PDF. O modelo inicial definido e
+`qwen2.5:3b`, sujeito a benchmark de memoria e tempo na VPS. Adicionados
+controle de duplicidade por ID+SHA-256, tabela de rastreabilidade, retry de
+chamadas HTTP, workflow principal versionado e workflow separado de erros.
+
+**Arquivos afetados:**
+`docker-compose.yml`, `deploy/`, `infra/report_renderer/`,
+`infra/regulatory_analysis/`, `workflows/`, `prompts/`, `.env.example`,
+`tests/`, `README.md`, `ROADMAP.md` e `docs/checklists/acessos-e-responsaveis.md`.
+
+**Testes:**
+`python -m pytest -q` passou com 16 testes. Os dois exports n8n e o YAML do
+Compose foram validados localmente. A stack remota iniciou com todos os cinco
+servicos saudaveis; o endpoint interno do Ollama respondeu via n8n com
+`qwen2.5:3b` em aproximadamente 61 segundos no primeiro carregamento.
+
+**Pendencias:**
+Configurar credenciais Google Drive/Gmail dentro do n8n, preencher IDs de
+pastas e destinatarios, ativar o workflow principal e executar os cenarios da
+matriz. Os workflows foram importados com sucesso apos a criacao do usuario
+proprietario no n8n.
+
+**Impacto:**
+O repositorio passa a conter uma base executavel e isolada para homologacao,
+sem reutilizar volumes, portas publicas ou credenciais dos projetos existentes.
+
+## 2026-08-26 — Auditoria e implantacao da VPS de homologacao
+
+**Tipo:** AUDITORIA / INFRAESTRUTURA / MODELO
+**Status:** CONCLUIDO COM PENDENCIAS DE INTEGRACAO
+
+**Contexto:**
+A auditoria confirmou Debian 13.6, kernel 6.12.85, 2 vCPU, 7.8 GiB de RAM,
+4 GiB de swap, aproximadamente 65 GiB livres, Docker 29.5.2 e Compose 5.1.4.
+Os projetos `atendimento` e `rtk-renata` permaneceram sem alteracao.
+
+**Decisao/Acao:**
+A stack foi instalada em `/opt/automacao-miller` com volumes e rede proprios,
+n8n publicado somente em `127.0.0.1:25678`. O PostgreSQL, Ollama, conversor e
+renderizador nao possuem portas publicadas. O modelo `qwen2.5:3b` foi baixado,
+carregado e validado pelo endpoint HTTP interno a partir do container n8n.
+As portas UFW 3000, 5432, 8000 e 8080 foram removidas somente apos confirmacao
+de que nao havia listener nessas portas; SSH, HTTP, HTTPS e portas dos projetos
+existentes foram preservados.
+
+**Testes:**
+`docker compose config --quiet`, `docker compose ps`, health checks dos cinco
+servicos, readiness do n8n, health checks do conversor/renderizador, existencia
+das tabelas de rastreabilidade e inferencia HTTP do Ollama.
+
+**Pendencias:**
+Credenciais Google, IDs das pastas, destinatarios, ativacao dos workflows e
+testes ponta a ponta continuam pendentes. A senha root usada nesta
+sessao foi exposta no contexto da tarefa e deve ser rotacionada imediatamente;
+o acesso root por senha nao deve ser desativado antes de validar uma chave SSH
+alternativa.
+
+**Impacto:**
+A homologacao possui infraestrutura operacional e isolada, mas ainda nao pode
+ser considerada aceita ponta a ponta sem Drive/Gmail autorizados.
+
+## 2026-08-26 — Configuracao inicial do n8n
+
+**Tipo:** CONFIGURACAO / ACESSO
+**Status:** CONCLUIDO
+
+**Contexto:**
+O n8n novo exigiu a configuracao inicial de proprietario antes de aceitar a
+importacao por CLI.
+
+**Decisao/Acao:**
+Foi criada uma conta proprietaria administrativa fora do repositorio. O login
+foi testado pelo tunel SSH, e os workflows principal e de erros foram
+importados e mantidos inativos. O acesso deve ser entregue por canal seguro;
+nenhuma senha foi registrada no Git.
+
+**Testes:**
+Login HTTP 200 pelo tunel, listagem autenticada dos dois workflows com
+`active=false` e confirmacao dos IDs versionados.
+
+**Pendencias:**
+Associar credenciais OAuth do Google, configurar IDs das pastas e destinatarios
+e somente depois ativar o workflow principal.
+
+**Impacto:**
+O painel esta acessivel localmente e pronto para configuracao autorizada das
+integracoes, sem exposicao publica da porta 25678.
+
+## 2026-08-26 — Estrutura do Drive de homologação
+
+**Tipo:** INTEGRACAO / CONFIGURACAO
+**Status:** PASTAS CRIADAS; AUTORIZACAO OAUTH PENDENTE
+
+**Contexto:**
+Foi solicitada a preparação do Drive pessoal para o primeiro teste do MVP.
+
+**Decisão/Ação:**
+Criada a pasta principal `Automacao Miller - Homologacao` e as subpastas
+Entrada, Processamento, Concluídos, Revisão, Erros, Markdown e Relatórios.
+Os IDs foram gravados somente no `.env` protegido da VPS em
+`/opt/automacao-miller`; nenhum ID ou segredo foi incluído no Git. O destinatário
+de teste foi configurado como `rui.pdiniz@gmail.com`, e as credenciais Google
+foram associadas aos nós correspondentes do workflow principal.
+
+**Testes:**
+Listagem do Drive confirmou as sete subpastas. O `.env` remoto permaneceu com
+permissão 600 e o n8n reiniciou saudável após a configuração.
+
+**Pendências:**
+Concluir o consentimento OAuth no n8n, configurar a credencial PostgreSQL,
+validar os nós Google e executar o primeiro processamento real.
+
+**Impacto:**
+O ambiente de homologação está com a estrutura de armazenamento preparada,
+sem ativar o workflow antes da autorização e validação das integrações.
+
 ## 10. Regra para o próximo agente
 
 Antes de iniciar qualquer tarefa:
@@ -610,3 +752,264 @@ Antes de iniciar qualquer tarefa:
 7. ao terminar, atualizar esta memória.
 
 O agente não deve presumir que uma decisão ainda aberta já foi tomada.
+
+## 2026-09-06 — Landing privada e gateway de upload
+
+**Tipo:** ARQUITETURA / IMPLEMENTAÇÃO
+**Status:** IMPLEMENTADO LOCALMENTE; HOMOLOGAÇÃO PENDENTE
+
+**Contexto:**
+Foi solicitada uma entrada por navegador para envio de PDFs, acompanhamento por
+protocolo e download do relatório final, preservando o n8n como orquestrador.
+
+**Decisão/Ação:**
+Criados uma landing responsiva, um gateway FastAPI com tokens separado para
+acesso externo e interno, persistência PostgreSQL/volume, idempotência por
+SHA-256, endpoints de status/download e workflows n8n de intake e reconciliação.
+O Gmail permanece obrigatório além do download na landing.
+
+**Arquivos/Componentes afetados:**
+`infra/upload_gateway/`, `tests/upload_gateway/`, `docker-compose.yml`,
+`.env.example`, `workflows/automacao-regulatoria-intake-v1.json`,
+`workflows/automacao-regulatoria-completion-v1.json`, `PRD.md`, `ROADMAP.md` e
+`workflows/README.md`.
+
+**Testes:**
+`python -m pytest -q` passou com 22 testes. A validação Docker, importação dos
+workflows no n8n, configuração de tokens/Caddy e teste ponta a ponta permanecem
+pendentes.
+
+**Pendências:**
+Preservar a alteração local existente no Compose da VPS, configurar segredos no
+ambiente autorizado, importar/associar credenciais nos workflows e executar os
+cenários de Drive, Ollama, relatório e Gmail.
+
+**Impacto:**
+A entrada passa a ser assíncrona e rastreável, sem expor credenciais internas;
+o PDF original continua no Drive e o relatório só é baixado após status
+`concluido`.
+
+## 2026-08-26 - Fechamento do MVP na homologacao
+
+Data: 2026-08-26
+Tipo: INTEGRACAO / VALIDACAO / SEGURANCA
+Contexto: OAuth do Google, pastas do Drive, credencial PostgreSQL e workflow
+de erros estavam configurados na VPS de homologacao.
+Decisao/Acao: Corrigidos os parametros de compatibilidade do n8n 2.30.5 para
+busca, movimentacao e upload no Drive, multipart do conversor e anexo Gmail.
+O fluxo passou a persistir o Markdown antes da IA, reanexar o PDF do renderer
+antes do Gmail e decidir o estado somente depois do envio.
+Arquivos afetados: workflow principal, compose, contrato de implantacao e
+documentacao operacional.
+Testes: pytest local com 16 testes; PDF simples concluido com Markdown,
+relatorio e e-mail PDF; DOU 2026_08_24_ASSINADO_do1.pdf convertido com 128
+paginas e marcadores das paginas 71-75 e 79 conferidos. O DOU gerou relatorio
+e e-mail com anexo, mas ficou aguardando_revisao por baixa confianca. O banco
+registrou artefatos e nao houve erros persistidos em workflow_errors.
+Pendencias: revisao humana do DOU, simulacao dos erros externos, retomada
+apos falha, melhoria de inferencia para documentos extensos e rotacao da
+senha root exposta.
+Impacto: Homologacao funcional para o PDF simples e segura para o DOU,
+sem marcar conclusao quando a evidencia/regra de confianca nao permite.
+
+## 2026-08-26 - Verificacao final da stack
+
+Data: 2026-08-26
+Tipo: TESTE / OPERACAO
+Contexto: Foram feitas novas execucoes depois dos ajustes de roteamento,
+escopo de paginas e associacao de credenciais no n8n.
+Decisao/Acao: Mantido o DOU em Revisao, com Markdown integral, relatorio PDF
+e e-mail com anexo. O PDF simples concluido foi restaurado em Concluidos.
+Testes: Execucao final do DOU com confidence_status baixa_confianca,
+status aguardando_revisao e movimentacao para Revisao. Duplicidade final
+com documento concluido retornou ignored_duplicate sem chamar Ollama.
+docker compose ps mostrou os cinco servicos saudaveis; n8n permaneceu
+local-only e o workflow ativo com errorWorkflow associado. O healthz do n8n
+respondeu; conversor e renderer estavam saudaveis pelo Docker healthcheck.
+Pendencias: Os testes de falha externa e retomada ainda precisam de ambiente
+controlado. A revisao do DOU continua humana por politica de seguranca.
+Impacto: O criterio de nao concluir antes do envio foi preservado; o DOU nao
+foi falsamente aceito como classificacao regulatoria definitiva.
+
+## 2026-09-08 — Acesso da landing por usuário e senha
+
+**Tipo:** SEGURANÇA / IMPLEMENTAÇÃO
+**Status:** IMPLEMENTADO LOCALMENTE; CONFIGURAÇÃO DA VPS PENDENTE
+
+**Contexto:**
+Foi solicitada uma página de acesso para a landing de homologação, que até
+então dependia apenas do token privado no link.
+
+**Decisão/Ação:**
+Adicionar login por usuário e senha com hash PBKDF2, sessão assinada em cookie
+`HttpOnly`, expiração configurável e logout. O token privado existente será
+mantido para compatibilidade operacional e testes automatizados. Nenhuma
+credencial real será criada ou versionada pelo repositório.
+
+**Arquivos afetados:**
+`infra/upload_gateway/`, `tests/upload_gateway/test_api.py`, `.env.example`,
+`docker-compose.yml`, `deploy/README.md`, `workflows/README.md`, `PRD.md` e
+`ROADMAP.md`.
+
+**Testes:**
+Serão executados casos de login válido, credencial inválida, sessão protegida,
+logout, expiração e compatibilidade com o token legado.
+
+**Pendências:**
+Configurar usuário, hash da senha, segredo de sessão e cookie seguro no `.env`
+da VPS; reconstruir o gateway; testar login, upload, acompanhamento e download
+pela landing.
+
+**Impacto:**
+A interface não dependerá mais de credenciais na URL para o uso normal, sem
+remover o mecanismo legado antes da validação completa da homologação.
+
+## 2026-09-08 — Ativação do acesso da landing na VPS
+
+**Tipo:** DEPLOY / SEGURANÇA / TESTE
+**Status:** CONCLUÍDO; FLUXO DE DOCUMENTO PENDENTE
+
+**Contexto:**
+Após a implementação do login, foram geradas credenciais aleatórias de
+homologação e solicitada a ativação no servidor para permitir o teste da
+interface.
+
+**Decisão/Ação:**
+Preservado o `.env` anterior em backup restrito, configurados usuário, hash
+PBKDF2, segredo de sessão, tokens de integração e cookie seguro, atualizado o
+checkout da VPS para `de93fb9` e reconstruído o gateway. O hash foi protegido
+com aspas simples no `.env` porque contém `$`.
+
+**Arquivos/Componentes afetados:**
+`.env` protegido da VPS, backup `.env.before-auth-20260908`, gateway de upload,
+n8n e stack Docker de homologação. As credenciais de teste foram salvas apenas
+na Área de Trabalho local e no ambiente protegido do servidor.
+
+**Testes:**
+HTTPS: login `200`, upload protegido com sessão `200`, logout `200` e acesso
+posterior sem sessão `403`. Landing sem sessão retorna a página de login; n8n
+retorna readiness `200`; todos os seis serviços permanecem saudáveis.
+
+**Pendências:**
+Enviar um PDF autorizado pela landing e validar protocolo, processamento,
+relatório, download e os cenários de falha/retomada.
+
+**Impacto:**
+A landing agora possui acesso operacional por usuário e senha em HTTPS, sem
+expor a senha ou o hash no Git.
+
+## 2026-09-09 — Decisão pelo repositório interno
+
+**Tipo:** ARQUITETURA / DECISÃO DE ESCOPO
+**Status:** APROVADO; IMPLEMENTAÇÃO PENDENTE
+
+**Contexto:**
+Foi avaliado se o Google Drive deveria continuar sendo responsável pela
+organização dos PDFs, Markdown e relatórios. A stack já possui PostgreSQL para
+metadados e um volume privado compartilhado entre o gateway e o n8n.
+
+**Decisão/Ação:**
+Adotar PostgreSQL como fonte de verdade operacional e volume privado do Docker
+como repositório interno dos arquivos. O Google Drive deixa de ser o
+armazenamento oficial e poderá permanecer apenas como integração de importação
+durante a transição. Os workflows deverão deixar de usar pastas do Drive como
+representação principal de estado.
+
+**Arquivos afetados:**
+`PRD.md`, `ROADMAP.md`, `LOG.md` e, na próxima implementação, o esquema
+PostgreSQL, o gateway, os volumes e os workflows n8n.
+
+**Testes:**
+Não aplicável à decisão documental. A implementação deverá validar caso feliz,
+duplicidade, falhas intermediárias, retomada, revisão humana e download.
+
+**Pendências:**
+Criar o modelo de documentos e artefatos, migrar a persistência dos arquivos,
+adaptar os workflows e definir backup conjunto do banco e do volume.
+
+**Impacto:**
+O sistema passará a ter uma fonte interna e consultável para organização,
+status, auditoria e recuperação, reduzindo a dependência operacional do
+Google Drive.
+
+## 2026-09-09 — Implementação do repositório interno landing-only
+
+**Tipo:** ARQUITETURA / IMPLEMENTAÇÃO / MIGRAÇÃO
+**Status:** IMPLEMENTADO NO REPOSITÓRIO; ATIVAÇÃO DE HOMOLOGAÇÃO PENDENTE
+
+**Contexto:**
+Após a decisão arquitetural, foi definido que a landing privada será a única
+origem oficial de novos documentos. O Google Drive não deve permanecer nos
+workflows ativos. A migração precisa preservar o volume antigo e permitir
+rollback antes da ativação.
+
+**Decisão/Ação:**
+Implementado o volume dedicado `automacao_miller_artifacts_data`, montado em
+`/data/artifacts`, com objetos organizados por SHA-256. O gateway passou a
+persistir uploads atomicamente, registrar documentos e artefatos no PostgreSQL,
+deduplicar por hash e liberar download somente após `concluido`. Foram criadas
+as tabelas de documentos, artefatos, tentativas, análises, revisões humanas e
+erros, além dos workflows internos de processamento, reconciliação e erros.
+Também foram criados scripts de migração do volume antigo e backup conjunto do
+PostgreSQL e dos artefatos.
+
+**Arquivos afetados:**
+`docker-compose.yml`, `.env.example`, `infra/upload_gateway/`,
+`deploy/postgres/init/002_internal_repository.sql`, `deploy/backup/`,
+`workflows/automacao-regulatoria-internal-v1.json`,
+`workflows/automacao-regulatoria-reconcile-v1.json`,
+`workflows/automacao-regulatoria-internal-error-v1.json`, testes e documentação.
+
+**Testes:**
+Serão executados os testes automatizados do gateway, conversor e contratos dos
+workflows, além da validação JSON, `git diff --check` e revisão do diff para
+segredos. A validação ponta a ponta depende da VPS de homologação, Ollama,
+Gmail e n8n autorizados.
+
+**Pendências:**
+Executar backup da VPS, copiar o volume antigo para o novo, aplicar a migração
+em banco existente, importar e validar os workflows, simular falhas e somente
+então ativar o processamento interno.
+
+**Impacto:**
+O PostgreSQL passa a controlar o ciclo de vida do documento e o volume privado
+passa a ser o repositório operacional. Pastas e IDs do Drive deixam de
+representar estados; arquivos históricos do Drive permanecem preservados.
+
+## 2026-09-09 — Painel operacional e envio manual
+
+**Tipo:** FUNCIONAL / ARQUITETURA / IMPLEMENTAÇÃO
+**Status:** IMPLEMENTADO NO REPOSITÓRIO; HOMOLOGAÇÃO PENDENTE
+
+**Contexto:**
+Foi definido que o operador deve conferir o relatório antes do envio e escolher
+os destinatários pela interface, mantendo a landing como única origem oficial.
+
+**Decisão/Ação:**
+Criado painel autenticado com fila, indicadores, detalhe de protocolo, linha do
+tempo, histórico, visualização de PDF, Markdown e JSON, revisão humana e tela de
+destinatários padrão. O relatório agora permanece em `aguardando_envio` até uma
+solicitação manual. Criadas as tabelas `report_recipients`,
+`document_recipients` e `email_deliveries`, as rotas de operação e o workflow
+n8n separado para reivindicar a entrega e enviar pelo Gmail. O download oficial
+continua bloqueado até o status `concluido`.
+
+**Arquivos afetados:**
+`infra/upload_gateway/app.py`, `infra/upload_gateway/static/`,
+`deploy/postgres/init/003_panel_operations.sql`, `docker-compose.yml`,
+`.env.example`, `workflows/`, `tests/`, `PRD.md`, `ROADMAP.md`,
+`README.md`, `workflows/README.md` e `deploy/README.md`.
+
+**Testes:**
+Testes de contrato e API cobrem autenticação, fila, artefatos, duplicidade de
+destinatários, envio concorrente e revisão. A validação real do PostgreSQL,
+n8n e Gmail ainda depende da homologação autorizada.
+
+**Pendências:**
+Aplicar a migração 003, importar o workflow de envio, migrar destinatários,
+fazer backup conjunto e validar envio, falha, retry e download ponta a ponta.
+
+**Impacto:**
+O envio passa a ser uma decisão operacional auditável. O painel exibe os
+artefatos internos sem expor caminhos do volume e o Gmail deixa de determinar
+sozinho o fluxo de novos documentos.

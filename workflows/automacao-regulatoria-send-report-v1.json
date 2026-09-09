@@ -1,0 +1,88 @@
+{
+  "name": "Automacao Regulatoria - Envio manual do relatório",
+  "id": "automacao-regulatoria-send-report",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "errorWorkflow": "automacao-regulatoria-internal-error-handler"
+  },
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "automacao-regulatoria-send-report", "responseMode": "onReceived", "options": {}},
+      "id": "send-webhook",
+      "name": "Panel - Request report send",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "automacao-regulatoria-send-report"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH candidate AS (SELECT e.delivery_id FROM automacao_miller.email_deliveries e WHERE e.delivery_id = {{ Number($json.body && $json.body.delivery_id || 0) }} AND e.status = 'solicitado' FOR UPDATE SKIP LOCKED) UPDATE automacao_miller.email_deliveries e SET status = 'enviando', attempt_count = e.attempt_count + 1, execution_id = {{ $execution.id ? String.fromCharCode(39) + String($execution.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }} FROM candidate WHERE e.delivery_id = candidate.delivery_id RETURNING e.delivery_id, e.submission_id, e.recipient_emails, e.attempt_count, (SELECT d.report_storage_key FROM automacao_miller.documents d WHERE d.submission_id = e.submission_id) AS report_storage_key, (SELECT d.source_filename FROM automacao_miller.documents d WHERE d.submission_id = e.submission_id) AS source_filename;"
+      },
+      "id": "claim-delivery",
+      "name": "State - Claim email delivery",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {"jsCode": "if (!$input.all().length) throw new Error('VALIDACAO: entrega não encontrada ou já reivindicada'); const item = $input.first().json; if (!item.report_storage_key || !item.recipient_emails) throw new Error('VALIDACAO: entrega sem relatório ou destinatários'); return items;"},
+      "id": "delivery-guard",
+      "name": "Delivery guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 0]
+    },
+    {
+      "parameters": {
+        "filePath": "={{ '/data/artifacts/' + $json.report_storage_key }}",
+        "dataPropertyName": "data"
+      },
+      "id": "read-report",
+      "name": "Internal Storage - Read report",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1.1,
+      "position": [680, 0]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ Array.isArray($json.recipient_emails) ? $json.recipient_emails.join(',') : JSON.parse($json.recipient_emails).join(',') }}",
+        "subject": "={{ 'Relatório regulatório - ' + $json.source_filename }}",
+        "emailType": "text",
+        "message": "={{ 'Relatório de apoio documental gerado. Documento: ' + $json.source_filename + '. Revise o PDF antes de tomar qualquer decisão regulatória.' }}",
+        "options": {"attachmentsUi": {"attachmentsBinary": [{"property": "data"}]}}
+      },
+      "id": "gmail-send",
+      "name": "Gmail - Send report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE automacao_miller.email_deliveries SET status = 'enviado', sent_at = NOW(), error_message = NULL WHERE delivery_id = {{ Number($('Delivery guard').item.json.delivery_id) }}; UPDATE automacao_miller.documents SET status = 'concluido', current_stage = 'email_enviado', completed_at = NOW(), updated_at = NOW(), message = NULL WHERE submission_id = {{ String.fromCharCode(39) + String($('Delivery guard').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}; UPDATE automacao_miller.processing_attempts SET status = 'concluido', current_stage = 'email_enviado', finished_at = NOW() WHERE submission_id = {{ String.fromCharCode(39) + String($('Delivery guard').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND status = 'aguardando_envio';"
+      },
+      "id": "state-sent",
+      "name": "State - Report sent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1120, 0]
+    }
+  ],
+  "connections": {
+    "Panel - Request report send": {"main": [[{"node": "State - Claim email delivery", "type": "main", "index": 0}]]},
+    "State - Claim email delivery": {"main": [[{"node": "Delivery guard", "type": "main", "index": 0}]]},
+    "Delivery guard": {"main": [[{"node": "Internal Storage - Read report", "type": "main", "index": 0}]]},
+    "Internal Storage - Read report": {"main": [[{"node": "Gmail - Send report", "type": "main", "index": 0}]]},
+    "Gmail - Send report": {"main": [[{"node": "State - Report sent", "type": "main", "index": 0}]]}
+  }
+}

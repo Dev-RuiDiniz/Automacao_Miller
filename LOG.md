@@ -1258,3 +1258,35 @@ com o documento real.
 **Impacto:** Documentos extensos deixam de exceder silenciosamente o contexto
 do modelo; quando a evidência for reduzida, o resultado continuará sinalizado
 para revisão humana.
+
+## 2026-09-09 — Homologação do documento real de 128 páginas
+
+**Tipo:** HOMOLOGAÇÃO / IA / RELATÓRIO
+**Status:** CONCLUÍDO COM REVISÃO HUMANA PENDENTE
+
+**Contexto:** Foi processado o arquivo `2026_08_24_ASSINADO_do1.pdf`, recebido
+da landing, com 24.053.052 bytes e SHA-256
+`3ad26053af9898a8bfa7de5ae3a409313ab9230ed28079f1794c82238797e9b6`.
+
+**Decisão/Ação:** A conversão gerou Markdown de 1.585.605 bytes e 128 páginas.
+Após o ajuste de contexto e schema do Ollama, o fluxo persistiu análise JSON de
+3.464 bytes e relatório PDF de 4.027 bytes no volume privado. A resposta passou
+pela validação estrutural, mas foi classificada como `baixa_confianca` por
+ocorrências sem referência de página; o documento foi colocado em
+`aguardando_revisao` e o envio manual permanece bloqueado até a revisão.
+
+**Arquivos afetados:** `workflows/automacao-regulatoria-internal-v1.json`,
+`tests/contracts/test_deployment_contract.py`, `LOG.md` e `ROADMAP.md`.
+
+**Testes:** Original, Markdown, análise JSON e relatório foram acessados pelas
+rotas autenticadas. O relatório abriu corretamente em 2 páginas e o download
+oficial retornou HTTP 409 antes da conclusão, conforme a regra de segurança.
+O primeiro erro de JSON parcial foi reproduzido e corrigido antes do reteste.
+
+**Pendências:** Revisar as classificações e referências de página do documento
+real antes de liberar o relatório para envio. A inferência completa de DOU
+extenso continua como melhoria de qualidade do modelo.
+
+**Impacto:** O fluxo interno está operacional para o documento real, com
+artefatos persistidos e trilha de revisão. O resultado não é tratado como
+concluído automaticamente quando a evidência extraída é insuficiente.

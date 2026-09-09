@@ -464,6 +464,19 @@ Ao concluir uma atividade:
 5. não apagar itens históricos — usar `CANCELLED` quando removidos do escopo.
 
 Este arquivo deve refletir a realidade do projeto, e não apenas a intenção inicial.
+
+## 22. Documento real validado com revisão pendente — 2026-09-09
+
+- [x] Receber o PDF real pela landing e preservar o original no volume interno.
+- [x] Converter o documento de 128 páginas para Markdown com 1.585.605 bytes.
+- [x] Gerar e persistir análise JSON e relatório PDF após correção do contexto do
+      Ollama e da validação do schema.
+- [x] Abrir e validar visualmente o relatório PDF gerado.
+- [x] Bloquear o download oficial enquanto o documento não estiver concluído.
+- [x] Classificar o resultado como `baixa_confianca` quando houver ocorrências
+      sem evidência de página.
+- [ ] Executar a revisão humana das classificações e evidências do documento real.
+- [ ] Validar o envio manual e o download oficial após a revisão aprovada.
 ## 20. Fechamento da homologacao - 2026-08-26
 
 Estado atualizado: stack Docker isolada operacional em /opt/automacao-miller,

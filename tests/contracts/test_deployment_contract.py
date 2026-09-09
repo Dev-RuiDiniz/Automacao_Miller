@@ -85,6 +85,12 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert "$json.report_size_bytes" in report_state["parameters"]["query"]
     analysis_state = next(node for node in workflow["nodes"] if node["name"] == "State - Analysis persisted")
     assert "Prepare analysis file" in analysis_state["parameters"]["query"]
+    ollama = next(node for node in workflow["nodes"] if node["name"] == "Ollama - Extract")
+    normalize = next(node for node in workflow["nodes"] if node["name"] == "Normalize AI response")
+    assert "additionalProperties: false" in ollama["parameters"]["jsonBody"]
+    assert "campos inesperados" in normalize["parameters"]["jsCode"]
+    report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
+    assert "ELSE 'aguardando_revisao'" in report_state["parameters"]["query"]
 
 
 def test_internal_repository_schema_contract() -> None:

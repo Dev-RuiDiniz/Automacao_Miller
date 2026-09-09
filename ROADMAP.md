@@ -3,7 +3,7 @@
 ## 1. Projeto
 
 **Nome:** Agente de Automação e Análise Regulatória  
-**Stack principal:** n8n + Ollama + Google Drive + Gmail + Docker + Linux  
+**Stack principal:** n8n + Ollama + PostgreSQL + volume privado Docker + Gmail
 **Prazo comercial de referência:** até 10 dias úteis, contado após aprovação, pagamento da entrada, disponibilização dos acessos e arquivos de exemplo.
 
 > Este roadmap é o documento operacional de acompanhamento. Datas devem ser atualizadas conforme o início real do projeto e os bloqueios encontrados.
@@ -12,7 +12,7 @@
 
 ## 2. Status geral
 
-**Estado atual:** stack de homologação implantada; PDF simples validado ponta a ponta; DOU processado e encaminhado para revisão humana
+**Estado atual:** stack de homologação implantada; PDF simples validado ponta a ponta; DOU processado e encaminhado para revisão humana; arquitetura de repositório interno aprovada para a próxima evolução
 **MVP:** definido  
 **Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
 **Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
@@ -94,10 +94,27 @@
 - [x] Definir estratégia de retry
 - [x] Definir rastreabilidade por documento
 - [x] Integrar gate HTTP PDF → Markdown
-- [x] Persistir Markdown no Google Drive antes da extração
+- [x] Persistir Markdown no Google Drive antes da extração na homologação vigente
 - [x] Impedir chamada ao Ollama antes da conversão validada
 
 **Gate de saída:** n8n estável e pronto para receber integrações.
+
+## Fase 2B — Repositório interno de documentos
+
+**Objetivo:** substituir a organização operacional por pastas do Google Drive por
+um repositório interno controlado pelo PostgreSQL e por volume privado do Docker.
+
+- [x] Aprovar PostgreSQL como fonte de verdade operacional
+- [x] Aprovar volume privado como armazenamento de PDFs e artefatos
+- [ ] Criar modelo de documentos e artefatos no PostgreSQL
+- [ ] Persistir PDF original, Markdown e relatório no volume interno
+- [ ] Alterar o n8n para consultar documentos pendentes no PostgreSQL
+- [ ] Remover dependência de movimentação de arquivos no Drive para representar estados
+- [ ] Validar upload, reprocessamento, revisão e download no repositório interno
+- [ ] Definir rotina de backup conjunto do PostgreSQL e do volume de artefatos
+
+**Gate de saída:** o processamento completo ocorre sem depender do Google Drive
+para armazenar ou organizar os arquivos.
 
 ## Fase 2A — Landing e gateway de upload
 
@@ -144,6 +161,11 @@ protocolo e baixar o relatório final sem acesso às credenciais internas.
 
 **Objetivo:** criar entrada automática e armazenamento dos resultados.
 
+As atividades desta fase registram a integração validada na homologação
+vigente. O armazenamento oficial será migrado para o repositório interno na
+Fase 2B; o Drive permanecerá apenas como compatibilidade de importação durante
+a transição.
+
 - [x] Configurar credenciais do Google Drive
 - [x] Definir pasta de entrada
 - [x] Definir pasta de processamento
@@ -171,7 +193,8 @@ protocolo e baixar o relatório final sem acesso às credenciais internas.
 - [x] Preservar metadados básicos, hash e versão do conversor
 - [x] Criar contrato HTTP `/healthz` e `/v1/convert`
 - [x] Implantar o serviço no Docker da VPS
-- [x] Persistir o Markdown no Google Drive
+- [x] Persistir o Markdown no Google Drive na homologação vigente
+- [ ] Persistir o Markdown no volume interno e registrar o artefato no PostgreSQL
 - [x] Validar documentos de exemplo
 
 **Observação:** OCR comercial pago está fora do escopo inicial.
@@ -212,7 +235,8 @@ protocolo e baixar o relatório final sem acesso às credenciais internas.
 - [x] Gerar relatório
 - [x] Converter relatório para PDF
 - [x] Validar legibilidade do PDF
-- [x] Salvar PDF no Google Drive
+- [x] Salvar PDF no Google Drive na homologação vigente
+- [ ] Salvar PDF no volume interno
 - [x] Associar relatório ao documento de origem
 
 **Gate de saída:** um documento processado produz PDF final válido e armazenado.
@@ -364,7 +388,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 |---|---|---|
 | M1 | Governança criada | DONE |
 | M2 | Ambiente Docker + n8n + Ollama operacional | DONE |
-| M3 | Entrada pelo Drive funcionando | DONE |
+| M3 | Entrada pelo Drive funcionando na homologação | DONE |
 | M4 | Extração + Markdown funcionando | DONE |
 | M5 | Análise estruturada funcionando | REVIEW |
 | M6 | Relatório + PDF funcionando | DONE |

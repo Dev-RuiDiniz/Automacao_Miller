@@ -9,7 +9,9 @@ volumes e rede proprios.
 1. Copie o repositorio para `/opt/automacao-miller`.
 2. Crie `.env` a partir de `.env.example` no servidor.
 3. Gere `POSTGRES_PASSWORD` e `N8N_ENCRYPTION_KEY` fora do Git.
-4. Preencha os IDs do Google Drive somente no n8n ou no ambiente autorizado.
+4. Na homologação vigente, preencha os IDs do Google Drive somente no n8n ou no
+   ambiente autorizado. Eles serão opcionais após a migração para o repositório
+   interno.
 
 Exemplo de geracao de segredos no servidor:
 
@@ -48,8 +50,9 @@ Depois, abra `http://localhost:25678` no navegador.
 ## Operacao e backup
 
 - Nao remova os volumes `automacao_miller_*` durante atualizacoes.
-- Inclua `/opt/automacao-miller/.env`, o volume do n8n e o volume do
-  PostgreSQL no backup protegido.
+- Inclua `/opt/automacao-miller/.env`, o volume do n8n, o volume do PostgreSQL e
+  o volume `automacao_miller_submission_data` no backup protegido. Após a
+  migração, o volume de artefatos também deverá fazer parte do mesmo backup.
 - O volume do Ollama pode ser recriado fazendo novo pull do modelo.
 - Nao exponha as portas internas dos servicos na Internet.
 
@@ -58,8 +61,9 @@ Depois, abra `http://localhost:25678` no navegador.
 O compose libera o acesso controlado a variaveis nao secretas para os nos
 internos do n8n. Isso e aceitavel somente nesta instancia isolada e local;
 nao publique o n8n nem habilite esse comportamento em ambientes multiusuario.
-Os IDs das pastas, URLs internas, modelo, destinatarios e timeouts entram no
-arquivo .env protegido do servidor.
+Os IDs das pastas do Drive, URLs internas, modelo, destinatários e timeouts
+entram no arquivo `.env` protegido do servidor somente enquanto a homologação
+vigente ou a importação de compatibilidade estiverem ativas.
 
 A credencial PostgreSQL do n8n usa host postgres, porta 5432 e SSL desativado
 na rede interna da stack. As credenciais Google Drive e Gmail sao criadas no
@@ -72,8 +76,11 @@ ps, os health checks, o tunel SSH e uma execucao de PDF de teste.
 ## Landing de upload
 
 O serviço `upload-gateway` atende a landing e utiliza o volume
-`automacao_miller_submission_data`, compartilhado com o n8n para disponibilizar
-relatórios concluídos. Configure `LANDING_ACCESS_TOKEN` para o link privado e
+`automacao_miller_submission_data`, compartilhado com o n8n para persistir os
+uploads e disponibilizar relatórios concluídos. Esse volume é a base do
+repositório interno aprovado; a próxima implementação deverá organizar nele os
+PDFs, Markdown e relatórios com referências mantidas no PostgreSQL. Configure
+`LANDING_ACCESS_TOKEN` para o link privado e
 `INTERNAL_API_TOKEN` para as chamadas internas. Importe os workflows de intake
 e conclusão descritos em `workflows/README.md` e associe as credenciais no n8n.
 O serviço deve ser publicado atrás de HTTPS/Caddy; não exponha diretamente a

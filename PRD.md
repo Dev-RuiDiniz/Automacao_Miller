@@ -11,9 +11,13 @@
 
 ## 2. Visão do produto
 
-O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama**, executada em servidor Linux via Docker.
+O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker.
 
-O sistema deve receber novos documentos PDF por meio do Google Drive, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado, gerar um PDF final, armazená-lo no Google Drive e enviá-lo automaticamente por Gmail.
+Na homologação vigente, a entrada e os artefatos ainda passam pelo Google Drive.
+Esta é a arquitetura aprovada para a próxima implementação; a migração deve
+ser concluída antes de considerar o repositório interno como operacional.
+
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado, gerar um PDF final, armazenar os arquivos em volume privado do Docker e enviar o resultado automaticamente por Gmail. O PostgreSQL será a fonte de verdade dos metadados, estados, tentativas, erros e vínculos entre documento e artefatos.
 
 A IA deve atuar como ferramenta de apoio à leitura, classificação, organização e geração de relatórios. O sistema **não substitui análise humana especializada** em questões jurídicas, médicas ou regulatórias.
 
@@ -38,7 +42,7 @@ O produto deverá reduzir:
 
 ### 4.1 Usuário operacional
 
-Responsável por adicionar documentos ao Google Drive e consultar os resultados gerados.
+Responsável por enviar documentos pela landing privada e consultar os resultados gerados.
 
 ### 4.2 Revisor humano
 
@@ -70,7 +74,9 @@ Componentes definidos para o projeto:
 
 - **n8n:** automação e orquestração do workflow;
 - **Ollama:** execução local do modelo de IA;
-- **Google Drive:** entrada de documentos e armazenamento;
+- **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
+- **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
+- **Google Drive:** integração legada ou fonte de importação temporária, sem ser a fonte oficial de organização;
 - **Gmail:** envio automático dos relatórios;
 - **Docker:** empacotamento e implantação dos serviços;
 - **VPS Linux:** hospedagem do ambiente.
@@ -89,13 +95,13 @@ Infraestrutura de referência apresentada na proposta:
 ## 6. Fluxo principal do produto
 
 ```text
-PDF recebido no Google Drive
+PDF recebido pelo gateway de upload
         ↓
-Download e identificação do documento
+Persistência no volume privado e registro no PostgreSQL
         ↓
 Conversão obrigatória para Markdown
         ↓
-Persistência do Markdown e evidências
+Persistência do Markdown e evidências no volume e no PostgreSQL
         ↓
 Extração estruturada a partir somente do Markdown
         ↓
@@ -105,23 +111,27 @@ Geração do relatório
         ↓
 Conversão para PDF
         ↓
-Armazenamento no Google Drive
+Armazenamento do relatório no volume privado e registro no PostgreSQL
         ↓
 Envio automático por Gmail
 ```
 
-Quando o documento for enviado pela landing, o fluxo começa pelo gateway de
-upload, que persiste o arquivo, gera um protocolo e encaminha a execução ao
-n8n. O Google Drive continua sendo o armazenamento oficial do PDF original e
-dos artefatos do processamento.
+Quando o documento for enviado pela landing, o gateway persiste o arquivo no
+volume privado, gera um protocolo e registra o documento no PostgreSQL antes de
+encaminhar a execução ao n8n. O Google Drive poderá permanecer disponível para
+importação de documentos durante a transição, mas não será o armazenamento
+oficial nem controlará o estado do processamento.
 
 ---
 
 ## 7. Requisitos funcionais
 
-### RF-01 — Monitoramento de entrada
+### RF-01 — Recebimento de entrada
 
-O sistema deve monitorar automaticamente a origem configurada no Google Drive e identificar novos PDFs elegíveis para processamento.
+O sistema deve receber PDFs pelo gateway privado, validar o conteúdo, persistir
+o arquivo no volume interno e registrar um documento elegível no PostgreSQL.
+Uma entrada via Google Drive poderá existir como compatibilidade de importação,
+sem substituir o registro interno.
 
 ### RF-02 — Leitura de PDF
 
@@ -178,7 +188,10 @@ O relatório final deve ser convertido para PDF.
 
 ### RF-11 — Armazenamento
 
-Os artefatos definidos pelo workflow, incluindo o Markdown intermediário associado ao PDF de origem, devem ser salvos na estrutura organizada do Google Drive.
+Os artefatos definidos pelo workflow, incluindo o Markdown intermediário e o
+relatório associados ao PDF de origem, devem ser salvos no volume privado do
+Docker. O PostgreSQL deve registrar o tipo, caminho interno, hash, tamanho e
+vínculo de cada artefato.
 
 ### RF-12 — Envio por e-mail
 
@@ -354,7 +367,9 @@ O projeto contempla:
 - instalação e configuração do n8n;
 - instalação e configuração do Ollama;
 - modelo inicial;
-- integração com Google Drive;
+- integração opcional de importação com Google Drive;
+- repositório interno em volume privado do Docker;
+- persistência operacional em PostgreSQL;
 - integração com Gmail;
 - desenvolvimento do workflow;
 - desenvolvimento dos prompts;
@@ -402,7 +417,7 @@ Qualquer item fora desta lista de requisitos deve ser tratado como alteração d
 O MVP poderá ser considerado entregue quando:
 
 1. o ambiente estiver instalado e executando no servidor definido;
-2. o n8n conseguir detectar um PDF de teste no Google Drive;
+2. o gateway conseguir receber um PDF de teste e registrar o documento no PostgreSQL;
 3. o PDF for convertido obrigatoriamente para Markdown;
 4. o Markdown possuir metadados, hash e marcadores de página;
 5. o Markdown for persistido e associado ao PDF de origem;
@@ -411,7 +426,7 @@ O MVP poderá ser considerado entregue quando:
 8. a saída estruturada for produzida;
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
-11. o PDF final for armazenado no Google Drive;
+11. o PDF final for armazenado no volume privado e associado ao documento no PostgreSQL;
 12. o e-mail automático for enviado pelo Gmail;
 13. um caso de falha de conversão impedir a extração e ser identificado;
 14. um caso de baixa confiança puder ser encaminhado para revisão;

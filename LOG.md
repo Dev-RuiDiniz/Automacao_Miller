@@ -74,6 +74,18 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 - Docker;
 - Linux em VPS.
 
+### Arquitetura aprovada para evolução
+
+- PostgreSQL como fonte de verdade operacional;
+- volume privado do Docker para PDFs, Markdown e relatórios;
+- Google Drive apenas para importação temporária durante a transição;
+- Gmail para envio;
+- n8n para orquestração;
+- Ollama para análise local.
+
+Essa arquitetura ainda não está implementada nos workflows versionados. A
+homologação vigente registrada nos eventos históricos continua usando o Drive.
+
 ### Fluxo de referência
 
 ```text
@@ -885,3 +897,37 @@ relatório, download e os cenários de falha/retomada.
 **Impacto:**
 A landing agora possui acesso operacional por usuário e senha em HTTPS, sem
 expor a senha ou o hash no Git.
+
+## 2026-09-09 — Decisão pelo repositório interno
+
+**Tipo:** ARQUITETURA / DECISÃO DE ESCOPO
+**Status:** APROVADO; IMPLEMENTAÇÃO PENDENTE
+
+**Contexto:**
+Foi avaliado se o Google Drive deveria continuar sendo responsável pela
+organização dos PDFs, Markdown e relatórios. A stack já possui PostgreSQL para
+metadados e um volume privado compartilhado entre o gateway e o n8n.
+
+**Decisão/Ação:**
+Adotar PostgreSQL como fonte de verdade operacional e volume privado do Docker
+como repositório interno dos arquivos. O Google Drive deixa de ser o
+armazenamento oficial e poderá permanecer apenas como integração de importação
+durante a transição. Os workflows deverão deixar de usar pastas do Drive como
+representação principal de estado.
+
+**Arquivos afetados:**
+`PRD.md`, `ROADMAP.md`, `LOG.md` e, na próxima implementação, o esquema
+PostgreSQL, o gateway, os volumes e os workflows n8n.
+
+**Testes:**
+Não aplicável à decisão documental. A implementação deverá validar caso feliz,
+duplicidade, falhas intermediárias, retomada, revisão humana e download.
+
+**Pendências:**
+Criar o modelo de documentos e artefatos, migrar a persistência dos arquivos,
+adaptar os workflows e definir backup conjunto do banco e do volume.
+
+**Impacto:**
+O sistema passará a ter uma fonte interna e consultável para organização,
+status, auditoria e recuperação, reduzindo a dependência operacional do
+Google Drive.

@@ -17,18 +17,18 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 - Identifica informações regulatórias relevantes quando elas estão presentes no documento.
 - Estrutura os resultados para facilitar a leitura e a conferência.
 - Gera relatórios padronizados em PDF.
-- Armazena os artefatos no Google Drive e envia o resultado por Gmail.
+- Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e envia o resultado por Gmail.
 - Sinaliza baixa confiança, ambiguidade, contradições e falhas para revisão humana.
 - Mantém o processamento rastreável, com estados de recebido, em processamento, concluído, aguardando revisão ou com erro.
 
 ## Como funciona
 
 ```text
-PDF no Google Drive
+PDF recebido pela landing privada
         ↓
 Conversão obrigatória para Markdown
         ↓
-Persistência do Markdown e das evidências
+Persistência interna no volume e no PostgreSQL
         ↓
 Extração estruturada
         ↓
@@ -38,16 +38,18 @@ Dados estruturados
         ↓
 Relatório padronizado
         ↓
-PDF final no Google Drive
+PDF final no volume privado
         ↓
 Envio automático por Gmail
 ```
 
 O fluxo é orquestrado pelo **n8n**. A análise é executada pelo **Ollama** no próprio servidor, reduzindo a dependência de APIs externas de IA e mantendo os documentos dentro do ambiente configurado para a operação.
 
-Na homologação, a entrada também pode ser feita por uma landing privada: o
-usuário envia ou arrasta um PDF, recebe um protocolo e acompanha o processamento
-até o download controlado do relatório final.
+Na homologação atual, os workflows ainda utilizam o Google Drive para entrada
+e armazenamento dos artefatos. A arquitetura aprovada substitui essa
+organização por PostgreSQL e volume privado do Docker. A entrada principal será
+feita pela landing privada: o usuário envia ou arrasta um PDF, recebe um
+protocolo e acompanha o processamento até o download controlado do relatório.
 
 ## Informações que podem ser organizadas
 
@@ -68,7 +70,9 @@ A ausência de uma informação é diferenciada de uma falha técnica de leitura
 
 ### Usuário operacional
 
-Adiciona documentos à pasta configurada do Google Drive e consulta os relatórios gerados, os estados do processamento e os casos encaminhados para revisão.
+Envia documentos pela landing privada e consulta os relatórios gerados, os
+estados do processamento e os casos encaminhados para revisão. A importação
+via Google Drive é uma compatibilidade temporária.
 
 ### Revisor humano
 
@@ -100,7 +104,7 @@ O MVP foi dimensionado inicialmente para uma infraestrutura de baixo custo, suje
 
 ## Escopo inicial
 
-O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs, as integrações com Google Drive e Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização para revisão humana, os testes e a documentação de operação.
+O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs, a persistência operacional em PostgreSQL, o armazenamento interno em volume privado, a importação temporária pelo Google Drive, a integração com Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização para revisão humana, os testes e a documentação de operação.
 
 Não fazem parte do escopo inicial OCR comercial pago, painel administrativo personalizado, aplicativo mobile, fine-tuning, modelo proprietário, revisão jurídica, responsabilidade técnica regulatória ou integrações não descritas na proposta.
 
@@ -111,13 +115,13 @@ O prazo comercial de referência é de até **10 dias úteis** após a aprovaç�
 Para iniciar a implantação, são necessários:
 
 1. VPS Linux ou confirmação da infraestrutura disponível;
-2. acessos autorizados ao Google Drive e ao Gmail;
-3. definição das pastas de entrada, processamento, revisão e resultados;
+2. acesso autorizado ao Gmail e, durante a homologação ou transição, ao Google Drive;
+3. definição dos limites de armazenamento, política de backup e responsáveis pela operação;
 4. arquivos PDF reais ou de exemplo para validação;
 5. definição dos destinatários dos relatórios;
 6. responsáveis pela validação e revisão humana.
 
-O projeto está atualmente com a stack de homologação versionada e implantada na VPS própria. A operação depende da configuração das credenciais Google, da aprovação dos testes de ponta a ponta e da revisão humana dos resultados.
+O projeto está atualmente com a stack de homologação versionada e implantada na VPS própria. A homologação vigente depende das credenciais Google; a migração para o repositório interno permanece pendente antes da operação definitiva.
 
 ## Documentação do projeto
 

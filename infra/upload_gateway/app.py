@@ -20,6 +20,8 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, Resp
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from infra.upload_gateway.storage import original_key, resolve_storage_key, storage_root
+
 MAX_PDF_BYTES = 100 * 1024 * 1024
 STATUSES = {"recebido", "processando", "aguardando_revisao", "concluido", "erro"}
 STATIC_DIR = Path(__file__).with_name("static")
@@ -34,9 +36,10 @@ class Submission:
     submission_id: str
     filename: str
     sha256: str
+    size_bytes: int
     status: str
-    source_path: str
-    report_path: str | None
+    source_key: str
+    report_key: str | None
     message: str | None
     created_at: str
     updated_at: str
@@ -74,7 +77,7 @@ class InMemoryStore:
         if item is None:
             return None
         for key, value in changes.items():
-            setattr(item, key, value)
+            setattr(item, "report_key" if key == "report_storage_key" else key, value)
         item.updated_at = now()
         return item
 
@@ -88,16 +91,41 @@ class PostgresStore:
             connection.execute("CREATE SCHEMA IF NOT EXISTS automacao_miller")
             connection.execute(
                 """
-                CREATE TABLE IF NOT EXISTS automacao_miller.submissions (
+                CREATE TABLE IF NOT EXISTS automacao_miller.documents (
                     submission_id TEXT PRIMARY KEY,
-                    filename TEXT NOT NULL,
-                    sha256 CHAR(64) NOT NULL UNIQUE,
-                    status TEXT NOT NULL,
-                    source_path TEXT NOT NULL,
-                    report_path TEXT,
+                    source TEXT NOT NULL DEFAULT 'landing',
+                    source_document_id TEXT,
+                    source_filename TEXT NOT NULL,
+                    source_sha256 CHAR(64) NOT NULL UNIQUE,
+                    mime_type TEXT NOT NULL DEFAULT 'application/pdf',
+                    size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),
+                    source_storage_key TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('recebido', 'em_processamento', 'processando', 'aguardando_revisao', 'concluido', 'erro')),
+                    current_stage TEXT NOT NULL DEFAULT 'recebido',
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    started_at TIMESTAMPTZ,
+                    completed_at TIMESTAMPTZ,
+                    report_storage_key TEXT,
                     message TEXT,
                     created_at TIMESTAMPTZ NOT NULL,
                     updated_at TIMESTAMPTZ NOT NULL
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS automacao_miller.artifacts (
+                    artifact_id BIGSERIAL PRIMARY KEY,
+                    submission_id TEXT NOT NULL REFERENCES automacao_miller.documents(submission_id),
+                    artifact_type TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    storage_key TEXT NOT NULL UNIQUE,
+                    sha256 CHAR(64),
+                    size_bytes BIGINT,
+                    mime_type TEXT NOT NULL,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    UNIQUE (submission_id, artifact_type, version)
                 )
                 """
             )
@@ -113,14 +141,37 @@ class PostgresStore:
             with psycopg.connect(self.database_url) as connection:
                 row = connection.execute(
                     """
-                    INSERT INTO automacao_miller.submissions
-                    (submission_id, filename, sha256, status, source_path, report_path, message, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (sha256) DO NOTHING
-                    RETURNING submission_id, filename, sha256, status, source_path, report_path, message, created_at, updated_at
+                    INSERT INTO automacao_miller.documents
+                    (submission_id, source_filename, source_sha256, size_bytes, source_storage_key,
+                     status, current_stage, message, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (source_sha256) DO NOTHING
+                    RETURNING submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key,
+                              report_storage_key, message, created_at, updated_at
                     """,
-                    tuple(vars(submission).values()),
+                    (
+                        submission.submission_id,
+                        submission.filename,
+                        submission.sha256,
+                        submission.size_bytes,
+                        submission.source_key,
+                        submission.status,
+                        "recebido",
+                        submission.message,
+                        submission.created_at,
+                        submission.updated_at,
+                    ),
                 ).fetchone()
+                if row:
+                    connection.execute(
+                        """
+                        INSERT INTO automacao_miller.artifacts
+                        (submission_id, artifact_type, version, storage_key, sha256, size_bytes, mime_type)
+                        VALUES (%s, 'original_pdf', 1, %s, %s, %s, 'application/pdf')
+                        ON CONFLICT (storage_key) DO NOTHING
+                        """,
+                        (submission.submission_id, submission.source_key, submission.sha256, submission.size_bytes),
+                    )
                 return self._row(row)
         except psycopg.Error:
             raise
@@ -128,7 +179,7 @@ class PostgresStore:
     def get(self, submission_id: str) -> Submission | None:
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute(
-                "SELECT submission_id, filename, sha256, status, source_path, report_path, message, created_at, updated_at FROM automacao_miller.submissions WHERE submission_id = %s",
+                "SELECT submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at FROM automacao_miller.documents WHERE submission_id = %s",
                 (submission_id,),
             ).fetchone()
         return self._row(row)
@@ -136,20 +187,20 @@ class PostgresStore:
     def find_by_hash(self, sha256: str) -> Submission | None:
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute(
-                "SELECT submission_id, filename, sha256, status, source_path, report_path, message, created_at, updated_at FROM automacao_miller.submissions WHERE sha256 = %s",
+                "SELECT submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at FROM automacao_miller.documents WHERE source_sha256 = %s",
                 (sha256,),
             ).fetchone()
         return self._row(row)
 
     def update(self, submission_id: str, **changes: Any) -> Submission | None:
-        allowed = {"status", "message", "report_path", "source_path", "filename"}
+        allowed = {"status", "message", "report_storage_key", "source_storage_key", "source_filename", "current_stage"}
         changes = {key: value for key, value in changes.items() if key in allowed}
         changes["updated_at"] = datetime.now(timezone.utc)
         assignments = ", ".join(f"{key} = %s" for key in changes)
         values = [*changes.values(), submission_id]
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute(
-                f"UPDATE automacao_miller.submissions SET {assignments} WHERE submission_id = %s RETURNING submission_id, filename, sha256, status, source_path, report_path, message, created_at, updated_at",
+                f"UPDATE automacao_miller.documents SET {assignments} WHERE submission_id = %s RETURNING submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at",
                 values,
             ).fetchone()
         return self._row(row)
@@ -161,7 +212,7 @@ def now() -> str:
 
 def settings() -> dict[str, str]:
     return {
-        "storage_dir": os.getenv("UPLOAD_STORAGE_DIR", "/data/submissions"),
+        "storage_dir": os.getenv("ARTIFACT_STORAGE_DIR", "/data/artifacts"),
         "landing_token": os.getenv("LANDING_ACCESS_TOKEN", ""),
         "internal_token": os.getenv("INTERNAL_API_TOKEN", ""),
         "landing_username": os.getenv("LANDING_USERNAME", ""),
@@ -262,7 +313,9 @@ def _valid_landing_token(supplied: str | None) -> bool:
 
 @app.on_event("startup")
 def startup() -> None:
-    Path(settings()["storage_dir"]).mkdir(parents=True, exist_ok=True)
+    root = storage_root()
+    root.joinpath("incoming").mkdir(parents=True, exist_ok=True)
+    root.joinpath("objects").mkdir(parents=True, exist_ok=True)
     store.initialize()
 
 
@@ -357,14 +410,16 @@ async def create_submission(file: UploadFile = File(...)) -> JSONResponse:
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=415, detail="Envie um arquivo PDF.")
 
-    storage_dir = Path(settings()["storage_dir"])
+    storage_dir = storage_root()
     submission_id = str(uuid.uuid4())
-    source_path = storage_dir / f"{submission_id}.pdf"
+    incoming_dir = storage_dir / "incoming"
+    incoming_dir.mkdir(parents=True, exist_ok=True)
+    temporary_path = incoming_dir / f"{submission_id}.upload"
     digest = hashlib.sha256()
     total = 0
     first_chunk = b""
     try:
-        with source_path.open("wb") as output:
+        with temporary_path.open("wb") as output:
             while chunk := await file.read(1024 * 1024):
                 if not first_chunk:
                     first_chunk = chunk[:5]
@@ -374,22 +429,35 @@ async def create_submission(file: UploadFile = File(...)) -> JSONResponse:
                 digest.update(chunk)
                 output.write(chunk)
     except HTTPException:
-        source_path.unlink(missing_ok=True)
+        temporary_path.unlink(missing_ok=True)
         raise
     except OSError as exc:
-        source_path.unlink(missing_ok=True)
+        temporary_path.unlink(missing_ok=True)
         raise HTTPException(status_code=507, detail="Não foi possível persistir o upload.") from exc
 
     if first_chunk != b"%PDF-":
-        source_path.unlink(missing_ok=True)
+        temporary_path.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail="O conteúdo enviado não é um PDF válido.")
 
+    source_key = original_key(digest.hexdigest())
+    source_path = resolve_storage_key(source_key)
+    target_existed = source_path.exists()
+    source_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.parent.chmod(0o770)
+    os.replace(temporary_path, source_path)
+    source_path.chmod(0o660)
     timestamp = now()
-    item = Submission(submission_id, filename, digest.hexdigest(), "recebido", str(source_path), None, None, timestamp, timestamp)
-    created = store.create(item)
+    item = Submission(submission_id, filename, digest.hexdigest(), total, "recebido", source_key, None, None, timestamp, timestamp)
+    try:
+        created = store.create(item)
+    except psycopg.Error as exc:
+        if not target_existed:
+            source_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=503, detail="Não foi possível registrar o documento.") from exc
     if created is None:
-        source_path.unlink(missing_ok=True)
         existing = store.find_by_hash(item.sha256)
+        if existing and existing.source_key != source_key:
+            source_path.unlink(missing_ok=True)
         return JSONResponse(status_code=200, content=public_submission(existing) if existing else {"submission_id": submission_id, "status": "recebido"})
 
     webhook = settings()["n8n_webhook_url"]
@@ -398,9 +466,9 @@ async def create_submission(file: UploadFile = File(...)) -> JSONResponse:
             async with httpx.AsyncClient(timeout=10) as client:
                 response = await client.post(webhook, json={"submission_id": submission_id, "filename": filename})
                 response.raise_for_status()
-            store.update(submission_id, status="processando")
+            store.update(submission_id, status="recebido")
         except httpx.HTTPError:
-            store.update(submission_id, status="erro", message="Não foi possível iniciar o processamento no n8n.")
+            store.update(submission_id, status="recebido", message="Aguardando despacho para o n8n.")
 
     return JSONResponse(status_code=202, content=public_submission(store.get(submission_id) or item))
 
@@ -418,10 +486,13 @@ def download_report(submission_id: str) -> FileResponse:
     item = store.get(submission_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
-    if item.status != "concluido" or not item.report_path:
+    if item.status != "concluido" or not item.report_key:
         raise HTTPException(status_code=409, detail="O relatório ainda não está disponível.")
-    report = Path(item.report_path).resolve()
-    storage = Path(settings()["storage_dir"]).resolve()
+    try:
+        report = resolve_storage_key(item.report_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Relatório não encontrado.") from exc
+    storage = storage_root()
     if storage not in report.parents or not report.is_file():
         raise HTTPException(status_code=404, detail="Relatório não encontrado.")
     return FileResponse(report, media_type="application/pdf", filename=f"relatorio-{submission_id}.pdf")
@@ -430,9 +501,15 @@ def download_report(submission_id: str) -> FileResponse:
 @app.get("/internal/submissions/{submission_id}/file", dependencies=[Depends(require_internal_access)])
 def get_source_file(submission_id: str) -> FileResponse:
     item = store.get(submission_id)
-    if item is None or not Path(item.source_path).is_file():
+    if item is None:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
-    return FileResponse(item.source_path, media_type="application/pdf", filename=item.filename)
+    try:
+        source = resolve_storage_key(item.source_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.") from exc
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+    return FileResponse(source, media_type="application/pdf", filename=item.filename)
 
 
 @app.post("/internal/submissions/{submission_id}/status", dependencies=[Depends(require_internal_access)])
@@ -443,8 +520,15 @@ def update_submission_status(submission_id: str, payload: dict[str, Any]) -> dic
     changes: dict[str, Any] = {"status": status}
     if "message" in payload:
         changes["message"] = payload["message"]
-    if "report_path" in payload:
-        changes["report_path"] = payload["report_path"]
+    report_key = payload.get("report_key", payload.get("report_path"))
+    if report_key is not None:
+        try:
+            resolve_storage_key(str(report_key))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Chave de relatório inválida.") from exc
+        changes["report_storage_key"] = str(report_key).replace("\\", "/")
+    if status == "concluido" and not (report_key or (item := store.get(submission_id)) and item.report_key):
+        raise HTTPException(status_code=422, detail="Conclusão exige relatório interno persistido.")
     item = store.update(submission_id, **changes)
     if item is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")

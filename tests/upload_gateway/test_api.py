@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -16,7 +17,7 @@ def make_client(tmp_path: Path) -> TestClient:
     gateway.os.environ["AUTH_SESSION_TTL_SECONDS"] = "3600"
     gateway.os.environ["SESSION_COOKIE_SECURE"] = "false"
     gateway.os.environ.pop("N8N_SUBMISSION_WEBHOOK_URL", None)
-    gateway.os.environ["UPLOAD_STORAGE_DIR"] = str(tmp_path)
+    gateway.os.environ["ARTIFACT_STORAGE_DIR"] = str(tmp_path)
     return TestClient(gateway.app)
 
 
@@ -112,17 +113,50 @@ def test_report_is_only_available_after_completion(tmp_path: Path) -> None:
     created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
     unavailable = client.get(f"/api/v1/submissions/{created['submission_id']}/report", headers=headers)
     assert unavailable.status_code == 409
-    report = tmp_path / "report.pdf"
+    report = tmp_path / "objects" / "aa" / "bb" / "report" / "report-v1.pdf"
+    report.parent.mkdir(parents=True)
     report.write_bytes(b"%PDF-1.7 report")
+    report_key = str(report.relative_to(tmp_path)).replace("\\", "/")
     updated = client.post(
         f"/internal/submissions/{created['submission_id']}/status",
         headers={"X-Internal-Token": "internal-test"},
-        json={"status": "concluido", "report_path": str(report)},
+        json={"status": "concluido", "report_key": report_key},
     )
     assert updated.status_code == 200
     downloaded = client.get(f"/api/v1/submissions/{created['submission_id']}/report", headers=headers)
     assert downloaded.status_code == 200
     assert downloaded.content == b"%PDF-1.7 report"
+
+
+def test_upload_uses_hash_based_private_storage(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    response = client.post(
+        "/api/v1/submissions",
+        headers=headers,
+        files={"file": ("referencia.pdf", b"%PDF-1.7 hash-layout", "application/pdf")},
+    )
+    assert response.status_code == 202
+    source_files = list((tmp_path / "objects").rglob("original.pdf"))
+    assert len(source_files) == 1
+    if os.name != "nt":
+        assert source_files[0].stat().st_mode & 0o777 == 0o660
+
+
+def test_report_rejects_absolute_storage_path(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    created = client.post(
+        "/api/v1/submissions",
+        headers=headers,
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    response = client.post(
+        f"/internal/submissions/{created['submission_id']}/status",
+        headers={"X-Internal-Token": "internal-test"},
+        json={"status": "concluido", "report_key": str(tmp_path / "report.pdf")},
+    )
+    assert response.status_code == 422
 
 
 def test_internal_status_rejects_invalid_token_and_status(tmp_path: Path) -> None:

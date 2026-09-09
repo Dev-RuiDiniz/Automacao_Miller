@@ -12,6 +12,9 @@ def test_compose_declares_isolated_required_services() -> None:
         assert service in compose
     assert "127.0.0.1:${N8N_HOST_PORT:-25678}:5678" in compose
     assert "automacao_miller_n8n_data" in compose
+    assert "automacao_miller_artifacts_data:/data/artifacts" in compose
+    assert "ARTIFACT_STORAGE_DIR" in compose
+    assert "automacao_miller_submission_data:" in compose
 
 
 def test_workflow_export_is_valid_and_contains_required_stages() -> None:
@@ -51,3 +54,40 @@ def test_error_workflow_export_records_failures() -> None:
 
     assert {"Error Trigger", "Normalize error context", "Record workflow error"} <= names
     assert workflow["id"] == "automacao-regulatoria-error-handler"
+
+
+def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None:
+    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v1.json").read_text(encoding="utf-8"))
+    names = {node["name"] for node in workflow["nodes"]}
+    node_types = {node["type"] for node in workflow["nodes"]}
+
+    assert workflow["id"] == "automacao-regulatoria-internal"
+    assert workflow["active"] is False
+    assert workflow["settings"]["errorWorkflow"] == "automacao-regulatoria-internal-error-handler"
+    assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "Gmail - Send report", "State - Human review"} <= names
+    assert "n8n-nodes-base.googleDrive" not in node_types
+    assert "automacao_miller.documents" in next(node for node in workflow["nodes"] if node["name"] == "State - Claim document")["parameters"]["query"]
+    assert "/data/artifacts/" in " ".join(json.dumps(node["parameters"]) for node in workflow["nodes"])
+
+
+def test_internal_repository_schema_contract() -> None:
+    schema = (ROOT / "deploy" / "postgres" / "init" / "002_internal_repository.sql").read_text(encoding="utf-8")
+    for table in ("documents", "artifacts", "processing_attempts", "analysis_results", "human_reviews"):
+        assert f"CREATE TABLE IF NOT EXISTS automacao_miller.{table}" in schema
+    assert "ADD COLUMN IF NOT EXISTS submission_id" in schema
+    assert "legacy_report_file_id" in schema
+    assert "UNIQUE (submission_id, artifact_type, version)" in schema
+
+
+def test_reconciliation_and_internal_error_workflows_are_database_driven() -> None:
+    reconcile = json.loads((ROOT / "workflows" / "automacao-regulatoria-reconcile-v1.json").read_text(encoding="utf-8"))
+    error = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-error-v1.json").read_text(encoding="utf-8"))
+    reconcile_query = next(node for node in reconcile["nodes"] if node["name"] == "State - Find pending documents")["parameters"]["query"]
+    error_query = next(node for node in error["nodes"] if node["name"] == "Record internal error")["parameters"]["query"]
+
+    assert "processing_attempts" in reconcile_query
+    assert "status = 'recebido'" in reconcile_query
+    assert "workflow_errors" in error_query
+    assert "attempt_id" in error_query
+    assert "googleDrive" not in json.dumps(reconcile)
+    assert "googleDrive" not in json.dumps(error)

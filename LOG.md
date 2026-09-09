@@ -931,3 +931,47 @@ adaptar os workflows e definir backup conjunto do banco e do volume.
 O sistema passará a ter uma fonte interna e consultável para organização,
 status, auditoria e recuperação, reduzindo a dependência operacional do
 Google Drive.
+
+## 2026-09-09 — Implementação do repositório interno landing-only
+
+**Tipo:** ARQUITETURA / IMPLEMENTAÇÃO / MIGRAÇÃO
+**Status:** IMPLEMENTADO NO REPOSITÓRIO; ATIVAÇÃO DE HOMOLOGAÇÃO PENDENTE
+
+**Contexto:**
+Após a decisão arquitetural, foi definido que a landing privada será a única
+origem oficial de novos documentos. O Google Drive não deve permanecer nos
+workflows ativos. A migração precisa preservar o volume antigo e permitir
+rollback antes da ativação.
+
+**Decisão/Ação:**
+Implementado o volume dedicado `automacao_miller_artifacts_data`, montado em
+`/data/artifacts`, com objetos organizados por SHA-256. O gateway passou a
+persistir uploads atomicamente, registrar documentos e artefatos no PostgreSQL,
+deduplicar por hash e liberar download somente após `concluido`. Foram criadas
+as tabelas de documentos, artefatos, tentativas, análises, revisões humanas e
+erros, além dos workflows internos de processamento, reconciliação e erros.
+Também foram criados scripts de migração do volume antigo e backup conjunto do
+PostgreSQL e dos artefatos.
+
+**Arquivos afetados:**
+`docker-compose.yml`, `.env.example`, `infra/upload_gateway/`,
+`deploy/postgres/init/002_internal_repository.sql`, `deploy/backup/`,
+`workflows/automacao-regulatoria-internal-v1.json`,
+`workflows/automacao-regulatoria-reconcile-v1.json`,
+`workflows/automacao-regulatoria-internal-error-v1.json`, testes e documentação.
+
+**Testes:**
+Serão executados os testes automatizados do gateway, conversor e contratos dos
+workflows, além da validação JSON, `git diff --check` e revisão do diff para
+segredos. A validação ponta a ponta depende da VPS de homologação, Ollama,
+Gmail e n8n autorizados.
+
+**Pendências:**
+Executar backup da VPS, copiar o volume antigo para o novo, aplicar a migração
+em banco existente, importar e validar os workflows, simular falhas e somente
+então ativar o processamento interno.
+
+**Impacto:**
+O PostgreSQL passa a controlar o ciclo de vida do documento e o volume privado
+passa a ser o repositório operacional. Pastas e IDs do Drive deixam de
+representar estados; arquivos históricos do Drive permanecem preservados.

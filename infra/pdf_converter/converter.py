@@ -153,15 +153,6 @@ def convert_pdf_bytes(
         raise ConversionError("NO_TEXT_LAYER", "O PDF não possui conteúdo textual ou tabelas extraíveis.")
 
     filename = _safe_filename(source_filename)
-    metadata = {
-        "source_filename": filename,
-        "source_sha256": source_sha256,
-        "page_count": page_count,
-        "converter_version": CONVERTER_VERSION,
-    }
-    if source_document_id:
-        metadata["source_document_id"] = source_document_id
-
     front_matter = [
         "---",
         f"converter_version: {CONVERTER_VERSION}",
@@ -172,10 +163,20 @@ def convert_pdf_bytes(
     if source_document_id:
         front_matter.append(f"source_document_id: {source_document_id}")
     front_matter.extend(["---", "# Documento convertido para Markdown"])
+    markdown = "\n\n".join(["\n".join(front_matter), *page_blocks])
+    metadata = {
+        "source_filename": filename,
+        "source_sha256": source_sha256,
+        "markdown_sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "page_count": page_count,
+        "converter_version": CONVERTER_VERSION,
+    }
+    if source_document_id:
+        metadata["source_document_id"] = source_document_id
 
     return {
         "status": "converted",
-        "markdown": "\n\n".join(["\n".join(front_matter), *page_blocks]),
+        "markdown": markdown,
         "metadata": metadata,
         "warnings": warnings,
     }

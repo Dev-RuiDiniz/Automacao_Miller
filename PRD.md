@@ -13,7 +13,7 @@
 
 O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker.
 
-Na homologação vigente, a entrada e os artefatos ainda passam pelo Google Drive.
+Na homologação anterior, a entrada e os artefatos ainda passavam pelo Google Drive.
 Esta é a arquitetura aprovada para a próxima implementação; a migração deve
 ser concluída antes de considerar o repositório interno como operacional.
 
@@ -76,7 +76,7 @@ Componentes definidos para o projeto:
 - **Ollama:** execução local do modelo de IA;
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
-- **Google Drive:** integração legada ou fonte de importação temporária, sem ser a fonte oficial de organização;
+- **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
 - **Gmail:** envio automático dos relatórios;
 - **Docker:** empacotamento e implantação dos serviços;
 - **VPS Linux:** hospedagem do ambiente.
@@ -116,11 +116,18 @@ Armazenamento do relatório no volume privado e registro no PostgreSQL
 Envio automático por Gmail
 ```
 
-Quando o documento for enviado pela landing, o gateway persiste o arquivo no
-volume privado, gera um protocolo e registra o documento no PostgreSQL antes de
-encaminhar a execução ao n8n. O Google Drive poderá permanecer disponível para
-importação de documentos durante a transição, mas não será o armazenamento
-oficial nem controlará o estado do processamento.
+Quando o documento for enviado pela landing, o gateway persiste atomicamente o
+arquivo no volume privado, gera um protocolo e registra o documento no
+PostgreSQL antes de encaminhar a execução ao webhook interno do n8n. A landing
+é a única origem oficial de novos documentos. Os exports antigos com Google
+Drive permanecem somente para auditoria e rollback.
+
+O volume `automacao_miller_artifacts_data` é montado em `/data/artifacts` no
+gateway e no n8n. Os arquivos usam chaves relativas organizadas por SHA-256 em
+`objects/ab/cd/<sha256>/`, enquanto o PostgreSQL registra metadados, estados,
+tentativas, erros, análises e revisões nas tabelas `documents`, `artifacts`,
+`processing_attempts`, `analysis_results`, `human_reviews` e
+`workflow_errors`.
 
 ---
 
@@ -128,10 +135,9 @@ oficial nem controlará o estado do processamento.
 
 ### RF-01 — Recebimento de entrada
 
-O sistema deve receber PDFs pelo gateway privado, validar o conteúdo, persistir
-o arquivo no volume interno e registrar um documento elegível no PostgreSQL.
-Uma entrada via Google Drive poderá existir como compatibilidade de importação,
-sem substituir o registro interno.
+O sistema deve receber PDFs exclusivamente pelo gateway privado da landing,
+validar o conteúdo, persistir o arquivo no volume interno e registrar um
+documento elegível no PostgreSQL. O Google Drive não é uma entrada ativa.
 
 ### RF-02 — Leitura de PDF
 
@@ -262,7 +268,9 @@ Um processamento só pode ser marcado como concluído quando as etapas obrigató
 
 ### RN-07 — Idempotência
 
-O mesmo arquivo não deve gerar processamentos duplicados de forma não intencional. O workflow deve usar identificador, hash, ID do Drive ou mecanismo equivalente.
+O mesmo arquivo não deve gerar processamentos duplicados de forma não
+intencional. O gateway deve deduplicar pelo SHA-256 e o workflow deve usar a
+reivindicação transacional do PostgreSQL para impedir execuções concorrentes.
 
 ### RN-08 — Registro de falhas
 
@@ -367,7 +375,6 @@ O projeto contempla:
 - instalação e configuração do n8n;
 - instalação e configuração do Ollama;
 - modelo inicial;
-- integração opcional de importação com Google Drive;
 - repositório interno em volume privado do Docker;
 - persistência operacional em PostgreSQL;
 - integração com Gmail;

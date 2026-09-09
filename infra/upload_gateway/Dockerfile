@@ -7,10 +7,11 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY infra/__init__.py /app/infra/__init__.py
 COPY infra/upload_gateway /app/infra/upload_gateway
 RUN useradd --create-home --uid 10002 appuser \
-    && mkdir -p /data/submissions \
+    && mkdir -p /data/artifacts \
     && chown -R appuser:appuser /app /data
-USER appuser
+COPY infra/upload_gateway/entrypoint.sh /usr/local/bin/upload-gateway-entrypoint
+RUN chmod 0755 /usr/local/bin/upload-gateway-entrypoint
 EXPOSE 8085
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8085/healthz')"
-CMD ["uvicorn", "infra.upload_gateway.app:app", "--host", "0.0.0.0", "--port", "8085"]
+ENTRYPOINT ["/usr/local/bin/upload-gateway-entrypoint"]

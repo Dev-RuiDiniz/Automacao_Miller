@@ -15,7 +15,7 @@
 **Estado atual:** stack de homologação implantada; PDF simples validado ponta a ponta; DOU processado e encaminhado para revisão humana; arquitetura de repositório interno aprovada para a próxima evolução
 **MVP:** definido  
 **Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
-**Dependências externas:** acessos do cliente, Google Drive, Gmail, VPS e arquivos de exemplo  
+**Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
 ---
@@ -94,7 +94,7 @@
 - [x] Definir estratégia de retry
 - [x] Definir rastreabilidade por documento
 - [x] Integrar gate HTTP PDF → Markdown
-- [x] Persistir Markdown no Google Drive antes da extração na homologação vigente
+- [x] Persistir Markdown no Google Drive antes da extração na homologação histórica
 - [x] Impedir chamada ao Ollama antes da conversão validada
 
 **Gate de saída:** n8n estável e pronto para receber integrações.
@@ -106,15 +106,23 @@ um repositório interno controlado pelo PostgreSQL e por volume privado do Docke
 
 - [x] Aprovar PostgreSQL como fonte de verdade operacional
 - [x] Aprovar volume privado como armazenamento de PDFs e artefatos
-- [ ] Criar modelo de documentos e artefatos no PostgreSQL
-- [ ] Persistir PDF original, Markdown e relatório no volume interno
-- [ ] Alterar o n8n para consultar documentos pendentes no PostgreSQL
-- [ ] Remover dependência de movimentação de arquivos no Drive para representar estados
+- [x] Criar modelo de documentos, artefatos, tentativas, análises, revisões e erros
+- [x] Criar volume `automacao_miller_artifacts_data` em `/data/artifacts`
+- [x] Persistir PDF original, Markdown, análise JSON e relatório no volume interno
+- [x] Alterar o gateway para hash, deduplicação e chaves relativas
+- [x] Alterar o n8n para reivindicar documentos pendentes no PostgreSQL
+- [x] Remover o Drive dos workflows ativos; exports antigos permanecem históricos
+- [x] Criar reconciliação de documentos presos e workflow de erros interno
+- [x] Criar rotina de backup conjunto e migração controlada do volume antigo
 - [ ] Validar upload, reprocessamento, revisão e download no repositório interno
-- [ ] Definir rotina de backup conjunto do PostgreSQL e do volume de artefatos
+- [ ] Executar backup e cópia dos dados na VPS de homologação
+- [ ] Ativar workflows internos após validação ponta a ponta
 
 **Gate de saída:** o processamento completo ocorre sem depender do Google Drive
 para armazenar ou organizar os arquivos.
+
+**Status da fase:** implementação versionada; homologação, backup e ativação
+pendentes.
 
 ## Fase 2A — Landing e gateway de upload
 
@@ -125,9 +133,9 @@ download controlado do relatório.
 - [x] Criar API de upload, status e download
 - [x] Validar token privado e token interno separado
 - [x] Calcular SHA-256 e impedir duplicidade acidental
-- [x] Persistir uploads e relatórios em volume compartilhado
-- [x] Criar workflow n8n de intake
-- [x] Criar workflow n8n de atualização de status
+- [x] Persistir uploads e relatórios no volume privado dedicado
+- [x] Criar workflow n8n de processamento iniciado pela landing
+- [x] Criar workflow n8n de reconciliação e atualização de status
 - [x] Criar página de acesso com usuário e senha
 - [x] Criar sessão HttpOnly, expiração e logout
 - [x] Configurar usuário, hash da senha e segredo da sessão no ambiente autorizado
@@ -157,14 +165,14 @@ protocolo e baixar o relatório final sem acesso às credenciais internas.
 
 ---
 
-## 8. Fase 4 — Integração Google Drive
+## 8. Fase 4 — Integração Google Drive (histórico)
 
 **Objetivo:** criar entrada automática e armazenamento dos resultados.
 
 As atividades desta fase registram a integração validada na homologação
-vigente. O armazenamento oficial será migrado para o repositório interno na
-Fase 2B; o Drive permanecerá apenas como compatibilidade de importação durante
-a transição.
+anterior. Os workflows desta fase estão inativos e não são origem, controle de
+estado ou armazenamento dos fluxos atuais. O Drive não será usado para novos
+documentos.
 
 - [x] Configurar credenciais do Google Drive
 - [x] Definir pasta de entrada
@@ -194,7 +202,7 @@ a transição.
 - [x] Criar contrato HTTP `/healthz` e `/v1/convert`
 - [x] Implantar o serviço no Docker da VPS
 - [x] Persistir o Markdown no Google Drive na homologação vigente
-- [ ] Persistir o Markdown no volume interno e registrar o artefato no PostgreSQL
+- [x] Persistir o Markdown no volume interno e registrar o artefato no PostgreSQL
 - [x] Validar documentos de exemplo
 
 **Observação:** OCR comercial pago está fora do escopo inicial.
@@ -236,7 +244,7 @@ a transição.
 - [x] Converter relatório para PDF
 - [x] Validar legibilidade do PDF
 - [x] Salvar PDF no Google Drive na homologação vigente
-- [ ] Salvar PDF no volume interno
+- [x] Salvar PDF no volume interno
 - [x] Associar relatório ao documento de origem
 
 **Gate de saída:** um documento processado produz PDF final válido e armazenado.
@@ -303,7 +311,7 @@ a transição.
 - [ ] Falha de extração
 - [ ] Falha do Ollama
 - [ ] Falha de geração do PDF
-- [ ] Falha no Drive
+- [ ] Falha no armazenamento interno
 - [ ] Falha no Gmail
 - [ ] Documento duplicado
 - [ ] Reprocessamento autorizado
@@ -329,7 +337,7 @@ a transição.
 
 **Objetivo:** deixar o sistema operável e rastreável.
 
-- [ ] Atualizar `PRD.md` (sem mudança de requisito prevista; revisar no fechamento)
+- [x] Atualizar `PRD.md` com a decisão landing-only e repositório interno
 - [x] Atualizar `ROADMAP.md`
 - [x] Consolidar `LOG.md`
 - [ ] Revisar `AGENTS.md`
@@ -388,7 +396,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 |---|---|---|
 | M1 | Governança criada | DONE |
 | M2 | Ambiente Docker + n8n + Ollama operacional | DONE |
-| M3 | Entrada pelo Drive funcionando na homologação | DONE |
+| M3 | Entrada pelo Drive funcionando na homologação histórica | DONE |
 | M4 | Extração + Markdown funcionando | DONE |
 | M5 | Análise estruturada funcionando | REVIEW |
 | M6 | Relatório + PDF funcionando | DONE |
@@ -396,6 +404,7 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | M8 | Revisão humana + erros funcionando | REVIEW |
 | M9 | Testes ponta a ponta aprovados | REVIEW |
 | M10 | Documentação e entrega | DOING |
+| M11 | Repositório interno landing-only implementado | REVIEW |
 
 ---
 

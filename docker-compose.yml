@@ -71,7 +71,7 @@ services:
     expose: ["8085"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-n8n}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-n8n}
-      UPLOAD_STORAGE_DIR: /data/submissions
+      ARTIFACT_STORAGE_DIR: ${ARTIFACT_STORAGE_DIR:-/data/artifacts}
       LANDING_ACCESS_TOKEN: ${LANDING_ACCESS_TOKEN}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
       LANDING_USERNAME: ${LANDING_USERNAME}
@@ -79,9 +79,9 @@ services:
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
       AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:-28800}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
-      N8N_SUBMISSION_WEBHOOK_URL: ${N8N_SUBMISSION_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-intake}
+      N8N_SUBMISSION_WEBHOOK_URL: ${N8N_SUBMISSION_WEBHOOK_URL:-http://n8n:5678/webhook/automacao-regulatoria-internal}
     volumes:
-      - automacao_miller_submission_data:/data/submissions
+      - automacao_miller_artifacts_data:/data/artifacts
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,12 +115,7 @@ services:
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_PERSONALIZATION_ENABLED: "false"
-      GOOGLE_DRIVE_INPUT_FOLDER_ID: ${GOOGLE_DRIVE_INPUT_FOLDER_ID}
-      GOOGLE_DRIVE_PROCESSING_FOLDER_ID: ${GOOGLE_DRIVE_PROCESSING_FOLDER_ID}
-      GOOGLE_DRIVE_COMPLETED_FOLDER_ID: ${GOOGLE_DRIVE_COMPLETED_FOLDER_ID}
-      GOOGLE_DRIVE_REVIEW_FOLDER_ID: ${GOOGLE_DRIVE_REVIEW_FOLDER_ID}
-      GOOGLE_DRIVE_MARKDOWN_FOLDER_ID: ${GOOGLE_DRIVE_MARKDOWN_FOLDER_ID}
-      GOOGLE_DRIVE_REPORT_FOLDER_ID: ${GOOGLE_DRIVE_REPORT_FOLDER_ID}
+      ARTIFACT_STORAGE_DIR: /data/artifacts
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
       PDF_CONVERTER_BASE_URL: ${PDF_CONVERTER_BASE_URL:-http://pdf-converter:8080}
       PDF_CONVERTER_TIMEOUT_SECONDS: ${PDF_CONVERTER_TIMEOUT_SECONDS:-120}
@@ -133,7 +128,9 @@ services:
       GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-America/Sao_Paulo}
     volumes:
       - automacao_miller_n8n_data:/home/node/.n8n
-      - automacao_miller_submission_data:/data/submissions
+      - automacao_miller_artifacts_data:/data/artifacts
+    group_add:
+      - "${ARTIFACTS_GID:-10002}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -157,6 +154,8 @@ volumes:
   automacao_miller_ollama_data:
   automacao_miller_n8n_data:
   automacao_miller_submission_data:
+  automacao_miller_artifacts_data:
+    name: ${ARTIFACT_VOLUME_NAME:-automacao_miller_artifacts_data}
 
 networks:
   internal:

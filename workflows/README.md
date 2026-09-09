@@ -1,67 +1,71 @@
 # Workflows n8n
 
-## Importacao
+## Fluxo ativo
 
-Na homologação vigente, importe primeiro `automacao-regulatoria-v1.json` e
-depois `automacao-regulatoria-error-v1.json` no n8n local. Esses exports ainda
-usam o Google Drive para entrada, movimentação e armazenamento de artefatos.
-O workflow principal deve permanecer inativo até que as credenciais Google
-Drive, Gmail e PostgreSQL sejam associadas aos nós correspondentes.
+A origem oficial de novos documentos é a landing privada. Importe e mantenha
+inativos até a validação no n8n:
 
-A arquitetura aprovada para a próxima implementação usará o PostgreSQL como
-fonte de verdade e o volume privado do Docker como repositório dos arquivos.
-Os workflows atuais não devem ser considerados migrados enquanto essa etapa
-estiver pendente.
+1. `automacao-regulatoria-internal-v1.json` — recebe o protocolo, reivindica o
+   documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
+   artefatos, envia o relatório por Gmail e atualiza o status;
+2. `automacao-regulatoria-internal-reconcile-v1.json` — recupera documentos
+   presos em processamento e redispara pendências;
+3. `automacao-regulatoria-internal-error-v1.json` — registra categoria, etapa,
+   execução, tentativa e mensagem no PostgreSQL.
 
-Associe o workflow de erro ao workflow principal nas configuracoes do n8n.
-Nenhum ID de credencial e versionado neste repositorio.
+Os exports `automacao-regulatoria-v1.json`, `automacao-regulatoria-intake-v1.json`,
+`automacao-regulatoria-completion-v1.json` e
+`automacao-regulatoria-error-v1.json` são históricos da homologação com Google
+Drive. Permanecem versionados e inativos para auditoria e rollback, sem serem
+parte do fluxo ativo.
 
-## Credenciais necessarias
+## Repositório interno
 
-- Google Drive OAuth2 para a homologação vigente e a importação temporária.
-- Gmail OAuth2 para envio do relatorio.
-- PostgreSQL para a tabela `automacao_miller.document_processing`.
-- PostgreSQL para a tabela `automacao_miller.workflow_errors`.
-- Volume privado compartilhado para PDFs, Markdown e relatórios após a migração.
+O gateway e o n8n compartilham `/data/artifacts`, proveniente do volume Docker
+`automacao_miller_artifacts_data`. A organização é determinística por SHA-256:
 
-## Reprocessamento autorizado
+```text
+/data/artifacts/objects/ab/cd/<sha256>/
+  original.pdf
+  markdown-v1.md
+  analysis-v1.json
+  report-v1.pdf
+```
 
-O controle de duplicidade ignora um documento com o mesmo ID e SHA-256 já
-concluído. Na homologação vigente, o reprocessamento autorizado devolve o
-arquivo para a pasta Entrada do Drive. Após a migração, o operador deverá
-alterar o registro interno para `aguardando_revisao` e
-`reprocessamento_autorizado`, mantendo o arquivo no volume privado. O histórico
-permanece no banco; nenhuma senha ou credencial deve ser registrada no Git.
+O PostgreSQL é a fonte de verdade. As tabelas principais são
+`documents`, `artifacts`, `processing_attempts`, `analysis_results`,
+`human_reviews` e `workflow_errors`. Os workflows devem gravar somente chaves
+relativas, nunca caminhos absolutos.
+
+Associe no n8n apenas as credenciais PostgreSQL e Gmail. Nenhum ID de credencial
+é versionado neste repositório. A variável `ARTIFACTS_GID` deve representar o
+grupo compartilhado que permite ao gateway e ao n8n ler e gravar no volume.
+
+## Reprocessamento e revisão
+
+A deduplicação é feita pelo SHA-256 no gateway e reforçada pela restrição única
+do PostgreSQL. Para autorizar reprocessamento, registre a decisão em
+`human_reviews`, mantenha o PDF no volume e devolva o documento ao estado
+`recebido`; o workflow de reconciliação fará o despacho pelo webhook interno.
+
+Resultados com baixa confiança, contradição ou evidência insuficiente ficam em
+`aguardando_revisao`. O relatório pode ser gerado para análise humana, mas o
+download público só é liberado quando o PostgreSQL indicar `concluido`.
 
 ## Documentos extensos
 
-Na homologação vigente, o Markdown integral continua sendo salvo no Drive. Após
-a migração, ele será salvo no volume privado e registrado no PostgreSQL. Para documentos com mais de
-20 paginas, a primeira analise do modelo usa as paginas 71-75 e 79 definidas
-para a homologacao. Esse recorte e marcado como baixa confianca e exige
-revisao humana; ele nao autoriza status concluido. O relatorio e o e-mail
-continuam sendo gerados para permitir a revisao.
+Para documentos com mais de 20 páginas, a análise usa o recorte configurado no
+workflow e registra a necessidade de revisão humana. O Markdown integral
+continua preservado no volume e relacionado ao documento no PostgreSQL.
 
-## Compatibilidade n8n
+## Operação
 
-O export versionado não inclui IDs de credenciais. Depois de importar ou
-atualizar o workflow vigente, associe novamente as credenciais Google Drive,
-Gmail e PostgreSQL no n8n. Na versão homologada do n8n, o Drive usa fileFolder para
-busca, folderId e inputDataFieldName para upload, e o Gmail usa
-options.attachmentsUi.attachmentsBinary.
+Configure `LANDING_ACCESS_TOKEN`, `INTERNAL_API_TOKEN`,
+`N8N_INTERNAL_PROCESSING_WEBHOOK_URL`, `ARTIFACT_STORAGE_DIR` e
+`UPLOAD_GATEWAY_BASE_URL` no ambiente protegido. Gmail e PostgreSQL devem ser
+associados após a importação dos exports.
 
-## Landing privada
-
-Importe `automacao-regulatoria-intake-v1.json` e
-`automacao-regulatoria-completion-v1.json`. O intake atual salva o PDF recebido
-na pasta de entrada do Drive e o workflow de conclusão consulta o vínculo por
-SHA-256, copia o relatório para o volume compartilhado e atualiza o protocolo
-da landing. Na arquitetura aprovada, o intake deverá persistir diretamente no
-volume privado e no PostgreSQL, sem usar pastas do Drive para representar
-estados. Mantenha ambos inativos até associar as credenciais e configurar
-`LANDING_ACCESS_TOKEN`, `INTERNAL_API_TOKEN` e as URLs internas no ambiente.
-
-A landing possui uma página de acesso com usuário e senha. Configure
-`LANDING_USERNAME`, `LANDING_PASSWORD_HASH` e `AUTH_SESSION_SECRET` somente na
-VPS; a senha é verificada por hash e a sessão usa cookie `HttpOnly`. O acesso
-por token continua disponível para compatibilidade e testes automatizados.
+Para consultar ou reprocessar, use o protocolo e as tabelas internas. Não use
+pastas do Drive para representar estados. Arquivos antigos do Drive não são
+apagados automaticamente e só podem entrar por procedimento de importação
+controlada futuro.

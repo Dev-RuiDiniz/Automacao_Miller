@@ -1,26 +1,22 @@
-# Implantacao da stack de homologacao
+# Implantação da stack de homologação
 
-Esta stack e independente dos projetos Docker existentes na VPS. Ela usa os
-servicos `n8n`, `PostgreSQL`, `Ollama`, `pdf-converter` e `report-renderer`, com
-volumes e rede proprios.
+Esta stack usa n8n, PostgreSQL, Ollama, os serviços locais de conversão e
+renderização e o gateway de upload, com volumes e rede próprios.
 
-## Preparacao no servidor
+## Preparação no servidor
 
-1. Copie o repositorio para `/opt/automacao-miller`.
+1. Copie o repositório para `/opt/automacao-miller`.
 2. Crie `.env` a partir de `.env.example` no servidor.
-3. Gere `POSTGRES_PASSWORD` e `N8N_ENCRYPTION_KEY` fora do Git.
-4. Na homologação vigente, preencha os IDs do Google Drive somente no n8n ou no
-   ambiente autorizado. Eles serão opcionais após a migração para o repositório
-   interno.
+3. Gere `POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY` e os tokens da landing fora
+   do Git.
+4. Defina `ARTIFACT_STORAGE_DIR=/data/artifacts`, `ARTIFACTS_GID=10002`,
+   `BACKUP_DIR=/opt/backups/automacao-miller` e `BACKUP_RETENTION_DAYS`.
 
-Exemplo de geracao de segredos no servidor:
+A origem oficial de novos documentos é a landing privada. O Google Drive não é
+necessário para a operação e aparece somente nos workflows históricos de
+homologação.
 
-```bash
-openssl rand -hex 32
-openssl rand -hex 32
-```
-
-## Inicializacao
+## Inicialização
 
 ```bash
 cd /opt/automacao-miller
@@ -29,78 +25,87 @@ docker compose up -d --build
 docker compose ps
 ```
 
-O modelo inicial definido para a homologacao e `qwen2.5:3b` e deve ser carregado
-depois que o Ollama estiver saudavel:
+O modelo inicial definido para a homologação é `qwen2.5:3b`:
 
 ```bash
 docker compose exec ollama ollama pull qwen2.5:3b
 ```
 
-## Acesso ao n8n
+O schema interno é aplicado automaticamente em um banco novo. Em uma stack
+existente, aplique a migração depois que o gateway inicializar o schema legado:
 
-O n8n fica exposto somente em `127.0.0.1:25678` no servidor. Use um tunel
-SSH a partir da maquina local:
+```bash
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < deploy/postgres/init/002_internal_repository.sql
+```
+
+## Repositório e permissões
+
+O volume novo `automacao_miller_artifacts_data` é montado em
+`/data/artifacts` no gateway e no n8n. O entrypoint do gateway cria `incoming`
+e `objects`; os objetos são gravados com permissões privadas e organizados por
+SHA-256. O grupo numérico definido em `ARTIFACTS_GID` deve existir nos serviços
+e permitir leitura e escrita controladas entre gateway e n8n.
+
+O volume antigo `automacao_miller_submission_data` permanece declarado para
+rollback e migração. Antes de ativar o workflow interno, execute:
+
+```bash
+cd /opt/automacao-miller
+./deploy/backup/migrate-artifacts.sh
+```
+
+O script faz o backup antes da cópia, preserva o volume antigo, replica os
+arquivos em `legacy/submissions` e aplica a migração do PostgreSQL. Arquivos do
+Google Drive não são apagados.
+
+## Workflows
+
+Importe os três exports internos descritos em `workflows/README.md`:
+processamento, reconciliação e erros. Associe somente PostgreSQL e Gmail,
+configure o webhook interno e valide uma execução completa antes de ativar os
+workflows. Os exports que usam Drive devem permanecer inativos como histórico.
+
+## Operação e backup
+
+Não remova volumes durante atualizações e não exponha portas internas na
+Internet. O backup oficial inclui o dump do PostgreSQL e uma cópia do volume de
+artefatos na mesma execução. O script versionado usa o diretório protegido
+`/opt/backups/automacao-miller` por padrão:
+
+```bash
+cd /opt/automacao-miller
+BACKUP_DIR=/opt/backups/automacao-miller ./deploy/backup/backup.sh
+```
+
+Cada execução gera `*.pgdump`, `*.artifacts.tar.gz` e um manifesto com data,
+volume e SHA-256 dos dois arquivos. A retenção é controlada por
+`BACKUP_RETENTION_DAYS`. Proteja o diretório com `chmod 700` e replique os
+backups para uma mídia segura conforme a política da VPS.
+
+Para restaurar, pare o processamento, restaure o dump em um banco vazio com
+`pg_restore --clean --if-exists` e extraia o arquivo de artefatos na raiz do
+volume `automacao_miller_artifacts_data`. Valide os hashes do manifesto antes
+de reativar o n8n.
+
+## Acesso ao n8n e landing
+
+O n8n fica exposto somente em `127.0.0.1:25678`; use um túnel SSH:
 
 ```bash
 ssh -L 25678:127.0.0.1:25678 root@SERVIDOR
 ```
 
-Depois, abra `http://localhost:25678` no navegador.
+Configure `LANDING_USERNAME`, `LANDING_PASSWORD_HASH` e
+`AUTH_SESSION_SECRET` somente na VPS. Mantenha `SESSION_COOKIE_SECURE=true`
+atrás de HTTPS. O gateway deve ser publicado por HTTPS/Caddy, sem expor
+diretamente a porta 8085.
 
-## Operacao e backup
-
-- Nao remova os volumes `automacao_miller_*` durante atualizacoes.
-- Inclua `/opt/automacao-miller/.env`, o volume do n8n, o volume do PostgreSQL e
-  o volume `automacao_miller_submission_data` no backup protegido. Após a
-  migração, o volume de artefatos também deverá fazer parte do mesmo backup.
-- O volume do Ollama pode ser recriado fazendo novo pull do modelo.
-- Nao exponha as portas internas dos servicos na Internet.
-
-## Configuracao n8n da homologacao
-
-O compose libera o acesso controlado a variaveis nao secretas para os nos
-internos do n8n. Isso e aceitavel somente nesta instancia isolada e local;
-nao publique o n8n nem habilite esse comportamento em ambientes multiusuario.
-Os IDs das pastas do Drive, URLs internas, modelo, destinatários e timeouts
-entram no arquivo `.env` protegido do servidor somente enquanto a homologação
-vigente ou a importação de compatibilidade estiverem ativas.
-
-A credencial PostgreSQL do n8n usa host postgres, porta 5432 e SSL desativado
-na rede interna da stack. As credenciais Google Drive e Gmail sao criadas no
-n8n e nunca entram nos exports versionados.
-
-Para atualizar um workflow exportado, preserve a configuracao anterior,
-importe o JSON e reassocie as credenciais no n8n. Depois valide docker compose
-ps, os health checks, o tunel SSH e uma execucao de PDF de teste.
-
-## Landing de upload
-
-O serviço `upload-gateway` atende a landing e utiliza o volume
-`automacao_miller_submission_data`, compartilhado com o n8n para persistir os
-uploads e disponibilizar relatórios concluídos. Esse volume é a base do
-repositório interno aprovado; a próxima implementação deverá organizar nele os
-PDFs, Markdown e relatórios com referências mantidas no PostgreSQL. Configure
-`LANDING_ACCESS_TOKEN` para o link privado e
-`INTERNAL_API_TOKEN` para as chamadas internas. Importe os workflows de intake
-e conclusão descritos em `workflows/README.md` e associe as credenciais no n8n.
-O serviço deve ser publicado atrás de HTTPS/Caddy; não exponha diretamente a
-porta interna 8085.
-
-### Acesso por usuário e senha
-
-A landing abre uma página de acesso antes do upload. Configure no `.env` da
-VPS `LANDING_USERNAME`, `LANDING_PASSWORD_HASH` e `AUTH_SESSION_SECRET`.
 Gere o hash sem registrar a senha no Git:
 
 ```bash
 docker compose run --rm upload-gateway python -m infra.upload_gateway.password_hash
 ```
 
-Use `AUTH_SESSION_TTL_SECONDS` para definir a duração da sessão e mantenha
-`SESSION_COOKIE_SECURE=true` quando o acesso estiver atrás de HTTPS. O token
-privado anterior continua disponível para compatibilidade, mas não substitui a
-configuração do login.
-
-O valor de `LANDING_PASSWORD_HASH` contém caracteres `$`; mantenha-o entre
-aspas simples no `.env` da VPS para impedir que o Docker Compose interprete
-partes do hash como variáveis de ambiente.
+O valor de `LANDING_PASSWORD_HASH` contém `$`; mantenha-o entre aspas simples
+no `.env` da VPS.

@@ -12,7 +12,7 @@
 
 ## 2. Status geral
 
-**Estado atual:** stack de homologação implantada; repositório interno e painel publicados; workflows internos ativos; validação ponta a ponta em andamento após correção do caminho do PDF entre as etapas do n8n
+**Estado atual:** homologação ponta a ponta aprovada; repositório interno e painel publicados; workflows internos ativos; produção permanece condicionada à revisão de segurança e ao aceite operacional final
 **MVP:** definido  
 **Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
 **Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
@@ -114,15 +114,16 @@ um repositório interno controlado pelo PostgreSQL e por volume privado do Docke
 - [x] Remover o Drive dos workflows ativos; exports antigos permanecem históricos
 - [x] Criar reconciliação de documentos presos e workflow de erros interno
 - [x] Criar rotina de backup conjunto e migração controlada do volume antigo
-- [ ] Validar upload, reprocessamento, revisão e download no repositório interno
+- [x] Validar upload, reprocessamento, revisão e download no repositório interno
 - [x] Executar backup e cópia dos dados na VPS de homologação
 - [x] Ativar workflows internos após associação das credenciais e desativação dos históricos
 
 **Gate de saída:** o processamento completo ocorre sem depender do Google Drive
 para armazenar ou organizar os arquivos.
 
-**Status da fase:** backup, migração e ativação inicial concluídos; validação
-ponta a ponta e correções de homologação em andamento.
+**Status da fase:** concluída em homologação. O processamento interno, a
+reconciliação, o tratamento de erros, o backup conjunto e a preservação do
+volume legado foram validados.
 
 ## Fase 2A — Landing e gateway de upload
 
@@ -141,7 +142,7 @@ download controlado do relatório.
 - [x] Configurar usuário, hash da senha e segredo da sessão no ambiente autorizado
 - [x] Configurar tokens no ambiente autorizado
 - [x] Configurar Caddy/HTTPS para a landing
-- [ ] Validar fluxo de homologação ponta a ponta
+- [x] Validar fluxo de homologação ponta a ponta
 
 **Gate de saída:** um usuário autorizado consegue enviar um PDF, acompanhar o
 protocolo e baixar o relatório final sem acesso às credenciais internas.
@@ -160,8 +161,8 @@ confira os artefatos, mantenha destinatários e controle a entrega por Gmail.
 - [x] Separar o envio manual em workflow n8n próprio
 - [x] Bloquear download oficial antes da confirmação do Gmail
 - [x] Aplicar schema e migrar destinatários na homologação
-- [ ] Validar envio real, falha, retry e auditoria no Gmail
-- [ ] Liberar o painel após backup e validação ponta a ponta
+- [x] Validar envio real, falha, retry e auditoria no Gmail
+- [x] Liberar o painel após backup e validação ponta a ponta em homologação
 
 **Gate de saída:** operador autenticado consegue revisar um relatório, escolher
 destinatários, solicitar uma única entrega, confirmar o resultado e baixar o
@@ -419,18 +420,40 @@ Registrar aqui bloqueios que dependem do cliente ou terceiros.
 | M2 | Ambiente Docker + n8n + Ollama operacional | DONE |
 | M3 | Entrada pelo Drive funcionando na homologação histórica | DONE |
 | M4 | Extração + Markdown funcionando | DONE |
-| M5 | Análise estruturada funcionando | REVIEW |
+| M5 | Análise estruturada funcionando | DONE |
 | M6 | Relatório + PDF funcionando | DONE |
 | M7 | Gmail funcionando na homologação histórica | DONE |
-| M8 | Revisão humana + erros funcionando | REVIEW |
-| M9 | Testes ponta a ponta aprovados | REVIEW |
-| M10 | Documentação e entrega | DOING |
-| M11 | Repositório interno landing-only implementado | REVIEW |
-| M12 | Painel operacional e envio manual implementados | REVIEW |
+| M8 | Revisão humana + erros funcionando | DONE |
+| M9 | Testes ponta a ponta aprovados em homologação | DONE |
+| M10 | Documentação e entrega | DONE |
+| M11 | Repositório interno landing-only implementado | DONE |
+| M12 | Painel operacional e envio manual implementados | DONE |
+
+## 19. Homologação operacional concluída — 2026-09-09
+
+Validações realizadas na VPS de homologação:
+
+- [x] Upload de PDF válido, protocolo, hash e deduplicação.
+- [x] Processamento interno com PostgreSQL e volume privado, incluindo PDF,
+  Markdown, análise JSON e relatório PDF.
+- [x] Visualização autenticada dos artefatos e bloqueio do download antes de
+  `concluido`.
+- [x] Revisão humana, liberação para envio e histórico de tentativas/erros.
+- [x] Envio manual real pelo Gmail, registro de falha, retry e sucesso.
+- [x] Bloqueio de duas solicitações de envio concorrentes.
+- [x] Webhook repetido sem criação de processamento concorrente duplicado.
+- [x] PDF inválido rejeitado com erro de entrada.
+- [x] Backup conjunto do PostgreSQL e do volume; manifesto, hashes, permissões,
+  preservação do volume legado e leitura isolada dos arquivos de restauração
+  conferidos.
+
+Antes da ativação em produção ainda devem ser tratados o hardening do acesso
+administrativo da VPS, o aceite formal do operador e a definição do procedimento
+de restauração em janela de manutenção.
 
 ---
 
-## 19. Regra de atualização deste roadmap
+## 20. Regra de atualização deste roadmap
 
 Ao concluir uma atividade:
 

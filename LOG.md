@@ -1173,3 +1173,56 @@ Arquivos afetados: `workflows/automacao-regulatoria-internal-v1.json` e `tests/c
 Testes: A executar localmente e na VPS após republicação.
 Pendências: Retestar o documento, concluir envio Gmail, download e recuperação.
 Impacto: O catálogo de artefatos passa a registrar o tamanho real do JSON de análise.
+
+## 2026-09-09 — Homologação ponta a ponta aprovada
+
+**Tipo:** HOMOLOGAÇÃO / OPERACIONAL / GMAIL
+**Status:** CONCLUÍDO EM HOMOLOGAÇÃO
+
+**Contexto:** Após as correções de contexto dos nós n8n e da permissão de acesso
+ao volume privado, foi executado o fluxo completo pela landing e pelo painel
+operacional na VPS.
+
+**Decisão/Ação:** Validar o repositório interno como fonte operacional para o
+PDF original, Markdown, análise JSON e relatório PDF. O envio manual foi
+executado pelo Gmail com destinatário homologado; o download oficial só foi
+liberado depois do status `concluido`.
+
+**Arquivos afetados:** `ROADMAP.md`, `LOG.md` e registros operacionais da VPS.
+
+**Testes:** Upload válido e deduplicação; visualização dos três artefatos;
+revisão humana; PDF inválido rejeitado; dois webhooks repetidos com apenas uma
+reivindicação; duas solicitações de envio simultâneas com uma aceita e outra
+bloqueada; falha de credencial Gmail registrada; retry e envio real concluídos;
+download oficial retornando PDF após `concluido`. O backup conjunto teve
+manifesto, hashes, permissões e leitura isolada do dump/arquivo compactado
+conferidos.
+
+**Pendências:** Hardening do acesso administrativo da VPS, aceite formal do
+operador e procedimento de restauração em janela de manutenção antes da
+ativação produtiva.
+
+**Impacto:** A homologação demonstra operação sem dependência do Google Drive
+nos workflows ativos. Os workflows históricos do Drive permanecem inativos.
+
+## 2026-09-09 — Correção do manifesto do backup conjunto
+
+**Tipo:** BUG / BACKUP
+**Status:** CORRIGIDO
+
+**Contexto:** O manifesto registrava o nome do banco como `8` porque a limpeza
+de quebras de linha removia também os caracteres `n` do valor `n8n`.
+
+**Decisão/Ação:** Corrigir a expressão de limpeza em `deploy/backup/backup.sh`
+para remover somente `CR` e `LF`.
+
+**Arquivos afetados:** `deploy/backup/backup.sh`.
+
+**Testes:** O dump e o arquivo compactado do backup anterior foram validados
+com SHA-256, `pg_restore --list` e listagem do arquivo compactado. O backup
+seguinte será gerado após a publicação desta correção.
+
+**Pendências:** Republicar a correção na VPS e gerar o manifesto final.
+
+**Impacto:** O manifesto passa a identificar corretamente o banco PostgreSQL
+sem alterar os dados do backup.

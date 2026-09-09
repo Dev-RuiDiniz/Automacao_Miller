@@ -21,7 +21,7 @@ mkdir -p "${BACKUP_DIR}"
 chmod 0700 "${BACKUP_DIR}"
 cd "${STACK_DIR}"
 REPOSITORY_VERSION="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-DATABASE_NAME="$(docker compose -f "${COMPOSE_FILE}" exec -T postgres sh -c 'printf %s "$POSTGRES_DB"' | tr -d '\\r\\n')"
+DATABASE_NAME="$(docker compose -f "${COMPOSE_FILE}" exec -T postgres sh -c 'printf %s "$POSTGRES_DB"' | tr -d '\r\n')"
 
 docker compose -f "${COMPOSE_FILE}" exec -T postgres \
   sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "${DB_DUMP}"

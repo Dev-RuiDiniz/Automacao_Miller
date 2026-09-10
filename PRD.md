@@ -522,3 +522,12 @@ Para governança do desenvolvimento:
 4. `LOG.md` registra **decisões, alterações, incidentes e memória operacional**.
 
 Em caso de conflito entre implementação e documentação, a divergência deve ser registrada e resolvida antes de considerar a tarefa concluída.
+
+## Corpus oficial do DOU
+
+O sistema pode importar, em staging protegido, edições completas do DOU
+obtidas pelo INLABS da Imprensa Nacional. Cada edição deve permanecer como
+documento independente, com data, seção, edição, URL e SHA-256. O corpus serve
+como referência RAG e fila de candidatos; nenhum documento bruto entra
+automaticamente no treinamento supervisionado. Apenas análises corrigidas e
+aprovadas em revisão humana podem formar exemplos de treinamento.

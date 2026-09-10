@@ -142,3 +142,25 @@ validação foram atingidos; até lá, mantenha o modelo base e use RAG.
 Sequência de homologação: backup, aplicar a migração, indexar os Markdowns,
 comparar o fluxo paralelo, validar citações, ativar o workflow interno e só
 então considerar qualquer avaliação de fine-tuning.
+
+## Coleta do DOU em staging
+
+O coletor usa a sessão autenticada do INLABS e não salva a senha em arquivos do
+projeto. Configure `DOU_INLABS_EMAIL` e `DOU_INLABS_PASSWORD` como secrets e
+execute a coleta no staging protegido, preferencialmente fora da VPS para não
+consumir o volume operacional:
+
+```bash
+python scripts/download_dou_corpus.py --start 2026-08-12 --end 2026-09-10 \
+  --output /opt/staging/dou-2026-08-12_2026-09-10
+python scripts/prepare_dou_review_queue.py \
+  --staging /opt/staging/dou-2026-08-12_2026-09-10 --generate-candidates
+python scripts/build_dou_report_package.py \
+  --staging /opt/staging/dou-2026-08-12_2026-09-10 \
+  --output /opt/dou-packages/dou-2026-08-12_2026-09-10
+```
+
+O script considera `do1`, `do2` e `do3` em PDF; os pacotes XML consideram
+`DO1`, `DO2`, `DO3`, `DO1E`, `DO2E` e `DO3E`. Respostas 404 ficam registradas
+como ausentes e não são tratadas como erro de conversão. O manifesto preserva
+status, data, seção, tamanho e SHA-256. O ZIP não inclui os PDFs brutos.

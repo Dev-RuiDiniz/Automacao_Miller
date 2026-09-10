@@ -1386,3 +1386,30 @@ executada antes do commit.
 de embeddings, indexar os Markdowns existentes, comparar o documento real e
 executar os testes de falha/recuperação. Nenhum documento ou segredo foi
 adicionado ao Git.
+
+## 2026-09-10 — Coletor do DOU e pacote de relatórios
+
+**Tipo:** DADOS / RAG / RELATÓRIO / OPERAÇÃO
+**Status:** IMPLEMENTADO; COLETA REAL PENDENTE DE CREDENCIAL
+
+**Contexto:** Foi solicitado ampliar a base de referência com as edições
+completas do DOU dos últimos 30 dias e entregar relatórios baixáveis sem
+versionar os PDFs oficiais.
+
+**Decisão/Ação:** Criados coletor autenticado do INLABS, manifesto com status,
+seção, data, tamanho e SHA-256, retomada por arquivo válido e registro de
+ausências/erros. Criada preparação de staging que converte PDFs, preserva
+páginas e cria fila de revisão; candidatos opcionais do Ollama continuam fora
+do dataset até aprovação humana. Criado empacotador com Markdown consolidado,
+cinco PDFs semanais, manifesto público, checksums e ZIP sem PDFs brutos.
+
+**Validação:** O dry-run de 12/08/2026 a 10/09/2026 produziu 270 itens
+planejados e o ZIP de teste passou na verificação de integridade.
+
+**Arquivos afetados:** `infra/dou/`, `scripts/download_dou_corpus.py`,
+`scripts/prepare_dou_review_queue.py`, `scripts/build_dou_report_package.py`,
+`.env.example`, `.gitignore`, documentação e testes de coleta/empacotamento.
+
+**Pendências:** Não executar download real sem credenciais autorizadas do
+INLABS. Depois da configuração, executar a coleta em staging protegido,
+revisar os candidatos e exportar somente exemplos aprovados.

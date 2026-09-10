@@ -168,3 +168,20 @@ concluído. Revisões aprovadas podem receber uma análise corrigida e entrar no
 dataset JSONL protegido. O exportador só libera exemplos elegíveis e mantém um
 conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
 depois dos mínimos documentados no roadmap.
+
+## Corpus oficial do DOU
+
+O projeto inclui um coletor para o INLABS da Imprensa Nacional. Para o período
+de 12/08/2026 a 10/09/2026, configure `DOU_INLABS_EMAIL` e
+`DOU_INLABS_PASSWORD` somente no ambiente protegido e execute:
+
+```bash
+python scripts/download_dou_corpus.py --output staging/dou-2026-08-12_2026-09-10
+python scripts/prepare_dou_review_queue.py --staging staging/dou-2026-08-12_2026-09-10 --generate-candidates
+python scripts/build_dou_report_package.py --staging staging/dou-2026-08-12_2026-09-10 --output dou-packages/dou-2026-08-12_2026-09-10
+```
+
+Os PDFs brutos, o Markdown convertido e os candidatos ficam no staging
+protegido. O ZIP final contém apenas o relatório consolidado, cinco PDFs
+semanais, manifesto e hashes. Candidatos do Ollama só entram no dataset após
+revisão humana aprovada.

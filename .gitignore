@@ -32,6 +32,8 @@ tests/fixtures/incoming/
 *.tmp.pdf
 datasets/
 training_exports/
+staging/
+dou-packages/
 
 # Operating system and editor files
 .DS_Store

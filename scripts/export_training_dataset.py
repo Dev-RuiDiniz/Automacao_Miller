@@ -3,9 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 import psycopg
+
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from infra.regulatory_analysis.dataset import build_record, readiness, split_for_dataset
 

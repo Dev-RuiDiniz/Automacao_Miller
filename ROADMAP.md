@@ -561,3 +561,16 @@ Pendências reais:
 - [ ] Executar upload de um PDF de teste autorizado pela landing.
 - [ ] Confirmar protocolo, processamento, relatório e download pela interface.
 - [ ] Executar os cenários de falha externa e retomada já previstos.
+
+## 26. Corpus oficial DOU e pacote de validação — 2026-09-10
+
+- [x] Criar coletor autenticado do INLABS com retomada, retry e manifesto.
+- [x] Planejar PDFs completos e XMLs das seções normais e extras para
+      12/08/2026–10/09/2026.
+- [x] Criar preparação de staging com conversão para Markdown e fila de revisão.
+- [x] Criar relatório consolidado Markdown, cinco lotes PDF, manifesto, hashes
+      e ZIP sem documentos brutos.
+- [x] Cobrir no dry-run as 270 combinações de data, PDF e XML.
+- [ ] Configurar credencial autorizada do INLABS fora do Git.
+- [ ] Executar a coleta real e revisar os candidatos no painel.
+- [ ] Exportar exemplos aprovados e comparar as métricas do modelo base.

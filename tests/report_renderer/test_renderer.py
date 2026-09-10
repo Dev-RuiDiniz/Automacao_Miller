@@ -14,8 +14,9 @@ def sample_payload() -> dict:
         "metadata": {
             "source_filename": "referencia.pdf",
             "source_sha256": "abc123",
-            "page_count": 2,
-            "converter_version": "0.3.0",
+        "page_count": 2,
+        "converter_version": "0.3.0",
+        "analysis_scope": {"type": "full_document", "pages": [1, 2]},
         },
         "analysis": {
             "documento": {
@@ -61,8 +62,20 @@ def test_render_endpoint_returns_readable_pdf_with_required_sections() -> None:
     assert "Resumo executivo" in text
     assert "O que isso significa na prática" in text
     assert "Próximos passos recomendados" in text
-    assert "Evidência: p. 1" in text
+    assert "Páginas de origem: p. 1" in text
+    assert "Páginas consideradas pela análise automatizada: p. 1, p. 2." in text
     assert response.headers["x-report-version"] == "1.1.0"
+
+
+def test_render_endpoint_makes_missing_source_page_explicit() -> None:
+    payload = sample_payload()
+    payload["analysis"]["medicamentos_deferidos"] = [{"produto": "Produto sem página"}]
+
+    response = client.post("/v1/render", json=payload)
+
+    assert response.status_code == 200
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages)
+    assert "Páginas de origem: não informadas - conferir no PDF original" in text
 
 
 def test_render_endpoint_rejects_missing_analysis() -> None:

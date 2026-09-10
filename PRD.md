@@ -392,6 +392,10 @@ passos. A redação pode explicar possíveis impactos em cadastro, registros,
 processos, prazos e comunicação interna, mas não deve criar impacto financeiro,
 jurídico ou regulatório que não esteja evidenciado no documento. O resumo deve
 preservar o status de confiança, os alertas e a necessidade de revisão humana.
+Cada achado exibido deve informar as páginas de origem. Quando a página não
+puder ser comprovada, o relatório deve indicar explicitamente que a referência
+está pendente e encaminhar o item para revisão humana, sem preencher a página
+por inferência.
 
 Para estudos clínicos, o produto relacionado deve ser classificado como medicamento, suplemento, dispositivo, outro ou não identificado. O sistema não pode converter um dispositivo em medicamento ou suplemento por inferência.
 

@@ -485,6 +485,14 @@ Este arquivo deve refletir a realidade do projeto, e não apenas a intenção in
       comercial.
 - [x] Exibir evidências de página, confiança e próximos passos no PDF.
 - [x] Validar a nova apresentação com teste automatizado e inspeção visual.
+
+## 24. Evidência de página obrigatória no relatório — 2026-09-10
+
+- [x] Solicitar `paginas_origem` em cada achado produzido pela IA.
+- [x] Exibir sempre as páginas de origem no relatório executivo.
+- [x] Informar explicitamente quando a página não for comprovada e manter a
+      revisão humana obrigatória.
+- [x] Exibir no resumo o recorte de páginas usado pela análise automatizada.
 ## 20. Fechamento da homologacao - 2026-08-26
 
 Estado atualizado: stack Docker isolada operacional em /opt/automacao-miller,

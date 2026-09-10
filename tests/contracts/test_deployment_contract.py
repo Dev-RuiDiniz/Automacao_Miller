@@ -91,6 +91,9 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert "campos inesperados" in normalize["parameters"]["jsCode"]
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "ELSE 'aguardando_revisao'" in report_state["parameters"]["query"]
+    report_payload = next(node for node in workflow["nodes"] if node["name"] == "Prepare report payload")
+    assert "analysis_scope" in report_payload["parameters"]["jsCode"]
+    assert "paginas_origem" in ollama["parameters"]["jsonBody"]
 
 
 def test_internal_repository_schema_contract() -> None:

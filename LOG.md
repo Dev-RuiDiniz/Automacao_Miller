@@ -1318,3 +1318,33 @@ do documento real para validação final da nova linguagem.
 **Impacto:** O operador passa a entender rapidamente o que foi encontrado, o
 que merece atenção e qual ação deve ocorrer antes do envio, mantendo o JSON e o
 Markdown como evidências auditáveis.
+
+## 2026-09-10 — Páginas de origem obrigatórias no relatório
+
+**Tipo:** AJUSTE / RASTREABILIDADE / RELATÓRIO
+**Status:** IMPLEMENTADO
+
+**Contexto:** Alguns achados gerados pela IA não traziam a página de origem no
+JSON, dificultando a conferência comercial e operacional no documento original.
+
+**Decisão/Ação:** Tornar `paginas_origem` obrigatório na orientação do Ollama e
+exibir sempre a linha `Páginas de origem` em cada achado. O resumo do relatório
+também passa a informar o recorte de páginas analisado. Quando a referência não
+for comprovada, o PDF informa a pendência e mantém a necessidade de revisão, sem
+inventar a página.
+
+**Arquivos afetados:** `infra/report_renderer/app.py`,
+`workflows/automacao-regulatoria-internal-v1.json`,
+`tests/report_renderer/test_renderer.py`,
+`tests/contracts/test_deployment_contract.py`, `PRD.md`, `ROADMAP.md` e
+`workflows/README.md`.
+
+**Testes:** Testes do renderer e contratos do workflow cobrem página informada,
+página ausente e recorte de análise. A inspeção visual continua prevista após
+regenerar o PDF na VPS.
+
+**Pendências:** Publicar o renderer e o workflow atualizados na VPS quando o
+arquivo de credenciais de homologação estiver disponível.
+
+**Impacto:** O usuário consegue localizar cada achado no PDF original ou vê
+claramente que a referência precisa ser confirmada antes do envio.

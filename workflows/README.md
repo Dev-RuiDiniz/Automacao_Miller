@@ -66,6 +66,9 @@ leitura prática para acompanhamento operacional e comercial, pontos de atençã
 e próximos passos. As seções detalhadas continuam exibindo os dados extraídos e
 as evidências de página disponíveis; a linguagem comercial não substitui a
 conferência do documento original nem a revisão humana.
+Cada achado exibe suas páginas de origem. Se a IA não conseguir comprovar a
+referência, o relatório mostra essa pendência de forma explícita e mantém o caso
+em revisão, sem inventar a numeração da página.
 
 ## Painel e envio manual
 

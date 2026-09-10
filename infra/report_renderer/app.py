@@ -106,12 +106,11 @@ def _item_lines(item: Any) -> list[str]:
                 continue
             lines.append(f"{label}: {_value_text(value)}")
         pages = item.get("paginas_origem") or item.get("paginas")
-        if pages:
-            lines.append(f"Evidência: {_pages_text(pages)}")
+        lines.append(f"Páginas de origem: {_pages_text(pages) if pages else 'não informadas - conferir no PDF original'}")
         if item.get("evidencias"):
             lines.append(f"Trecho de apoio: {_value_text(item['evidencias'])}")
         return lines or [_value_text(item)]
-    return [_value_text(item)]
+    return [_value_text(item), "Páginas de origem: não informadas - conferir no PDF original"]
 
 
 def _pages_text(value: Any) -> str:
@@ -206,7 +205,13 @@ def _executive_summary(metadata: dict[str, Any], analysis: dict[str, Any]) -> li
             f"A classificação atual é: {status_text}. O relatório serve como síntese "
             "para a conferência operacional e deve ser lido junto com o documento de origem."
         )
-    return [opening, decision]
+    scope = metadata.get("analysis_scope") or {}
+    pages = scope.get("pages") if isinstance(scope, dict) else None
+    if pages:
+        scope_text = f"Páginas consideradas pela análise automatizada: {_pages_text(pages)}."
+    else:
+        scope_text = "A análise automatizada não informou um recorte específico de páginas."
+    return [opening, scope_text, decision]
 
 
 def _practical_implications(analysis: dict[str, Any]) -> list[str]:

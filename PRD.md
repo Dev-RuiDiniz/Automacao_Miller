@@ -447,12 +447,26 @@ Não fazem parte do escopo inicial:
 - responsabilidade técnica regulatória;
 - painel administrativo personalizado;
 - aplicativo mobile;
-- fine-tuning de modelo;
-- treinamento de modelo proprietário;
+- treinamento de pesos dentro da VPS de homologação;
 - integrações não descritas no escopo;
 - mudanças substanciais de escopo após aprovação.
 
 Qualquer item fora desta lista de requisitos deve ser tratado como alteração de escopo e registrado no `LOG.md` antes da implementação.
+
+O produto passa a incluir RAG híbrido no PostgreSQL, com embeddings do
+`nomic-embed-text`, busca textual e filtro obrigatório pelo documento atual.
+Fine-tuning não faz parte da operação inicial: a evolução começa com exemplos
+revisados por humanos, dataset separado de validação e avaliação externa do
+modelo. A importação de um modelo ajustado depende das métricas aprovadas.
+
+### Regras de qualidade e evidência
+
+- Cada achado precisa informar `paginas_origem` e `evidencia` literal do Markdown.
+- A página e o trecho precisam pertencer ao documento atual e ser auditáveis.
+- Os únicos status são `deferido`, `indeferido`, `cancelado` e `outro`.
+- Cancelamento não é indeferimento; dispositivo não é medicamento ou suplemento por inferência.
+- Falha técnica interrompe a etapa e é registrada. Falha de qualidade gera rascunho com aviso e revisão humana.
+- Nenhum resultado com citação inválida pode ser marcado como validado ou concluído.
 
 ---
 

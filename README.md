@@ -154,3 +154,17 @@ conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
 **DB Tecnologia**
 
 Responsável técnico: **Rui Diniz — Engenheiro de Software**
+
+## RAG e qualidade da análise
+
+O workflow interno indexa o Markdown no PostgreSQL com `pgvector` e busca
+textual. Cada consulta é filtrada pelo protocolo atual, preservando página,
+chunk, hash, score e consulta para auditoria. O `nomic-embed-text` gera os
+embeddings e o `qwen2.5:3b` continua responsável pela análise.
+
+Achados positivos precisam trazer página e trecho literal comprovável. Falhas
+de citação geram aviso e revisão humana; não podem transformar o documento em
+concluído. Revisões aprovadas podem receber uma análise corrigida e entrar no
+dataset JSONL protegido. O exportador só libera exemplos elegíveis e mantém um
+conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
+depois dos mínimos documentados no roadmap.

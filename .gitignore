@@ -30,6 +30,8 @@ tests/fixtures/private/
 tests/fixtures/incoming/
 *.working.pdf
 *.tmp.pdf
+datasets/
+training_exports/
 
 # Operating system and editor files
 .DS_Store

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15.18-alpine3.24
+    image: pgvector/pgvector:pg15
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-n8n}
@@ -33,6 +33,35 @@ services:
       retries: 10
       start_period: 30s
     mem_limit: 3g
+    networks: [internal]
+
+  rag-service:
+    build:
+      context: .
+      dockerfile: infra/rag/Dockerfile
+    restart: unless-stopped
+    expose: ["8092"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-n8n}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-n8n}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      RAG_EMBEDDING_DIMENSION: ${RAG_EMBEDDING_DIMENSION:-768}
+      RAG_CHUNK_SIZE: ${RAG_CHUNK_SIZE:-1200}
+      RAG_CHUNK_OVERLAP: ${RAG_CHUNK_OVERLAP:-150}
+      RAG_TOP_K: ${RAG_TOP_K:-8}
+      RAG_HYBRID_LEXICAL_WEIGHT: ${RAG_HYBRID_LEXICAL_WEIGHT:-0.45}
+      RAG_HYBRID_SEMANTIC_WEIGHT: ${RAG_HYBRID_SEMANTIC_WEIGHT:-0.55}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8092/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
     networks: [internal]
 
   pdf-converter:
@@ -121,6 +150,9 @@ services:
       ARTIFACT_STORAGE_DIR: /data/artifacts
       N8N_RESTRICT_FILE_ACCESS_TO: ${N8N_RESTRICT_FILE_ACCESS_TO:-/data/artifacts}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      RAG_SERVICE_BASE_URL: ${RAG_SERVICE_BASE_URL:-http://rag-service:8092}
+      RAG_TOP_K: ${RAG_TOP_K:-8}
       PDF_CONVERTER_BASE_URL: ${PDF_CONVERTER_BASE_URL:-http://pdf-converter:8080}
       PDF_CONVERTER_TIMEOUT_SECONDS: ${PDF_CONVERTER_TIMEOUT_SECONDS:-120}
       REPORT_RECIPIENTS: ${REPORT_RECIPIENTS}
@@ -143,6 +175,8 @@ services:
       report-renderer:
         condition: service_healthy
       ollama:
+        condition: service_healthy
+      rag-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz/readiness >/dev/null"]

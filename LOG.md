@@ -1348,3 +1348,41 @@ arquivo de credenciais de homologação estiver disponível.
 
 **Impacto:** O usuário consegue localizar cada achado no PDF original ou vê
 claramente que a referência precisa ser confirmada antes do envio.
+
+## 2026-09-10 — RAG híbrido e hardening de citações
+
+**Tipo:** ARQUITETURA / IA / QUALIDADE / TREINAMENTO
+**Status:** IMPLEMENTADO LOCALMENTE; HOMOLOGAÇÃO PENDENTE
+
+**Contexto:** A análise do documento extenso precisa recuperar contexto sem
+misturar protocolos e precisa tornar cada afirmação auditável por página e
+trecho. O treinamento deve começar com correções humanas verificáveis.
+
+**Decisão/Ação:** PostgreSQL passou a usar `pgvector`. Foi criado o serviço
+interno de chunks por página, embeddings `nomic-embed-text`, busca textual e
+vetorial combinadas, auditoria de recuperação e validação de qualidade. O
+workflow interno indexa e consulta antes do Ollama. Revisões aprovadas podem
+armazenar payload corrigido e o exportador gera JSONL somente para exemplos
+elegíveis, com treino e validação separados. Fine-tuning continua externo e
+condicionado às métricas mínimas.
+
+**Regras aplicadas:** páginas devem existir no documento atual; a evidência deve
+ser localizada após normalização de espaços e acentuação; status inválido,
+cancelamento misturado a indeferimento, dispositivo classificado como produto,
+campo JSON inesperado e citação ausente exigem revisão. Falhas de qualidade
+geram aviso e rascunho; falhas técnicas seguem como erro do workflow.
+
+**Arquivos afetados:** `docker-compose.yml`, `deploy/postgres/init/004_rag_and_training.sql`,
+`infra/rag/`, `infra/regulatory_analysis/quality.py`, `infra/regulatory_analysis/dataset.py`,
+`infra/regulatory_analysis/evaluation.py`, `scripts/export_training_dataset.py`,
+workflow interno, prompts, testes e documentação operacional.
+
+**Testes:** Foram adicionados testes para divisão por página, hash e overlap,
+status e citações, isolamento do documento, dispositivos, cancelamento,
+campos extras e elegibilidade do dataset. A regressão completa ainda será
+executada antes do commit.
+
+**Pendências:** aplicar a migração na homologação após backup, baixar o modelo
+de embeddings, indexar os Markdowns existentes, comparar o documento real e
+executar os testes de falha/recuperação. Nenhum documento ou segredo foi
+adicionado ao Git.

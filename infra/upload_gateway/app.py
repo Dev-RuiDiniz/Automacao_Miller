@@ -23,6 +23,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 
 from infra.upload_gateway.storage import original_key, resolve_storage_key, storage_root
+from infra.regulatory_analysis.quality import validate_analysis
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
 STATUSES = {"recebido", "processando", "aguardando_revisao", "aguardando_envio", "concluido", "erro"}
@@ -175,8 +176,8 @@ class InMemoryStore:
             delivery.update(changes)
         return delivery
 
-    def add_review(self, submission_id: str, decision: str, notes: str, actor: str) -> dict[str, Any]:
-        review = {"review_id": self.next_id, "submission_id": submission_id, "reason": "revisão operacional", "decision": decision, "reviewer": actor, "notes": notes, "requested_at": now(), "reviewed_at": now()}
+    def add_review(self, submission_id: str, decision: str, notes: str, actor: str, corrected_payload: dict[str, Any] | None = None, training_eligible: bool = False) -> dict[str, Any]:
+        review = {"review_id": self.next_id, "submission_id": submission_id, "reason": "revisão operacional", "decision": decision, "reviewer": actor, "notes": notes, "corrected_payload": corrected_payload, "training_eligible": training_eligible, "requested_at": now(), "reviewed_at": now()}
         self.next_id += 1
         self.reviews.setdefault(submission_id, []).append(review)
         item = self.get(submission_id)
@@ -380,7 +381,7 @@ class PostgresStore:
                 (submission_id,),
             ).fetchall()
             reviews = connection.execute(
-                "SELECT review_id, reason, decision, reviewer, notes, requested_at, reviewed_at FROM automacao_miller.human_reviews WHERE submission_id = %s ORDER BY requested_at DESC",
+                "SELECT review_id, reason, decision, reviewer, notes, training_eligible, requested_at, reviewed_at FROM automacao_miller.human_reviews WHERE submission_id = %s ORDER BY requested_at DESC",
                 (submission_id,),
             ).fetchall()
             deliveries = connection.execute(
@@ -393,7 +394,7 @@ class PostgresStore:
             "artifacts": [dict(zip(("artifact_id", "artifact_type", "version", "storage_key", "sha256", "size_bytes", "mime_type", "created_at"), [*row[:7], iso(row[7])])) for row in artifacts],
             "attempts": [dict(zip(("attempt_id", "attempt_number", "execution_id", "current_stage", "status", "error_category", "error_message", "started_at", "finished_at"), [*row[:7], iso(row[7]), iso(row[8])])) for row in attempts],
             "errors": [dict(zip(("error_id", "current_stage", "error_category", "error_message", "execution_id", "created_at"), [*row[:5], iso(row[5])])) for row in errors],
-            "reviews": [dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "requested_at", "reviewed_at"), [*row[:5], iso(row[5]), iso(row[6])])) for row in reviews],
+            "reviews": [dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "training_eligible", "requested_at", "reviewed_at"), [*row[:6], iso(row[6]), iso(row[7])])) for row in reviews],
             "deliveries": [dict(zip(("delivery_id", "recipient_emails", "status", "attempt_count", "execution_id", "requested_by", "requested_at", "sent_at", "error_message"), [row[0], row[1], row[2], row[3], row[4], row[5], iso(row[6]), iso(row[7]), row[8]])) for row in deliveries],
         }
 
@@ -460,7 +461,7 @@ class PostgresStore:
             return None
         return dict(zip(("delivery_id", "submission_id", "recipient_emails", "status", "attempt_count", "execution_id", "requested_by", "requested_at", "sent_at", "error_message"), [row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7].isoformat(), row[8].isoformat() if row[8] else None, row[9]]))
 
-    def add_review(self, submission_id: str, decision: str, notes: str, actor: str) -> dict[str, Any]:
+    def add_review(self, submission_id: str, decision: str, notes: str, actor: str, corrected_payload: dict[str, Any] | None = None, training_eligible: bool = False) -> dict[str, Any]:
         status = "aguardando_envio" if decision == "aprovado" else "recebido"
         stage = "revisao_liberada" if decision == "aprovado" else "reprocessamento_autorizado"
         with psycopg.connect(self.database_url) as connection:
@@ -468,11 +469,11 @@ class PostgresStore:
             if document is None:
                 raise KeyError(submission_id)
             row = connection.execute(
-                "INSERT INTO automacao_miller.human_reviews (submission_id, reason, decision, reviewer, notes, reviewed_at) VALUES (%s, %s, %s, %s, %s, NOW()) RETURNING review_id, reason, decision, reviewer, notes, requested_at, reviewed_at",
-                (submission_id, "revisão operacional", decision, actor, notes),
+                "INSERT INTO automacao_miller.human_reviews (submission_id, reason, decision, reviewer, notes, corrected_payload, training_eligible, eligibility_reason, reviewed_at) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, NOW()) RETURNING review_id, reason, decision, reviewer, notes, training_eligible, requested_at, reviewed_at",
+                (submission_id, "revisão operacional", decision, actor, notes, json.dumps(corrected_payload) if corrected_payload else None, training_eligible, "revisão aprovada com citações válidas" if training_eligible else "sem payload corrigido elegível"),
             ).fetchone()
             connection.execute("UPDATE automacao_miller.documents SET status = %s, current_stage = %s, message = NULL, updated_at = NOW() WHERE submission_id = %s", (status, stage, submission_id))
-        return dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "requested_at", "reviewed_at"), [row[0], row[1], row[2], row[3], row[4], row[5].isoformat(), row[6].isoformat()]))
+        return dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "training_eligible", "requested_at", "reviewed_at"), [row[0], row[1], row[2], row[3], row[4], row[5], row[6].isoformat(), row[7].isoformat()]))
 
     def find_by_hash(self, sha256: str) -> Submission | None:
         with psycopg.connect(self.database_url) as connection:
@@ -964,8 +965,23 @@ def review_submission(submission_id: str, payload: dict[str, Any], request: Requ
         raise HTTPException(status_code=422, detail="Decisão de revisão inválida.")
     if not notes:
         raise HTTPException(status_code=422, detail="Informe uma observação para registrar a revisão.")
+    corrected_payload = payload.get("corrected_payload")
+    if corrected_payload is not None and (not isinstance(corrected_payload, dict) or not corrected_payload):
+        raise HTTPException(status_code=422, detail="O payload corrigido precisa ser um objeto JSON não vazio.")
+    training_eligible = False
+    if decision == "liberar_envio" and corrected_payload:
+        markdown = ""
+        for artifact in store.detail(submission_id)["artifacts"]:
+            if artifact.get("artifact_type") == "markdown":
+                try:
+                    markdown = resolve_storage_key(artifact["storage_key"]).read_text(encoding="utf-8")
+                except (OSError, ValueError):
+                    markdown = ""
+                break
+        quality = validate_analysis(corrected_payload, markdown, submission_id)
+        training_eligible = quality.status == "aprovado"
     stored_decision = "aprovado" if decision == "liberar_envio" else "reprocessamento_autorizado"
-    review = store.add_review(submission_id, stored_decision, notes, actor_for(request))
+    review = store.add_review(submission_id, stored_decision, notes, actor_for(request), corrected_payload, training_eligible)
     if decision == "reprocessar":
         try:
             dispatch_webhook(settings()["n8n_webhook_url"], {"submission_id": submission_id, "source": "human_review"})

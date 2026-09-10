@@ -189,7 +189,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json; const pageCount = Number(source.metadata?.page_count || 0); const MAX_ANALYSIS_CHARS = 24000; let analysisMarkdown = source.markdown; const warnings = Array.isArray(source.warnings) ? [...source.warnings] : []; let analysisScope = { type: 'full_document', page_count: pageCount }; const excerpt = (value, limit) => { if (value.length <= limit) return value; const head = Math.floor(limit * 0.7); const tail = limit - head; return value.slice(0, head) + '\\n\\n[trecho intermediário omitido por limite de contexto]\\n\\n' + value.slice(-tail); }; if (pageCount > 20) { const wanted = new Set([71, 72, 73, 74, 75, 79]); const lines = String(source.markdown || '').split(/\\r?\\n/); const sections = []; let current = null; let buffer = []; const flush = () => { if (current !== null && wanted.has(current)) sections.push(buffer.join('\\n').trim()); }; for (const line of lines) { const match = line.match(/^## .+ (\\d+)\\s*$/); if (match) { flush(); current = Number(match[1]); buffer = [line]; } else if (current !== null) buffer.push(line); } flush(); if (sections.length) { const sectionLimit = Math.floor(MAX_ANALYSIS_CHARS / sections.length); analysisMarkdown = sections.map(section => excerpt(section, sectionLimit)).join('\\n\\n'); analysisScope = { type: 'targeted_pages', page_count: pageCount, pages: [...wanted], max_chars: MAX_ANALYSIS_CHARS, reason: 'documento extenso; contexto limitado e revisão humana obrigatória' }; warnings.push('analise IA limitada às páginas de referência e ao limite de contexto; revisão humana obrigatória'); } else warnings.push('paginas de referência nao localizadas; analise humana obrigatoria'); } else if (String(analysisMarkdown || '').length > MAX_ANALYSIS_CHARS) { analysisMarkdown = excerpt(String(analysisMarkdown), MAX_ANALYSIS_CHARS); analysisScope = { type: 'full_document_excerpt', page_count: pageCount, max_chars: MAX_ANALYSIS_CHARS, reason: 'limite de contexto; revisão humana obrigatória' }; warnings.push('analise IA limitada pelo contexto; revisão humana obrigatória'); } return [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: analysisScope, warnings } }];"
+        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json;\nconst rag = $('RAG - Search context').item.json || {};\nconst pageCount = Number(source.metadata?.page_count || 0);\nconst MAX_ANALYSIS_CHARS = 24000;\nconst warnings = Array.isArray(source.warnings) ? [...source.warnings] : [];\nconst excerpt = (value, limit) => value.length <= limit ? value : value.slice(0, Math.floor(limit * 0.7)) + '\\n\\n[trecho intermediário omitido por limite de contexto]\\n\\n' + value.slice(-Math.floor(limit * 0.3));\nconst chunks = Array.isArray(rag.chunks) ? rag.chunks : [];\nlet analysisMarkdown = String(source.markdown || '');\nlet analysisScope = { type: 'full_document', page_count: pageCount, retrieval: 'hybrid_current_document' };\nif (chunks.length) {\n  const context = chunks.map((chunk) => '## Página ' + chunk.page_start + '\\n' + chunk.content).join('\\n\\n');\n  analysisMarkdown = excerpt(context, MAX_ANALYSIS_CHARS);\n  analysisScope = { type: 'hybrid_rag_current_document', page_count: pageCount, pages: [...new Set(chunks.flatMap((chunk) => [chunk.page_start, chunk.page_end]))].sort((a, b) => a - b), chunks: chunks.map((chunk) => ({ chunk_id: chunk.chunk_id, page_start: chunk.page_start, score: chunk.combined_score })), max_chars: MAX_ANALYSIS_CHARS };\n} else {\n  warnings.push('RAG não retornou contexto; revisão humana obrigatória');\n  if (analysisMarkdown.length > MAX_ANALYSIS_CHARS) { analysisMarkdown = excerpt(analysisMarkdown, MAX_ANALYSIS_CHARS); analysisScope = { type: 'full_document_excerpt', page_count: pageCount, max_chars: MAX_ANALYSIS_CHARS }; }\n}\nwarnings.push('As citações devem ser copiadas literalmente do chunk recuperado e informar a página');\nreturn [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: analysisScope, retrieval_chunks: chunks, warnings } }];"
       },
       "id": "prepare-ai-context",
       "name": "Prepare AI context",
@@ -206,7 +206,7 @@
         "url": "http://ollama:11434/api/generate",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: { type: 'object', additionalProperties: false, required: ['documento','medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos','exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos','controle_confianca','revisao_humana'], properties: { documento: { type: 'object' }, medicamentos_deferidos: { type: 'array' }, medicamentos_indeferidos: { type: 'array' }, suplementos_deferidos: { type: 'array' }, suplementos_indeferidos: { type: 'array' }, estudos_clinicos_deferidos: { type: 'array' }, estudos_clinicos_indeferidos: { type: 'array' }, outros_atos: { type: 'array' }, exigencias: { type: 'array' }, pendencias: { type: 'array' }, categorias_nao_localizadas: { type: 'array' }, evidencias_insuficientes: { type: 'array', items: { type: 'string' } }, contradicoes: { type: 'array', items: { type: 'string' } }, avisos: { type: 'array' }, controle_confianca: { type: 'object', required: ['status','motivos'], properties: { status: { type: 'string', enum: ['aceitavel','baixa_confianca','inconclusivo'] }, motivos: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }, revisao_humana: { type: 'object', required: ['necessaria','motivos'], properties: { necessaria: { type: 'boolean' }, motivos: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }, cancelados: { type: 'array' } } }, options: { temperature: 0, num_predict: 4096 }, prompt: 'Voce e um extrator documental regulatorio. Retorne SOMENTE um objeto JSON valido conforme o schema solicitado. Nunca escreva explicacoes, introducao ou texto fora do JSON. Use exclusivamente o Markdown fornecido; nao use conhecimento externo e nao invente dados. Extraia somente ocorrencias que tenham evidencia textual nas paginas_origem. Se nao houver evidencia suficiente, mantenha a categoria vazia e registre a limitacao em evidencias_insuficientes ou avisos. Cada item de achado deve obrigatoriamente conter paginas_origem como uma lista de numeros. Se a pagina nao puder ser comprovada no Markdown, nao classifique o texto como achado; registre a limitacao em evidencias_insuficientes ou avisos. Os itens de avisos e categorias sem ocorrencia tambem devem apontar paginas_origem quando essa informacao estiver disponivel. Preserve cancelado em cancelados, fora de indeferido. Para dispositivo, use tipo_produto_relacionado=dispositivo. Nao crie chaves adicionais. Para caber no limite, retorne no maximo 12 itens por categoria e registre em avisos se houver mais ocorrencias. A revisao_humana deve ser necessaria quando a evidencia for parcial, ambigua ou insuficiente.' + String.fromCharCode(10) + String.fromCharCode(10) + 'MARKDOWN:' + String.fromCharCode(10) + $('Prepare AI context').item.json.analysis_markdown }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: { type: 'object', additionalProperties: false, required: ['documento','medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos','exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos','controle_confianca','revisao_humana'], properties: { documento: { type: 'object' }, medicamentos_deferidos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, medicamentos_indeferidos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, suplementos_deferidos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, suplementos_indeferidos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, estudos_clinicos_deferidos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, estudos_clinicos_indeferidos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, outros_atos: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, exigencias: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, pendencias: { type: 'array', items: { type: 'object', required: ['paginas_origem','evidencia'], properties: { paginas_origem: { type: 'array', items: { type: 'integer' } }, evidencia: { type: 'string' }, status: { type: 'string', enum: ['deferido','indeferido','cancelado','outro'] }, tipo_produto_relacionado: { type: 'string' } }, additionalProperties: true } }, categorias_nao_localizadas: { type: 'array' }, evidencias_insuficientes: { type: 'array', items: { type: 'string' } }, contradicoes: { type: 'array', items: { type: 'string' } }, avisos: { type: 'array' }, controle_confianca: { type: 'object', required: ['status','motivos'], properties: { status: { type: 'string', enum: ['aceitavel','baixa_confianca','inconclusivo'] }, motivos: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }, revisao_humana: { type: 'object', required: ['necessaria','motivos'], properties: { necessaria: { type: 'boolean' }, motivos: { type: 'array', items: { type: 'string' } } }, additionalProperties: false }, cancelados: { type: 'array' } } }, options: { temperature: 0, num_predict: 4096 }, prompt: 'Voce e um extrator documental regulatorio. Retorne SOMENTE um objeto JSON valido conforme o schema solicitado. Nunca escreva explicacoes, introducao ou texto fora do JSON. Use exclusivamente o Markdown fornecido; nao use conhecimento externo e nao invente dados. Extraia somente ocorrencias que tenham evidencia textual nas paginas_origem. Se nao houver evidencia suficiente, mantenha a categoria vazia e registre a limitacao em evidencias_insuficientes ou avisos. Cada item de achado deve obrigatoriamente conter paginas_origem como uma lista de numeros. Se a pagina nao puder ser comprovada no Markdown, nao classifique o texto como achado; registre a limitacao em evidencias_insuficientes ou avisos. Os itens de avisos e categorias sem ocorrencia tambem devem apontar paginas_origem quando essa informacao estiver disponivel. Preserve cancelado em cancelados, fora de indeferido. Para dispositivo, use tipo_produto_relacionado=dispositivo. Nao crie chaves adicionais. Para caber no limite, retorne no maximo 12 itens por categoria e registre em avisos se houver mais ocorrencias. A revisao_humana deve ser necessaria quando a evidencia for parcial, ambigua ou insuficiente.' + String.fromCharCode(10) + String.fromCharCode(10) + 'DOCUMENTO/PROTOCOLO:' + String.fromCharCode(10) + $('Prepare AI context').item.json.submission_id + String.fromCharCode(10) + String.fromCharCode(10) + 'RAG_CONTEXT:' + String.fromCharCode(10) + $('Prepare AI context').item.json.analysis_markdown }) }}",
         "options": {
           "timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 600000) }}"
         }
@@ -480,6 +480,106 @@
         6180,
         120
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RAG_SERVICE_BASE_URL + '/v1/index' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ submission_id: $('Internal Storage - Prepare keys').item.json.submission_id, markdown: $('Internal Storage - Prepare keys').item.json.markdown, markdown_sha256: $('Internal Storage - Prepare keys').item.json.metadata.markdown_sha256 }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "rag---index-markdown",
+      "name": "RAG - Index Markdown",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RAG_SERVICE_BASE_URL + '/v1/search' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ submission_id: $('Internal Storage - Prepare keys').item.json.submission_id, top_k: Number($env.RAG_TOP_K || 8), queries: ['medicamentos deferidos indeferidos cancelados', 'suplementos e estudos clínicos', 'exigências pendências avisos resoluções atos regulatórios'] }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "rag---search-context",
+      "name": "RAG - Search context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.RAG_SERVICE_BASE_URL + '/v1/validate' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ submission_id: $('Normalize AI response').item.json.submission_id, analysis: $('Normalize AI response').item.json.analysis }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "rag---validate-citations",
+      "name": "RAG - Validate citations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Normalize AI response').item.json; const validation = $json; const analysis = validation.analysis || source.analysis; const warnings = [...(source.warnings || []), ...(validation.warnings || [])]; if (validation.status !== 'aprovado') { analysis.revisao_humana = { necessaria: true, motivos: [...new Set([...(analysis.revisao_humana?.motivos || []), 'falha de qualidade de citação'])] }; } return [{ json: { ...source, ...validation, analysis, warnings, quality_status: validation.status || 'aviso' } }];"
+      },
+      "id": "merge-rag-validation-context",
+      "name": "Merge RAG validation context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        460
+      ]
     }
   ],
   "connections": {
@@ -597,7 +697,7 @@
       "main": [
         [
           {
-            "node": "Prepare AI context",
+            "node": "RAG - Index Markdown",
             "type": "main",
             "index": 0
           }
@@ -630,7 +730,7 @@
       "main": [
         [
           {
-            "node": "Validate and classify analysis",
+            "node": "RAG - Validate citations",
             "type": "main",
             "index": 0
           }
@@ -791,6 +891,50 @@
         [
           {
             "node": "Landing - Mark human review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG - Index Markdown": {
+      "main": [
+        [
+          {
+            "node": "RAG - Search context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG - Search context": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG - Validate citations": {
+      "main": [
+        [
+          {
+            "node": "Merge RAG validation context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge RAG validation context": {
+      "main": [
+        [
+          {
+            "node": "Validate and classify analysis",
             "type": "main",
             "index": 0
           }

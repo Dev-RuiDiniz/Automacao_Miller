@@ -6,6 +6,7 @@ COPY infra/upload_gateway/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY infra/__init__.py /app/infra/__init__.py
 COPY infra/upload_gateway /app/infra/upload_gateway
+COPY infra/regulatory_analysis /app/infra/regulatory_analysis
 RUN useradd --create-home --uid 10002 appuser \
     && mkdir -p /data/artifacts \
     && chown -R appuser:appuser /app /data

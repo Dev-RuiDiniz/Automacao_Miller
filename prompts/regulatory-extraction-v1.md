@@ -2,11 +2,11 @@
 
 ## Regra de entrada
 
-O modelo recebe somente o Markdown persistido pelo workflow. Não recebe o PDF bruto nem deve completar lacunas com conhecimento externo.
+O modelo recebe somente os chunks RAG do Markdown persistido para o documento atual. Não recebe o PDF bruto nem deve completar lacunas com conhecimento externo.
 
 ## Regra de evidência
 
-Cada item deve apontar para uma ou mais páginas `## Página N`. Se a evidência não estiver no Markdown, o campo deve ser `null` ou `não identificado`, conforme o contrato do consumidor.
+Cada achado positivo deve conter `paginas_origem` e `evidencia`. A evidência deve ser curta, literal e copiável do chunk da página indicada. Se a evidência não estiver no Markdown, não crie o achado: registre evidência insuficiente e revisão humana.
 
 ## Status
 
@@ -16,6 +16,8 @@ Cada item deve apontar para uma ou mais páginas `## Página N`. Se a evidência
 - `outro`: ato regulatório diferente das categorias acima.
 
 `cancelado` nunca deve entrar automaticamente em uma lista de indeferidos.
+
+Status diferentes de `deferido`, `indeferido`, `cancelado` e `outro` são inválidos. Um dispositivo deve continuar identificado como dispositivo e não pode ser classificado como medicamento ou suplemento por inferência.
 
 ## Estrutura mínima
 
@@ -63,3 +65,10 @@ Cada item deve apontar para uma ou mais páginas `## Página N`. Se a evidência
 Os itens devem conter os campos disponíveis no documento, incluindo empresa, CNPJ, detalhes, processo, registro, validade, apresentação e páginas de origem quando aplicável.
 
 Para estudos clínicos, usar `tipo_produto_relacionado` com `medicamento`, `suplemento`, `dispositivo`, `outro` ou `nao_identificado`. Não converter um dispositivo em medicamento ou suplemento por inferência.
+
+## Contrato RAG e qualidade
+
+- A resposta deve ser somente JSON válido, sem explicação, introdução ou texto livre fora do objeto.
+- O contexto recuperado deve ser filtrado pelo protocolo atual; nunca misture documentos.
+- Contradições devem preservar as duas afirmações com suas respectivas páginas e evidências.
+- Falhas técnicas ficam fora da resposta da IA e são registradas pelo workflow. Falhas de citação geram aviso e revisão humana, mantendo o resultado como preliminar.

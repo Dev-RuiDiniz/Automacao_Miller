@@ -8,8 +8,10 @@ ROOT = Path(__file__).parents[2]
 def test_compose_declares_isolated_required_services() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
-    for service in ("postgres:", "ollama:", "pdf-converter:", "report-renderer:", "n8n:"):
+    for service in ("postgres:", "ollama:", "rag-service:", "pdf-converter:", "report-renderer:", "n8n:"):
         assert service in compose
+    assert "pgvector/pgvector:pg15" in compose
+    assert "RAG_SERVICE_BASE_URL" in compose
     assert "127.0.0.1:${N8N_HOST_PORT:-25678}:5678" in compose
     assert "automacao_miller_n8n_data" in compose
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
@@ -68,7 +70,7 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert workflow["id"] == "automacao-regulatoria-internal"
     assert workflow["active"] is False
     assert workflow["settings"]["errorWorkflow"] == "automacao-reg-error-handler"
-    assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "State - Human review", "Post-report confidence gate", "State - Awaiting manual send"} <= names
+    assert {"Landing - Receber documento", "State - Claim document", "State - Start attempt", "Internal Storage - Read PDF", "Internal Storage - Write Markdown", "Internal Storage - Write analysis", "Internal Storage - Write report", "State - Human review", "Post-report confidence gate", "State - Awaiting manual send", "RAG - Index Markdown", "RAG - Search context", "RAG - Validate citations", "Merge RAG validation context"} <= names
     read_pdf = next(node for node in workflow["nodes"] if node["name"] == "Internal Storage - Read PDF")
     assert "$('Claim guard').item.json.source_storage_key" in read_pdf["parameters"]["filePath"]
     claim_guard = next(node for node in workflow["nodes"] if node["name"] == "Claim guard")
@@ -94,6 +96,10 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     report_payload = next(node for node in workflow["nodes"] if node["name"] == "Prepare report payload")
     assert "analysis_scope" in report_payload["parameters"]["jsCode"]
     assert "paginas_origem" in ollama["parameters"]["jsonBody"]
+    rag_search = next(node for node in workflow["nodes"] if node["name"] == "RAG - Search context")
+    assert "submission_id" in rag_search["parameters"]["jsonBody"]
+    assert "/v1/search" in rag_search["parameters"]["url"]
+    assert "RAG - Validate citations" in json.dumps(workflow["connections"])
 
 
 def test_internal_repository_schema_contract() -> None:
@@ -103,6 +109,15 @@ def test_internal_repository_schema_contract() -> None:
     assert "ADD COLUMN IF NOT EXISTS submission_id" in schema
     assert "legacy_report_file_id" in schema
     assert "UNIQUE (submission_id, artifact_type, version)" in schema
+
+
+def test_rag_and_training_schema_contract() -> None:
+    schema = (ROOT / "deploy" / "postgres" / "init" / "004_rag_and_training.sql").read_text(encoding="utf-8")
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in schema
+    for table in ("document_chunks", "rag_retrievals", "quality_checks", "training_examples", "model_evaluations"):
+        assert f"CREATE TABLE IF NOT EXISTS automacao_miller.{table}" in schema
+    assert "content_tsv" in schema
+    assert "submission_id = %(submission_id)s" in (ROOT / "infra" / "rag" / "search.py").read_text(encoding="utf-8")
 
 
 def test_reconciliation_returns_protocols_for_dispatch() -> None:

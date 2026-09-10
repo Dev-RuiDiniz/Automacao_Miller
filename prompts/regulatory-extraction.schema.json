@@ -22,19 +22,20 @@
   ],
   "properties": {
     "documento": {"type": "object"},
-    "medicamentos_deferidos": {"type": "array"},
-    "medicamentos_indeferidos": {"type": "array"},
-    "suplementos_deferidos": {"type": "array"},
-    "suplementos_indeferidos": {"type": "array"},
-    "estudos_clinicos_deferidos": {"type": "array"},
-    "estudos_clinicos_indeferidos": {"type": "array"},
-    "outros_atos": {"type": "array"},
-    "exigencias": {"type": "array"},
-    "pendencias": {"type": "array"},
+    "medicamentos_deferidos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "medicamentos_indeferidos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "suplementos_deferidos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "suplementos_indeferidos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "estudos_clinicos_deferidos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "estudos_clinicos_indeferidos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "outros_atos": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "exigencias": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
+    "pendencias": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
     "categorias_nao_localizadas": {"type": "array"},
     "evidencias_insuficientes": {"type": "array", "items": {"type": "string"}},
     "contradicoes": {"type": "array", "items": {"type": "string"}},
     "avisos": {"type": "array"},
+    "cancelados": {"type": "array", "items": {"$ref": "#/$defs/achado"}},
     "controle_confianca": {
       "type": "object",
       "required": ["status", "motivos"],
@@ -57,5 +58,18 @@
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "achado": {
+      "type": "object",
+      "required": ["paginas_origem", "evidencia"],
+      "properties": {
+        "paginas_origem": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
+        "evidencia": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "enum": ["deferido", "indeferido", "cancelado", "outro"]},
+        "tipo_produto_relacionado": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  }
 }

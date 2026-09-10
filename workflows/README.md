@@ -96,3 +96,19 @@ Para consultar ou reprocessar, use o painel, o protocolo e as tabelas internas. 
 pastas do Drive para representar estados. Arquivos antigos do Drive não são
 apagados automaticamente e só podem entrar por procedimento de importação
 controlada futuro.
+
+## RAG e validação de citações
+
+Depois de persistir o Markdown, o workflow chama o serviço interno
+`RAG_SERVICE_BASE_URL` para indexar chunks por página, executar busca híbrida e
+registrar os chunks recuperados. O contexto enviado ao Ollama contém o marcador
+`## Página N`, o protocolo e a instrução de copiar evidência curta.
+
+O nó `RAG - Validate citations` confere o resultado contra os chunks do mesmo
+documento, incluindo páginas existentes, trecho literal normalizado, status
+permitido e classificação de dispositivos. O resultado segue como preliminar
+com aviso e revisão quando houver falha de qualidade. O workflow só persiste
+um resultado operacionalmente concluído depois da revisão exigida.
+
+Para reconstruir a base de embeddings, execute a indexação somente para os
+Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.

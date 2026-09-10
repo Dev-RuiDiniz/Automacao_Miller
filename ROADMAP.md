@@ -493,6 +493,27 @@ Este arquivo deve refletir a realidade do projeto, e não apenas a intenção in
 - [x] Informar explicitamente quando a página não for comprovada e manter a
       revisão humana obrigatória.
 - [x] Exibir no resumo o recorte de páginas usado pela análise automatizada.
+
+## 25. RAG e hardening da qualidade — 2026-09-10
+
+- [x] Adicionar PostgreSQL 15 com `pgvector` e migração de chunks, embeddings,
+      consultas recuperadas e checagens de qualidade.
+- [x] Criar serviço interno de indexação, busca híbrida e validação limitada ao
+      documento atual.
+- [x] Exigir página e trecho literal nos achados e preservar os status
+      `deferido`, `indeferido`, `cancelado` e `outro`.
+- [x] Integrar indexação, recuperação e validação ao workflow interno.
+- [x] Permitir payload corrigido em revisão humana e filtrar exemplos elegíveis.
+- [x] Criar exportação JSONL protegida com separação determinística de treino e
+      validação.
+- [x] Documentar o modelo base `qwen2.5:3b` e `nomic-embed-text`.
+- [ ] Aplicar migração e indexar Markdowns na homologação após backup conjunto.
+- [ ] Comparar fluxo atual e RAG em documentos de referência, incluindo páginas
+      71–75 e 79.
+- [ ] Atingir pelo menos 30 exemplos de treino e 10 de validação, medir schema,
+      cobertura de citações e afirmações sem suporte.
+- [ ] Avaliar LoRA/QLoRA fora da VPS e importar modelo somente se superar o
+      modelo base.
 ## 20. Fechamento da homologacao - 2026-08-26
 
 Estado atualizado: stack Docker isolada operacional em /opt/automacao-miller,

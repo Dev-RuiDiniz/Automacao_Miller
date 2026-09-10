@@ -123,3 +123,22 @@ docker compose run --rm upload-gateway python -m infra.upload_gateway.password_h
 
 O valor de `LANDING_PASSWORD_HASH` contém `$`; mantenha-o entre aspas simples
 no `.env` da VPS.
+
+## RAG e migração do banco
+
+O serviço PostgreSQL usa a imagem PostgreSQL 15 com `pgvector`. Em ambiente
+existente, faça o backup conjunto antes de aplicar
+`deploy/postgres/init/004_rag_and_training.sql`; os arquivos de inicialização
+não são reaplicados automaticamente em um banco já criado. Depois, baixe o
+modelo `nomic-embed-text` no Ollama e confirme `RAG_EMBEDDING_DIMENSION=768`,
+`RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP` e `RAG_TOP_K` no ambiente protegido.
+
+O serviço `rag-service` fica apenas na rede Docker interna e não expõe o
+volume nem seus caminhos ao navegador. O dataset exportado por
+`scripts/export_training_dataset.py` deve ficar em diretório protegido fora do
+Git. O manifesto informa se os mínimos de 30 exemplos de treino e 10 de
+validação foram atingidos; até lá, mantenha o modelo base e use RAG.
+
+Sequência de homologação: backup, aplicar a migração, indexar os Markdowns,
+comparar o fluxo paralelo, validar citações, ativar o workflow interno e só
+então considerar qualquer avaliação de fine-tuning.

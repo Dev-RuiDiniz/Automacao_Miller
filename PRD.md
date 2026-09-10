@@ -385,6 +385,14 @@ O relatório deve conter seções fixas para:
 10. erros, avisos e revisão humana;
 11. evidências por página.
 
+Para facilitar a leitura por equipes operacionais e comerciais, o relatório
+também deve começar com um resumo executivo em linguagem clara, apresentar os
+achados traduzidos em implicações práticas de acompanhamento e indicar próximos
+passos. A redação pode explicar possíveis impactos em cadastro, registros,
+processos, prazos e comunicação interna, mas não deve criar impacto financeiro,
+jurídico ou regulatório que não esteja evidenciado no documento. O resumo deve
+preservar o status de confiança, os alertas e a necessidade de revisão humana.
+
 Para estudos clínicos, o produto relacionado deve ser classificado como medicamento, suplemento, dispositivo, outro ou não identificado. O sistema não pode converter um dispositivo em medicamento ou suplemento por inferência.
 
 Quando uma categoria não possuir registros, o relatório deve informar que nenhum registro foi localizado no recorte analisado. Isso não pode ser usado para ocultar uma falha técnica de conversão, extração ou análise.

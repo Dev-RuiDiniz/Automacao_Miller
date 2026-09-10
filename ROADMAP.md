@@ -477,6 +477,14 @@ Este arquivo deve refletir a realidade do projeto, e não apenas a intenção in
       sem evidência de página.
 - [ ] Executar a revisão humana das classificações e evidências do documento real.
 - [ ] Validar o envio manual e o download oficial após a revisão aprovada.
+
+## 23. Relatório executivo para leitura comercial — 2026-09-10
+
+- [x] Adicionar resumo executivo com contagem de achados e pontos de atenção.
+- [x] Explicar os achados em linguagem prática para operação e acompanhamento
+      comercial.
+- [x] Exibir evidências de página, confiança e próximos passos no PDF.
+- [x] Validar a nova apresentação com teste automatizado e inspeção visual.
 ## 20. Fechamento da homologacao - 2026-08-26
 
 Estado atualizado: stack Docker isolada operacional em /opt/automacao-miller,

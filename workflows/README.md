@@ -61,6 +61,12 @@ download oficial só é liberado quando o PostgreSQL indicar `concluido`. O
 operador visualiza o PDF, Markdown e JSON pelo painel autenticado antes de
 solicitar o envio.
 
+O PDF é apresentado como relatório executivo: começa com resumo dos achados,
+leitura prática para acompanhamento operacional e comercial, pontos de atenção
+e próximos passos. As seções detalhadas continuam exibindo os dados extraídos e
+as evidências de página disponíveis; a linguagem comercial não substitui a
+conferência do documento original nem a revisão humana.
+
 ## Painel e envio manual
 
 O gateway oferece `/upload` para a fila, `/new` para upload,

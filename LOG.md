@@ -1290,3 +1290,31 @@ extenso continua como melhoria de qualidade do modelo.
 **Impacto:** O fluxo interno está operacional para o documento real, com
 artefatos persistidos e trilha de revisão. O resultado não é tratado como
 concluído automaticamente quando a evidência extraída é insuficiente.
+
+## 2026-09-10 — Relatório executivo com linguagem comercial
+
+**Tipo:** EVOLUÇÃO / RELATÓRIO / UX
+**Status:** IMPLEMENTADO
+
+**Contexto:** O relatório anterior apresentava principalmente o conteúdo do JSON
+em seções técnicas, dificultando a leitura por operadores e áreas comerciais.
+
+**Decisão/Ação:** Atualizar o renderer para abrir o PDF com resumo executivo,
+indicadores de achados e atenção, explicação das implicações práticas, achados
+detalhados com rótulos legíveis, evidências por página, controle de confiança e
+próximos passos. A redação permanece documental e não cria conclusões que não
+estejam sustentadas pelo conteúdo recebido.
+
+**Arquivos afetados:** `infra/report_renderer/app.py`,
+`tests/report_renderer/test_renderer.py`, `PRD.md`, `ROADMAP.md` e
+`workflows/README.md`.
+
+**Testes:** Testes do renderer aprovados e PDF de amostra renderizado com
+inspeção visual, paginação, rodapé e hierarquia tipográfica conferidos.
+
+**Pendências:** Publicar o renderer atualizado na VPS e regenerar o relatório
+do documento real para validação final da nova linguagem.
+
+**Impacto:** O operador passa a entender rapidamente o que foi encontrado, o
+que merece atenção e qual ação deve ocorrer antes do envio, mantendo o JSON e o
+Markdown como evidências auditáveis.

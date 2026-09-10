@@ -54,10 +54,15 @@ def test_render_endpoint_returns_readable_pdf_with_required_sections() -> None:
     text = "\n".join(page.extract_text() or "" for page in reader.pages)
 
     assert len(reader.pages) >= 1
-    assert "Medicamentos deferidos" in text
+    assert "Medicamentos aprovados ou deferidos" in text
     assert "Suplementos indeferidos" in text
     assert "Produto A" in text
     assert "referencia.pdf" in text
+    assert "Resumo executivo" in text
+    assert "O que isso significa na prática" in text
+    assert "Próximos passos recomendados" in text
+    assert "Evidência: p. 1" in text
+    assert response.headers["x-report-version"] == "1.1.0"
 
 
 def test_render_endpoint_rejects_missing_analysis() -> None:

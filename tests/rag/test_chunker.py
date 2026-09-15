@@ -1,4 +1,4 @@
-from infra.rag.chunker import split_markdown_by_page
+from infra.rag.chunker import deduplicate_content_chunks, split_markdown_by_page
 
 
 def test_split_preserves_pages_and_hashes() -> None:
@@ -13,3 +13,11 @@ def test_long_page_uses_overlap_without_losing_page_marker() -> None:
     assert len(chunks) > 1
     assert all(item.page_start == 75 for item in chunks)
     assert any(chunks[0].content[-8:].strip() in item.content for item in chunks[1:])
+
+
+def test_deduplicate_content_chunks_reindexes_repeated_content() -> None:
+    chunks = split_markdown_by_page("## Página 1\nCabeçalho repetido\n## Página 1\nCabeçalho repetido")
+    unique = deduplicate_content_chunks(chunks)
+    assert len(unique) == 1
+    assert unique[0].page_start == 1
+    assert unique[0].chunk_index == 0

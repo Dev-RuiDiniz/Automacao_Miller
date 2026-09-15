@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from psycopg.types.json import Json
 
-from infra.rag.chunker import split_markdown_by_page
+from infra.rag.chunker import deduplicate_content_chunks, split_markdown_by_page
 from infra.rag.search import hybrid_query
 from infra.regulatory_analysis.quality import validate_analysis
 
@@ -84,7 +84,7 @@ def index_markdown(payload: IndexRequest) -> dict[str, Any]:
     digest = hashlib.sha256(payload.markdown.encode("utf-8")).hexdigest()
     if payload.markdown_sha256 and payload.markdown_sha256.lower() != digest:
         raise HTTPException(status_code=422, detail="Hash do Markdown não confere")
-    chunks = split_markdown_by_page(payload.markdown, env_int("RAG_CHUNK_SIZE", 1200), env_int("RAG_CHUNK_OVERLAP", 150))
+    chunks = deduplicate_content_chunks(split_markdown_by_page(payload.markdown, env_int("RAG_CHUNK_SIZE", 1200), env_int("RAG_CHUNK_OVERLAP", 150)))
     if not chunks:
         raise HTTPException(status_code=422, detail="Markdown não contém marcadores de página")
     try:

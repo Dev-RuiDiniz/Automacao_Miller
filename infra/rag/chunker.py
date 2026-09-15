@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 
 PAGE_RE = re.compile(r"^##\s+Página\s+(\d+)\s*$", re.IGNORECASE)
@@ -15,6 +15,18 @@ class PageChunk:
     chunk_index: int
     content: str
     content_sha256: str
+
+
+def deduplicate_content_chunks(chunks: list[PageChunk]) -> list[PageChunk]:
+    """Remove conteúdo repetido e mantém índices contíguos para o armazenamento RAG."""
+    unique: list[PageChunk] = []
+    seen: set[str] = set()
+    for chunk in chunks:
+        if chunk.content_sha256 in seen:
+            continue
+        seen.add(chunk.content_sha256)
+        unique.append(replace(chunk, chunk_index=len(unique)))
+    return unique
 
 
 def _split_pages(markdown: str) -> list[tuple[int, str]]:

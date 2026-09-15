@@ -91,8 +91,16 @@ def index_markdown(payload: IndexRequest) -> dict[str, Any]:
         with db_connection() as connection:
             ensure_document(connection, payload.submission_id)
             connection.execute("DELETE FROM automacao_miller.document_chunks WHERE submission_id = %s", (payload.submission_id,))
-            for chunk in chunks:
-                vector = embedding(chunk.content)
+            connection.commit()
+
+        # A geracao dos embeddings pode demorar em documentos extensos.
+        # Mantemos essa etapa fora de uma transacao para nao segurar locks
+        # PostgreSQL enquanto o Ollama processa cada chunk.
+        vectors = [embedding(chunk.content) for chunk in chunks]
+
+        with db_connection() as connection:
+            ensure_document(connection, payload.submission_id)
+            for chunk, vector in zip(chunks, vectors, strict=True):
                 connection.execute(
                     """
                     INSERT INTO automacao_miller.document_chunks

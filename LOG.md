@@ -1563,3 +1563,47 @@ real permanece opcional, não sendo requisito para entrega.
 **Impacto:** O tempo até a entrega do relatório é reduzido e a equipe pode agir
 com base na síntese técnica, mantendo uma trilha clara para confirmar a fonte
 original sem apresentar a IA como autoridade regulatória humana.
+
+## 2026-09-15 — Atualização controlada da VPS e pausa operacional do DOU
+
+**Tipo:** DEPLOY / HOMOLOGAÇÃO / RAG / INFRAESTRUTURA
+**Status:** VPS ATUALIZADA; TESTE PEQUENO APROVADO; DOU EM PROCESSAMENTO
+
+**Contexto:** A VPS foi atualizada a partir de `ff8c5ba` até a linha atual da
+`main`, preservando banco, volume de artefatos, credenciais internas e os quatro
+workflows operacionais. A janela foi encerrada antes da conclusão do segundo
+documento, a pedido do operador.
+
+**Decisão/Ação:** Foi executado backup conjunto com manifesto, SHA-256,
+`pg_restore --list` e `tar -tzf`. A migração `004_rag_and_training.sql` foi
+aplicada uma única vez. O modelo `nomic-embed-text` foi instalado e validado ao
+lado de `qwen2.5:3b` e `qwen2.5:1.5b`. O workflow interno v3 foi reimportado
+inativo com sete vínculos de credenciais preservados por workflow/node ID e
+reativado junto dos workflows de envio, reconciliação e erros. Os exports
+históricos do Google Drive permaneceram inativos.
+
+**Arquivos/ambiente afetados:** `docker-compose.yml`, `.env.example`,
+`workflows/automacao-regulatoria-internal-v1.json` e a configuração operacional
+da VPS. O timeout do Ollama passou a ser configurado em segundos e convertido
+explicitamente para milissegundos; na VPS ficou definido em 3600 segundos.
+
+**Testes:** O PDF pequeno `automacao-miller-homologacao-2.pdf` completou o
+ciclo, teve artefatos de Markdown, análise e PDF, envio real ao destinatário de
+homologação, estado `concluido` e download oficial HTTP 200. No DOU
+`2026_08_24_ASSINADO_do1.pdf`, a tentativa 23 persistiu 255 chunks e 8
+recuperações RAG, mas falhou depois da indexação porque o Ollama encerrou a
+geração antes de concluir o JSON (`done=false`). Essa falha foi registrada como
+erro de IA. A tentativa 24 foi autorizada operacionalmente e estava em
+`em_processamento/markdown_persistido` ao encerrar o expediente; seu resultado
+final ainda não é evidência de aprovação.
+
+**Pendências:** Acompanhar a tentativa 24; confirmar `prompt_version` v3,
+`quality_checks`, relatório com parecer e páginas, envio, estado `concluido` e
+download oficial do DOU. Executar a suíte completa local após a última correção,
+revisar o diff documental e manter o hardening SSH da VPS como atividade
+separada. Nenhum segredo foi adicionado ao versionamento.
+
+**Impacto:** A operação pequena está validada ponta a ponta e a infraestrutura
+RAG está aplicada. O documento extenso continua sendo o principal gate técnico
+de desempenho e confiabilidade da homologação; falhas técnicas permanecem
+explícitas e não são convertidas em ausência de informação.

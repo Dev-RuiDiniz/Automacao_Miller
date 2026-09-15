@@ -637,3 +637,24 @@ de auditoria.
 páginas indicadas quando desejar. A conferência humana permanece disponível no
 painel para confirmação ou correção, mas não é requisito para gerar, enviar ou
 baixar o relatório. Falhas técnicas continuam interrompendo o processamento.
+
+## 31. Atualização e validação controlada da VPS — 2026-09-15 (encerramento do expediente)
+
+- [x] Atualizar a VPS para a `main` até o commit operacional `ae76265`.
+- [x] Executar backup conjunto com manifesto, SHA-256 e validação dos artefatos.
+- [x] Aplicar somente a migração `004_rag_and_training.sql`.
+- [x] Instalar e validar `nomic-embed-text` mantendo `qwen2.5:3b`.
+- [x] Reimportar o workflow interno v3 com vínculos de credenciais preservados.
+- [x] Manter ativos os quatro workflows operacionais e inativos os históricos.
+- [x] Corrigir o timeout efetivo do Ollama para documentos extensos.
+- [x] Completar o teste pequeno com envio real e download HTTP 200.
+- [x] Persistir 255 chunks e 8 recuperações RAG no teste do DOU.
+- [ ] Concluir a tentativa 24 do DOU, confirmar relatório v3, qualidade, envio e download.
+- [ ] Executar a suíte completa local e registrar o resultado final da janela.
+- [ ] Fazer hardening SSH da VPS em atividade separada, incluindo rotação de senha.
+
+**Estado no encerramento:** os serviços permaneceram operacionais, o teste
+pequeno foi aprovado ponta a ponta e a tentativa extensa do DOU ficou em
+processamento para retomada/acompanhamento. A ausência de resultado final do DOU
+não deve ser interpretada como aprovação ou falha de conteúdo; a validação foi
+interrompida antes do fechamento do ciclo.

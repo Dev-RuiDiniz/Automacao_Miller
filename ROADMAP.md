@@ -604,3 +604,16 @@ registrados nas pendências anteriores.
 **Regra de governança:** o parecer v2 é uma análise técnica preliminar de apoio
 documental. Não substitui profissional habilitado nem pode liberar sozinho
 decisão regulatória, jurídica, médica ou comercial de alto impacto.
+
+## 29. Modelo executivo do documento final — 2026-09-15
+
+- [x] Redesenhar o renderer PDF com identidade visual comercial e profissional.
+- [x] Exibir status de conferência, indicadores e parecer técnico em destaque.
+- [x] Organizar achados em cartões com evidências, páginas e rastreabilidade.
+- [x] Preservar revisão humana, aviso de responsabilidade e regras de liberação.
+- [x] Renderizar e inspecionar visualmente PDF de amostra sem cortes ou sobreposição.
+- [ ] Publicar o renderer atualizado na VPS e regenerar o documento real de 128 páginas.
+
+**Resultado:** a versão local `1.3.0` melhora a leitura executiva do relatório
+final sem alterar o contrato funcional, a política de confiança ou os requisitos
+de auditoria.

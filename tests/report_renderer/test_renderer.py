@@ -98,6 +98,7 @@ def test_render_endpoint_returns_readable_pdf_with_required_sections() -> None:
     assert "Suplementos indeferidos" in text
     assert "Produto A" in text
     assert "referencia.pdf" in text
+    assert "DB TECNOLOGIA" in text
     assert "Resumo executivo" in text
     assert "O que isso significa na prática" in text
     assert "Parecer técnico preliminar" in text
@@ -106,7 +107,7 @@ def test_render_endpoint_returns_readable_pdf_with_required_sections() -> None:
     assert "Próximos passos recomendados" in text
     assert "Páginas de origem: p. 1" in text
     assert "Páginas consideradas pela análise automatizada: p. 1, p. 2." in text
-    assert response.headers["x-report-version"] == "1.2.0"
+    assert response.headers["x-report-version"] == "1.3.0"
 
 
 def test_render_endpoint_makes_missing_source_page_explicit() -> None:

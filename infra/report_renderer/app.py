@@ -12,10 +12,20 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
-REPORT_VERSION = "1.2.0"
+REPORT_VERSION = "1.3.0"
+BRAND_NAVY = "#123B5D"
+BRAND_TEAL = "#0F766E"
+BRAND_GOLD = "#B7791F"
+INK = "#1F2937"
+MUTED = "#64748B"
+LINE = "#D7E1EA"
+SURFACE = "#F5F8FB"
+SURFACE_BLUE = "#EAF2F8"
+SURFACE_TEAL = "#E8F5F2"
+SURFACE_GOLD = "#FFF7E6"
 SECTIONS: tuple[tuple[str, str], ...] = (
     ("medicamentos_deferidos", "Medicamentos aprovados ou deferidos"),
     ("medicamentos_indeferidos", "Medicamentos indeferidos"),
@@ -96,24 +106,84 @@ def _value_text(value: Any) -> str:
     return str(value)
 
 
+def _list_text(value: Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(_value_text(item) for item in value) or "Não informado"
+    return _value_text(value)
+
+
 def _paragraph(text: Any, style: ParagraphStyle) -> Paragraph:
     return Paragraph(escape(_value_text(text)).replace("\n", "<br/>") or "-", style)
 
 
+def _rich_line(label: str, value: Any) -> str:
+    return f"<b>{escape(label)}:</b> {escape(_value_text(value))}"
+
+
+def _section_heading(title: str, styles: dict[str, ParagraphStyle]) -> Table:
+    table = Table(
+        [["", _paragraph(title, styles["section_title"])]],
+        colWidths=(3.5 * mm, 166.5 * mm),
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), colors.HexColor(BRAND_TEAL)),
+                ("BACKGROUND", (1, 0), (1, 0), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(LINE)),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    return table
+
+
+def _notice_box(label: str, text: str, styles: dict[str, ParagraphStyle], background: str = SURFACE_GOLD) -> Table:
+    table = Table(
+        [[_paragraph(label, styles["notice_label"]), _paragraph(text, styles["notice_body"])]],
+        colWidths=(36 * mm, 134 * mm),
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(background)),
+                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor(BRAND_GOLD)),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    return table
+
+
 def _metadata_table(metadata: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Table:
     rows = [[_paragraph("Campo", styles["table_header"]), _paragraph("Valor", styles["table_header"])]]
-    for key in ("source_filename", "source_sha256", "page_count", "converter_version"):
+    labels = {
+        "source_filename": "Documento de origem",
+        "submission_id": "Protocolo",
+        "source_sha256": "Integridade SHA-256",
+        "page_count": "Páginas do documento",
+        "converter_version": "Versão do conversor",
+    }
+    for key in ("source_filename", "submission_id", "source_sha256", "page_count", "converter_version"):
         if key in metadata:
-            rows.append([_paragraph(key, styles["table_cell"]), _paragraph(metadata[key], styles["table_cell"])])
+            rows.append([_paragraph(labels[key], styles["table_cell"]), _paragraph(metadata[key], styles["table_cell"])])
     table = Table(rows, colWidths=(55 * mm, 115 * mm), repeatRows=1)
     table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(BRAND_NAVY)),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor(LINE)),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8fafc")),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor(SURFACE)),
                 ("LEFTPADDING", (0, 0), (-1, -1), 6),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 6),
                 ("TOPPADDING", (0, 0), (-1, -1), 5),
@@ -167,9 +237,9 @@ def _attention_count(analysis: dict[str, Any]) -> int:
 
 def _confidence_label(status: Any) -> str:
     return {
-        "aceitavel": "Leitura sem alerta automático de confiança",
-        "baixa_confianca": "Leitura que precisa de revisão humana",
-        "inconclusivo": "Leitura inconclusiva por informações conflitantes",
+        "aceitavel": "Leitura preliminar sem alerta automático",
+        "baixa_confianca": "Leitura preliminar com revisão humana",
+        "inconclusivo": "Leitura preliminar inconclusiva",
     }.get(str(status), "Classificação de confiança não informada")
 
 
@@ -192,15 +262,65 @@ def _summary_table(analysis: dict[str, Any], styles: dict[str, ParagraphStyle]) 
     table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8f0f8")),
-                ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#f8fafc")),
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#b9c9d9")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d6e0e8")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(SURFACE_BLUE)),
+                ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor(SURFACE)),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor(LINE)),
+                ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.HexColor(LINE)),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 7),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 7),
                 ("TOPPADDING", (0, 0), (-1, -1), 6),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    return table
+
+
+def _record_title(value: Any, index: int) -> str:
+    if isinstance(value, dict):
+        title = value.get("titulo") or value.get("produto") or value.get("assunto") or value.get("categoria") or value.get("id")
+        if title:
+            return f"{index:02d}  {_value_text(title)}"
+    return f"{index:02d}  Registro documental"
+
+
+def _record_card(value: Any, index: int, styles: dict[str, ParagraphStyle], *, accent: str = BRAND_TEAL) -> Table:
+    if isinstance(value, dict):
+        fields = []
+        for key in FIELD_ORDER:
+            item_value = value.get(key)
+            if key in {"id", "paginas_origem", "paginas", "evidencias", "evidencia", "base_ids"} or item_value in (None, "", [], {}):
+                continue
+            fields.append(_rich_line(FIELD_LABELS.get(key, key.replace("_", " ").capitalize()), item_value))
+        pages = value.get("paginas_origem") or value.get("paginas")
+        fields.append(_rich_line("Páginas de origem", _pages_text(pages) if pages else "não informadas - conferir no PDF original"))
+        if value.get("evidencia"):
+            fields.append(_rich_line("Evidência literal", value["evidencia"]))
+        if value.get("evidencias"):
+            fields.append(_rich_line("Trecho de apoio", value["evidencias"]))
+        if value.get("base_ids"):
+            fields.append(_rich_line("Base documental", _list_text(value["base_ids"])))
+    else:
+        fields = [escape(_value_text(value)), _rich_line("Páginas de origem", "não informadas - conferir no PDF original")]
+    body = Paragraph("<br/>".join(fields) or "-", styles["record"])
+    table = Table(
+        [[_paragraph(_record_title(value, index), styles["record_title"])], [body]],
+        colWidths=(170 * mm,),
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (0, 0), colors.HexColor(accent)),
+                ("TEXTCOLOR", (0, 0), (0, 0), colors.white),
+                ("BACKGROUND", (0, 1), (0, 1), colors.HexColor(SURFACE)),
+                ("BOX", (0, 0), (-1, -1), 0.55, colors.HexColor(LINE)),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor(accent)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]
         )
     )
@@ -288,6 +408,40 @@ def _technical_opinion_lines(opinion: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _technical_opinion_table(opinion: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Table:
+    classification = TECHNICAL_LABELS.get(str(opinion.get("classificacao_geral")), "Não informado")
+    risk = RISK_LABELS.get(str(opinion.get("nivel_risco")), "Não classificado")
+    base_ids = _list_text(opinion.get("base_ids") or "Não informada")
+    cells = [
+        ("Classificação geral", classification),
+        ("Nível de risco preliminar", risk),
+        ("Base documental", base_ids),
+    ]
+    table = Table(
+        [
+            [_paragraph(label, styles["metric_label"]) for label, _ in cells],
+            [_paragraph(value, styles["metric_value"]) for _, value in cells],
+        ],
+        colWidths=(56.5 * mm, 56.5 * mm, 57 * mm),
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(SURFACE_TEAL)),
+                ("BACKGROUND", (0, 1), (-1, 1), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(BRAND_TEAL)),
+                ("INNERGRID", (0, 0), (-1, -1), 0.3, colors.HexColor(LINE)),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    return table
+
+
 def _recommendation_lines(item: Any) -> list[str]:
     if not isinstance(item, dict):
         return [_value_text(item)]
@@ -302,11 +456,20 @@ def _recommendation_lines(item: Any) -> list[str]:
 
 def _page_decor(canvas: Any, document: Any) -> None:
     canvas.saveState()
-    canvas.setStrokeColor(colors.HexColor("#d6e0e8"))
+    if document.page > 1:
+        canvas.setStrokeColor(colors.HexColor(LINE))
+        canvas.line(18 * mm, A4[1] - 13 * mm, A4[0] - 18 * mm, A4[1] - 13 * mm)
+        canvas.setFont("Helvetica-Bold", 7.5)
+        canvas.setFillColor(colors.HexColor(BRAND_NAVY))
+        canvas.drawString(18 * mm, A4[1] - 10 * mm, "DB TECNOLOGIA")
+        canvas.setFont("Helvetica", 7.5)
+        canvas.setFillColor(colors.HexColor(MUTED))
+        canvas.drawRightString(A4[0] - 18 * mm, A4[1] - 10 * mm, "Análise regulatória | uso interno")
+    canvas.setStrokeColor(colors.HexColor(LINE))
     canvas.line(18 * mm, 13 * mm, A4[0] - 18 * mm, 13 * mm)
     canvas.setFont("Helvetica", 7.5)
-    canvas.setFillColor(colors.HexColor("#64748b"))
-    canvas.drawString(18 * mm, 8 * mm, "Documento de apoio | análise regulatória")
+    canvas.setFillColor(colors.HexColor(MUTED))
+    canvas.drawString(18 * mm, 8 * mm, "Documento de apoio | análise regulatória preliminar")
     canvas.drawRightString(A4[0] - 18 * mm, 8 * mm, f"Página {document.page}")
     canvas.restoreState()
 
@@ -318,100 +481,115 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
         pagesize=A4,
         rightMargin=18 * mm,
         leftMargin=18 * mm,
-        topMargin=16 * mm,
-        bottomMargin=16 * mm,
-        title=f"Relatorio regulatorio - {metadata.get('source_filename', 'documento')}",
-        author="Agente de Automacao e Analise Regulatoria",
+        topMargin=22 * mm,
+        bottomMargin=17 * mm,
+        title=f"Relatório executivo - {metadata.get('source_filename', 'documento')}",
+        author="DB Tecnologia | Agente de Automação e Análise Regulatória",
     )
     base = getSampleStyleSheet()
     styles = {
-        "title": ParagraphStyle("ReportTitle", parent=base["Title"], alignment=TA_CENTER, textColor=colors.HexColor("#153b63"), fontSize=18, leading=22),
-        "subtitle": ParagraphStyle("ReportSubtitle", parent=base["Normal"], alignment=TA_CENTER, textColor=colors.HexColor("#475569"), fontSize=9.5, leading=13),
-        "heading": ParagraphStyle("SectionHeading", parent=base["Heading2"], textColor=colors.HexColor("#153b63"), fontSize=12, leading=15, spaceBefore=10, spaceAfter=5),
-        "body": ParagraphStyle("Body", parent=base["BodyText"], fontSize=9, leading=12, spaceAfter=4),
-        "callout": ParagraphStyle("Callout", parent=base["BodyText"], textColor=colors.HexColor("#243b53"), fontSize=9.5, leading=13, spaceAfter=5),
-        "metric_label": ParagraphStyle("MetricLabel", parent=base["BodyText"], textColor=colors.HexColor("#486581"), fontSize=7.5, leading=9),
-        "metric_value": ParagraphStyle("MetricValue", parent=base["BodyText"], textColor=colors.HexColor("#102a43"), fontSize=9, leading=11),
+        "brand": ParagraphStyle("Brand", parent=base["Normal"], alignment=TA_CENTER, textColor=colors.HexColor(BRAND_NAVY), fontName="Helvetica-Bold", fontSize=10, leading=12, spaceAfter=2),
+        "eyebrow": ParagraphStyle("Eyebrow", parent=base["Normal"], alignment=TA_CENTER, textColor=colors.HexColor(BRAND_TEAL), fontName="Helvetica-Bold", fontSize=7.5, leading=10, spaceAfter=7),
+        "title": ParagraphStyle("ReportTitle", parent=base["Title"], alignment=TA_CENTER, textColor=colors.HexColor(BRAND_NAVY), fontName="Helvetica-Bold", fontSize=22, leading=26, spaceAfter=4),
+        "subtitle": ParagraphStyle("ReportSubtitle", parent=base["Normal"], alignment=TA_CENTER, textColor=colors.HexColor(MUTED), fontSize=10, leading=14, spaceAfter=4),
+        "section_title": ParagraphStyle("SectionTitle", parent=base["Heading2"], textColor=colors.HexColor(BRAND_NAVY), fontName="Helvetica-Bold", fontSize=11.5, leading=14),
+        "body": ParagraphStyle("Body", parent=base["BodyText"], textColor=colors.HexColor(INK), fontSize=8.8, leading=12, spaceAfter=4),
+        "callout": ParagraphStyle("Callout", parent=base["BodyText"], textColor=colors.HexColor(INK), fontSize=9.2, leading=13, spaceAfter=5),
+        "muted": ParagraphStyle("Muted", parent=base["BodyText"], textColor=colors.HexColor(MUTED), fontSize=8.5, leading=11, spaceAfter=4),
+        "metric_label": ParagraphStyle("MetricLabel", parent=base["BodyText"], textColor=colors.HexColor(BRAND_TEAL), fontName="Helvetica-Bold", fontSize=7.2, leading=9),
+        "metric_value": ParagraphStyle("MetricValue", parent=base["BodyText"], textColor=colors.HexColor(BRAND_NAVY), fontName="Helvetica-Bold", fontSize=9, leading=11),
+        "notice_label": ParagraphStyle("NoticeLabel", parent=base["BodyText"], textColor=colors.HexColor(BRAND_GOLD), fontName="Helvetica-Bold", fontSize=7.5, leading=10),
+        "notice_body": ParagraphStyle("NoticeBody", parent=base["BodyText"], textColor=colors.HexColor(INK), fontSize=8.5, leading=11),
+        "record_title": ParagraphStyle("RecordTitle", parent=base["BodyText"], textColor=colors.white, fontName="Helvetica-Bold", fontSize=8.5, leading=11),
+        "record": ParagraphStyle("Record", parent=base["BodyText"], textColor=colors.HexColor(INK), fontSize=8.3, leading=11, spaceAfter=0),
         "table_header": ParagraphStyle("TableHeader", parent=base["BodyText"], fontSize=8, leading=10, textColor=colors.white),
-        "table_cell": ParagraphStyle("TableCell", parent=base["BodyText"], fontSize=8, leading=10),
+        "table_cell": ParagraphStyle("TableCell", parent=base["BodyText"], fontSize=8, leading=10, textColor=colors.HexColor(INK)),
     }
+    confidence = analysis.get("controle_confianca") or {}
+    review = analysis.get("revisao_humana") or {}
+    needs_review = bool(review.get("necessaria") or confidence.get("status") in {"baixa_confianca", "inconclusivo"})
+    status_label = "Revisão humana necessária" if needs_review else "Pronto para conferência"
+    status_text = (
+        "O conteúdo pode orientar a conferência interna, mas deve ser validado no documento original antes de qualquer envio ou decisão."
+        if needs_review
+        else "A leitura automatizada não gerou alerta de confiança. Confira o documento original antes do uso externo."
+    )
     story: list[Any] = [
+        Spacer(1, 3 * mm),
+        _paragraph("DB TECNOLOGIA", styles["brand"]),
+        _paragraph("INTELIGÊNCIA DOCUMENTAL PARA DECISÕES MAIS RÁPIDAS", styles["eyebrow"]),
         _paragraph("Relatório executivo de análise regulatória", styles["title"]),
-        Spacer(1, 3 * mm),
-        _paragraph("Síntese para conferência operacional e acompanhamento comercial", styles["subtitle"]),
-        Spacer(1, 2 * mm),
-        _paragraph("Material de apoio documental; não constitui parecer jurídico, médico ou regulatório definitivo.", styles["subtitle"]),
-        Spacer(1, 6 * mm),
-        _paragraph("Metadados do documento", styles["heading"]),
+        _paragraph("Síntese técnica e operacional para conferência e acompanhamento comercial", styles["subtitle"]),
+        HRFlowable(width="100%", thickness=1.2, color=colors.HexColor(BRAND_TEAL), spaceBefore=3, spaceAfter=8),
+        _notice_box("STATUS DA LEITURA", f"{status_label}. {status_text}", styles, SURFACE_GOLD if needs_review else SURFACE_TEAL),
+        Spacer(1, 5 * mm),
+        _section_heading("Identificação do documento", styles),
         _metadata_table(metadata, styles),
-        Spacer(1, 3 * mm),
-        _paragraph("Resumo executivo", styles["heading"]),
+        Spacer(1, 4 * mm),
+        _section_heading("Resumo executivo", styles),
     ]
 
     story.extend(_paragraph(text, styles["callout"]) for text in _executive_summary(metadata, analysis))
     story.extend([_summary_table(analysis, styles), Spacer(1, 2 * mm)])
-    story.append(_paragraph("O que isso significa na prática", styles["heading"]))
+    story.append(_section_heading("O que isso significa na prática", styles))
     story.extend(_paragraph(f"- {text}", styles["body"]) for text in _practical_implications(analysis))
-    story.append(_paragraph("Parecer técnico preliminar", styles["heading"]))
+    story.append(_section_heading("Parecer técnico preliminar", styles))
     opinion = _technical_opinion(analysis)
     if opinion is None:
-        story.append(
-            _paragraph(
-                "O modelo não forneceu o bloco de análise técnica v2. Os achados abaixo permanecem como extração documental e não devem ser tratados como parecer.",
-                styles["body"],
-            )
-        )
+        story.append(_notice_box("LIMITAÇÃO", "O modelo não forneceu o bloco de análise técnica v2. Os achados abaixo permanecem como extração documental e não devem ser tratados como parecer.", styles))
     else:
-        story.extend(_paragraph(text, styles["callout"]) for text in _technical_opinion_lines(opinion))
-        story.append(_paragraph("Fundamentos técnicos", styles["heading"]))
+        story.append(_paragraph(f"Escopo analisado: {opinion.get('escopo', 'não informado')}", styles["muted"]))
+        story.append(_technical_opinion_table(opinion, styles))
+        story.append(Spacer(1, 2 * mm))
+        story.append(_notice_box("CONCLUSÃO", str(opinion.get("conclusao_preliminar", "Não informada.")), styles, SURFACE_TEAL))
         foundations = _items_for(opinion, "fundamentos")
         if foundations:
-            for index, value in enumerate(foundations, start=1):
-                story.append(_paragraph(f"{index}. " + " | ".join(_item_lines(value)), styles["body"]))
+            story.append(KeepTogether([_section_heading("Fundamentos técnicos", styles), _record_card(foundations[0], 1, styles), Spacer(1, 2 * mm)]))
+            for index, value in enumerate(foundations[1:], start=2):
+                story.append(KeepTogether([_record_card(value, index, styles), Spacer(1, 2 * mm)]))
         else:
-            story.append(_paragraph("Nenhum fundamento técnico estruturado foi localizado.", styles["body"]))
-        story.append(_paragraph("Apontamentos técnicos", styles["heading"]))
+            story.append(KeepTogether([_section_heading("Fundamentos técnicos", styles), _paragraph("Nenhum fundamento técnico estruturado foi localizado.", styles["muted"])]))
         technical_findings = _items_for(opinion, "apontamentos_tecnicos")
         if technical_findings:
-            for index, value in enumerate(technical_findings, start=1):
-                story.append(_paragraph(f"{index}. " + " | ".join(_item_lines(value)), styles["body"]))
+            story.append(KeepTogether([_section_heading("Apontamentos técnicos", styles), _record_card(technical_findings[0], 1, styles, accent=BRAND_NAVY), Spacer(1, 2 * mm)]))
+            for index, value in enumerate(technical_findings[1:], start=2):
+                story.append(KeepTogether([_record_card(value, index, styles, accent=BRAND_NAVY), Spacer(1, 2 * mm)]))
         else:
-            story.append(_paragraph("Nenhum apontamento técnico estruturado foi localizado.", styles["body"]))
-        story.append(_paragraph("Recomendações priorizadas", styles["heading"]))
+            story.append(KeepTogether([_section_heading("Apontamentos técnicos", styles), _paragraph("Nenhum apontamento técnico estruturado foi localizado.", styles["muted"])]))
         recommendations = _items_for(opinion, "recomendacoes")
         if recommendations:
-            for index, value in enumerate(recommendations, start=1):
-                story.append(_paragraph(f"{index}. " + " | ".join(_recommendation_lines(value)), styles["body"]))
+            story.append(KeepTogether([_section_heading("Recomendações priorizadas", styles), _record_card(recommendations[0], 1, styles, accent=BRAND_GOLD), Spacer(1, 2 * mm)]))
+            for index, value in enumerate(recommendations[1:], start=2):
+                story.append(KeepTogether([_record_card(value, index, styles, accent=BRAND_GOLD), Spacer(1, 2 * mm)]))
         else:
-            story.append(_paragraph("Nenhuma recomendação foi estruturada.", styles["body"]))
+            story.append(KeepTogether([_section_heading("Recomendações priorizadas", styles), _paragraph("Nenhuma recomendação foi estruturada.", styles["muted"])]))
         limits = _items_for(opinion, "limites")
         if limits:
-            story.append(_paragraph("Limites declarados pelo analista", styles["heading"]))
-            story.extend(_paragraph(f"- {text}", styles["body"]) for text in limits)
-    story.append(_paragraph("Achados detalhados", styles["heading"]))
+            story.append(_section_heading("Limites declarados pelo analista", styles))
+            story.extend(_paragraph(f"- {text}", styles["muted"]) for text in limits)
+    story.append(_section_heading("Achados detalhados", styles))
 
     for key, title in SECTIONS:
-        story.extend([_paragraph(title, styles["heading"])])
         values = _items_for(analysis, key)
         if not values:
-            story.append(_paragraph("Nenhum registro foi localizado no recorte analisado.", styles["body"]))
+            story.append(KeepTogether([_section_heading(title, styles), _paragraph("Nenhum registro foi localizado no recorte analisado.", styles["muted"])]))
             continue
-        for index, value in enumerate(values, start=1):
-            lines = _item_lines(value)
-            story.append(_paragraph(f"{index}. " + " | ".join(lines), styles["body"]))
+        story.append(KeepTogether([_section_heading(title, styles), _record_card(values[0], 1, styles), Spacer(1, 2 * mm)]))
+        for index, value in enumerate(values[1:], start=2):
+            story.append(KeepTogether([_record_card(value, index, styles), Spacer(1, 2 * mm)]))
 
-    confidence = analysis.get("controle_confianca") or {}
-    review = analysis.get("revisao_humana") or {}
     story.extend(
         [
-            _paragraph("Controle de confiança e revisão humana", styles["heading"]),
+            _section_heading("Controle de confiança e revisão humana", styles),
             _paragraph(f"Leitura: {_confidence_label(confidence.get('status'))}", styles["body"]),
             _paragraph(f"Revisão humana necessária: {'Sim' if review.get('necessaria') else 'Não'}", styles["body"]),
             _paragraph(f"Motivos: {_value_text(review.get('motivos', []))}", styles["body"]),
-            _paragraph("Próximos passos recomendados", styles["heading"]),
+            _section_heading("Próximos passos recomendados", styles),
             _paragraph("1. Conferir os achados no PDF original e no Markdown convertido.", styles["body"]),
             _paragraph("2. Registrar a revisão humana quando houver baixa confiança, ambiguidade ou evidência incompleta.", styles["body"]),
             _paragraph("3. Liberar o envio pelo painel somente depois da conferência dos destinatários e do conteúdo.", styles["body"]),
+            Spacer(1, 2 * mm),
+            _notice_box("RESPONSABILIDADE", "Material de apoio documental; não constitui parecer jurídico, médico ou regulatório definitivo.", styles, SURFACE_BLUE),
         ]
     )
     document.build(story, onFirstPage=_page_decor, onLaterPages=_page_decor)

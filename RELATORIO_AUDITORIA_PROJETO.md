@@ -12,6 +12,13 @@ para `regulatory-extraction-v2`, com parecer técnico preliminar, apontamentos e
 recomendações. Essa evolução está implementada localmente, mas ainda depende de
 homologação do modelo e do documento real antes da ativação na VPS.
 
+**Atualização visual em 15/09/2026:** o renderer foi evoluído para a versão
+`1.3.0`, com modelo executivo mais comercial e profissional: capa institucional,
+status de conferência, indicadores, parecer técnico em destaque, cartões de
+achados, hierarquia visual, cabeçalho/rodapé e aviso de responsabilidade. A
+mudança é de apresentação e legibilidade; as regras de evidência, revisão humana
+e liberação do relatório permanecem inalteradas.
+
 > Este documento traduz o projeto para leitores de negócio e também registra os detalhes técnicos necessários para operação, manutenção e auditoria. A solução é uma ferramenta de apoio documental. Não constitui parecer jurídico, médico ou regulatório e não substitui revisão humana especializada.
 
 ## 1. Resumo executivo
@@ -225,6 +232,13 @@ apontamentos, recomendações e limites declarados pelo modelo. A redação
 comercial é montada pelo renderer de forma determinística; a IA fornece dados
 estruturados e não controla livremente o layout ou as regras de liberação.
 
+Na versão `1.3.0`, o documento final ganhou uma apresentação executiva voltada
+à leitura rápida por gestores e operadores: identidade visual da DB Tecnologia,
+resumo de status, tabela de indicadores, parecer técnico em bloco próprio,
+cartões por achado, próximos passos e aviso explícito de uso preliminar. O
+conteúdo continua ancorado nas páginas, evidências, hashes e metadados do
+documento de origem.
+
 O PDF é persistido como report_pdf. Depois disso:
 
 | Situação | Estado final da etapa |
@@ -333,7 +347,7 @@ Códigos principais: 415 para tipo não suportado, 413 para arquivo acima de 100
 | GET | /healthz | Health check com versão do renderer. |
 | POST | /v1/render | Recebe metadata e analysis e retorna PDF com header X-Report-Version. |
 
-Versão registrada no código: 1.2.0. O contrato ativo de análise é
+Versão registrada no código: 1.3.0. O contrato ativo de análise é
 `regulatory-extraction-v2`, documentado em
 `prompts/regulatory-extraction-v2.md` e
 `prompts/regulatory-extraction-v2.schema.json`. A geração usa JSON estrito no

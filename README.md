@@ -84,6 +84,11 @@ técnicos e recomendações priorizadas. A saída continua sendo apoio documenta
 exige revisão humana quando houver ambiguidade, contradição, contexto parcial,
 risco relevante ou impacto externo.
 
+O PDF final usa um modelo executivo da DB Tecnologia, com status de conferência,
+indicadores, parecer técnico, cartões de achados, próximos passos e aviso de
+responsabilidade. A apresentação é comercial e profissional, mas continua
+determinística e vinculada às evidências do documento original.
+
 A ausência de uma informação é diferenciada de uma falha técnica de leitura, parsing, conversão ou análise. O sistema não deve transformar um erro de processamento em “informação não encontrada”.
 
 ## Para quem é

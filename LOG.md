@@ -1487,3 +1487,40 @@ constitui parecer jurídico, médico ou regulatório definitivo.
 mas também “qual é a leitura técnica preliminar”, “qual o risco aparente” e
 “qual o próximo passo recomendado”, mantendo evidências, limites e aprovação
 humana como controles obrigatórios.
+
+## 2026-09-15 — Evolução visual do documento final PDF v1.3.0
+
+**Tipo:** EVOLUÇÃO / RELATÓRIO / PDF / UX
+**Status:** IMPLEMENTADO LOCALMENTE; PUBLICAÇÃO NA VPS PENDENTE
+
+**Contexto:** O conteúdo do relatório já apresentava síntese executiva e parecer
+técnico, mas precisava de uma experiência mais comercial, profissional e rápida
+para gestores, operadores e clientes.
+
+**Decisão/Ação:** O renderer recebeu identidade visual da DB Tecnologia, capa
+executiva, status de conferência, metadados organizados, indicadores, parecer
+técnico em bloco próprio, cartões de achados, fundamentos, recomendações,
+próximos passos, cabeçalho/rodapé e aviso de responsabilidade. A versão do
+renderer foi atualizada para `1.3.0`. As regras de evidência, confiança, revisão
+humana, rastreabilidade e liberação do relatório não foram alteradas.
+
+**Arquivos afetados:** `infra/report_renderer/app.py`,
+`tests/report_renderer/test_renderer.py`, `README.md`,
+`RELATORIO_AUDITORIA_PROJETO.md`, `ROADMAP.md` e `LOG.md`.
+
+**Testes:** `python -m pytest -q` passou com 57 testes e 2 avisos de
+depreciação do FastAPI; `python -m compileall -q infra/report_renderer` passou;
+os dez arquivos JSON foram validados; `git diff --check` passou; a busca por
+formatos fortes de credenciais não encontrou segredos. O PDF de amostra foi
+renderizado em três páginas com PyMuPDF porque `pdftoppm` não está disponível na
+estação. As páginas foram inspecionadas visualmente e não apresentaram cortes,
+sobreposição ou quebra de hierarquia. O Docker não está disponível na estação,
+portanto `docker compose config --quiet` não pôde ser executado localmente.
+
+**Pendências:** Publicar o renderer na VPS e regenerar/revisar o documento real
+de 128 páginas. A validação local não substitui a conferência humana do corpus
+real nem a homologação no ambiente autorizado.
+
+**Impacto:** O relatório passa a funcionar melhor como documento de decisão e
+acompanhamento, mantendo linguagem executiva sem transformar a análise
+automatizada em parecer regulatório definitivo.

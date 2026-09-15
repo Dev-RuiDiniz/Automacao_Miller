@@ -12,6 +12,7 @@ CATEGORY_FIELDS = (
     "estudos_clinicos_indeferidos",
     "outros_atos",
 )
+TECHNICAL_CITATION_FIELDS = ("fundamentos", "apontamentos_tecnicos")
 
 
 def _has_page_evidence(item: Any) -> bool:
@@ -35,12 +36,23 @@ def classify_confidence(analysis: dict[str, Any], conversion_warnings: list[str]
     if analysis.get("revisao_humana", {}).get("necessaria"):
         reasons.append("revisao humana solicitada")
 
+    opinion = analysis.get("parecer_tecnico") if isinstance(analysis.get("parecer_tecnico"), dict) else {}
+    if opinion.get("nivel_risco") in {"alto", "critico"}:
+        reasons.append("risco alto ou critico")
+    if opinion.get("classificacao_geral") == "inconclusivo":
+        reasons.append("parecer tecnico inconclusivo")
+
     missing_evidence = any(
         isinstance(analysis.get(field), list)
         and any(not _has_page_evidence(item) for item in analysis[field])
         for field in CATEGORY_FIELDS
     )
-    if missing_evidence:
+    missing_technical_evidence = any(
+        isinstance(opinion.get(field), list)
+        and any(not _has_page_evidence(item) for item in opinion[field])
+        for field in TECHNICAL_CITATION_FIELDS
+    )
+    if missing_evidence or missing_technical_evidence:
         reasons.append("item sem evidencia de pagina")
 
     if analysis.get("contradicoes"):

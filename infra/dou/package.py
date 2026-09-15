@@ -22,7 +22,7 @@ def batch_name(publication_date: str, start: str) -> str:
 
 
 def _empty_analysis() -> dict[str, Any]:
-    return {field: [] for field in FINDING_FIELDS} | {"documento": {}, "categorias_nao_localizadas": [], "evidencias_insuficientes": [], "contradicoes": [], "avisos": [], "controle_confianca": {"status": "baixa_confianca", "motivos": []}, "revisao_humana": {"necessaria": True, "motivos": []}}
+    return {field: [] for field in FINDING_FIELDS} | {"documento": {}, "categorias_nao_localizadas": [], "evidencias_insuficientes": [], "contradicoes": [], "avisos": [], "controle_confianca": {"status": "baixa_confianca", "motivos": []}, "revisao_humana": {"necessaria": True, "motivos": []}, "parecer_tecnico": {"escopo": "Lote DOU", "conclusao_preliminar": "O lote permanece pendente de análise técnica e revisão humana.", "classificacao_geral": "inconclusivo", "nivel_risco": "nao_classificado", "base_ids": [], "fundamentos": [], "apontamentos_tecnicos": [], "recomendacoes": [], "limites": ["Análise técnica ainda não gerada."]}}
 
 
 def _analysis_items(item: dict[str, Any], analysis_record: dict[str, Any] | None) -> tuple[list[dict[str, Any]], list[str]]:

@@ -7,6 +7,11 @@
 **Data-base da auditoria:** 15/09/2026
 **Versão de código auditada:** 3148fa0, estado de referência antes das alterações documentais deste relatório
 
+**Atualização em 15/09/2026:** após a auditoria, o contrato de análise evoluiu
+para `regulatory-extraction-v2`, com parecer técnico preliminar, apontamentos e
+recomendações. Essa evolução está implementada localmente, mas ainda depende de
+homologação do modelo e do documento real antes da ativação na VPS.
+
 > Este documento traduz o projeto para leitores de negócio e também registra os detalhes técnicos necessários para operação, manutenção e auditoria. A solução é uma ferramenta de apoio documental. Não constitui parecer jurídico, médico ou regulatório e não substitui revisão humana especializada.
 
 ## 1. Resumo executivo
@@ -190,6 +195,14 @@ O modelo local qwen2.5:3b recebe o protocolo e o contexto Markdown/RAG. O contra
 - controle de confiança;
 - revisão humana.
 
+Na evolução v2 do contrato, a IA também atua como analista regulatório sênior
+em caráter preliminar. O campo `parecer_tecnico` organiza escopo, conclusão
+preliminar, classificação geral, nível de risco, fundamentos técnicos,
+apontamentos técnicos e recomendações priorizadas. Fundamentos e apontamentos
+continuam obrigados a informar página e trecho literal; recomendações apontam
+para os IDs que formam sua base documental. Isso permite uma leitura mais
+executiva sem transformar a saída em parecer definitivo.
+
 Cada achado positivo deve conter paginas_origem e evidencia literal. Os únicos status regulatórios permitidos são deferido, indeferido, cancelado e outro. Cancelamento não é indeferimento. Um dispositivo não pode ser convertido por inferência em medicamento ou suplemento.
 
 O workflow remove cercas Markdown da resposta, valida JSON, valida campos obrigatórios, normaliza categorias e classifica confiança. A validação de qualidade confere se a página existe no documento atual e se o trecho normalizado pode ser localizado no Markdown do mesmo protocolo.
@@ -206,6 +219,11 @@ O JSON é persistido como analysis_json. O renderer gera um PDF com:
 - páginas de origem;
 - evidências insuficientes e contradições;
 - confiança, revisão humana e próximos passos.
+
+O PDF também apresenta o parecer técnico preliminar, seus fundamentos,
+apontamentos, recomendações e limites declarados pelo modelo. A redação
+comercial é montada pelo renderer de forma determinística; a IA fornece dados
+estruturados e não controla livremente o layout ou as regras de liberação.
 
 O PDF é persistido como report_pdf. Depois disso:
 
@@ -315,7 +333,11 @@ Códigos principais: 415 para tipo não suportado, 413 para arquivo acima de 100
 | GET | /healthz | Health check com versão do renderer. |
 | POST | /v1/render | Recebe metadata e analysis e retorna PDF com header X-Report-Version. |
 
-Versão registrada no código: 1.1.0.
+Versão registrada no código: 1.2.0. O contrato ativo de análise é
+`regulatory-extraction-v2`, documentado em
+`prompts/regulatory-extraction-v2.md` e
+`prompts/regulatory-extraction-v2.schema.json`. A geração usa JSON estrito no
+Ollama e validação posterior no workflow e no serviço RAG.
 
 ### 6.4 Serviço RAG
 

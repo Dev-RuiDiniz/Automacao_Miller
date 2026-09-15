@@ -41,6 +41,45 @@ def sample_payload() -> dict:
             "avisos": [],
             "controle_confianca": {"status": "aceitavel", "motivos": []},
             "revisao_humana": {"necessaria": False, "motivos": []},
+            "parecer_tecnico": {
+                "escopo": "Ato regulatório do documento de referência",
+                "conclusao_preliminar": "O documento indica deferimento do produto, sujeito à conferência humana.",
+                "classificacao_geral": "conforme_indicado",
+                "nivel_risco": "baixo",
+                "base_ids": ["F1", "AT1"],
+                "fundamentos": [
+                    {
+                        "id": "F1",
+                        "fato_documentado": "O produto aparece como deferido.",
+                        "interpretacao_tecnica": "Há indicação documental favorável para acompanhamento.",
+                        "paginas_origem": [1],
+                        "evidencia": "Produto A deferido",
+                    }
+                ],
+                "apontamentos_tecnicos": [
+                    {
+                        "id": "AT1",
+                        "classificacao": "conformidade",
+                        "titulo": "Status favorável localizado",
+                        "constatacao": "O status deferido foi localizado na página indicada.",
+                        "impacto": "Pode apoiar a atualização do acompanhamento de portfólio.",
+                        "prioridade": "informativa",
+                        "acao_recomendada": "Conferir o ato no PDF original.",
+                        "paginas_origem": [1],
+                        "evidencia": "Produto A deferido",
+                    }
+                ],
+                "recomendacoes": [
+                    {
+                        "id": "R1",
+                        "acao": "Conferir o achado no documento original.",
+                        "justificativa": "A análise é apoio documental.",
+                        "prioridade": "baixa",
+                        "base_ids": ["F1", "AT1"],
+                    }
+                ],
+                "limites": ["A conclusão não substitui revisão regulatória especializada."],
+            },
         },
     }
 
@@ -61,10 +100,13 @@ def test_render_endpoint_returns_readable_pdf_with_required_sections() -> None:
     assert "referencia.pdf" in text
     assert "Resumo executivo" in text
     assert "O que isso significa na prática" in text
+    assert "Parecer técnico preliminar" in text
+    assert "Apontamentos técnicos" in text
+    assert "Recomendações priorizadas" in text
     assert "Próximos passos recomendados" in text
     assert "Páginas de origem: p. 1" in text
     assert "Páginas consideradas pela análise automatizada: p. 1, p. 2." in text
-    assert response.headers["x-report-version"] == "1.1.0"
+    assert response.headers["x-report-version"] == "1.2.0"
 
 
 def test_render_endpoint_makes_missing_source_page_explicit() -> None:

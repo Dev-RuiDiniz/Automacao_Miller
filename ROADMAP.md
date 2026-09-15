@@ -588,3 +588,19 @@ Pendências reais:
 operação e auditoria técnica. A ativação produtiva continua condicionada aos
 gates de segurança, revisão humana, RAG, falhas/retomada e restauração já
 registrados nas pendências anteriores.
+
+## 28. Prompt de análise técnica preliminar v2 — 2026-09-15
+
+- [x] Criar prompt especializado com separação entre fato e interpretação.
+- [x] Criar schema v2 com parecer técnico, fundamentos, apontamentos e recomendações.
+- [x] Integrar o contrato v2 ao workflow interno e ao coletor DOU.
+- [x] Exigir revisão humana para risco alto/crítico e conclusões inconclusivas.
+- [x] Exibir parecer técnico preliminar e recomendações no renderer PDF.
+- [x] Atualizar validação de qualidade, confiança e testes de contrato.
+- [ ] Comparar o prompt v2 com documentos de referência e medir cobertura de citações.
+- [ ] Republicar na VPS e revisar o documento real de 128 páginas.
+- [ ] Confirmar que o modelo `qwen2.5:3b` responde dentro do limite sem truncamento.
+
+**Regra de governança:** o parecer v2 é uma análise técnica preliminar de apoio
+documental. Não substitui profissional habilitado nem pode liberar sozinho
+decisão regulatória, jurídica, médica ou comercial de alto impacto.

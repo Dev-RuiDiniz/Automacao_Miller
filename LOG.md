@@ -1446,3 +1446,44 @@ e aceite formal do operador.
 **Impacto:** O projeto passa a ter um documento único para apresentação
 comercial, onboarding técnico, operação e auditoria, sem alterar requisitos do
 PRD nem expor segredos.
+
+## 2026-09-15 — Evolução do prompt para análise técnica preliminar v2
+
+**Tipo:** EVOLUÇÃO / IA / PROMPT / QUALIDADE
+**Status:** IMPLEMENTADO LOCALMENTE; HOMOLOGAÇÃO DO MODELO PENDENTE
+
+**Contexto:** O prompt v1 priorizava extração e classificação. Foi solicitada
+uma postura mais próxima de um analista regulatório especialista, com parecer
+preliminar e apontamentos técnicos úteis para operação e negócio.
+
+**Decisão/Ação:** Criados o prompt e o schema v2, com separação entre fato
+documentado e interpretação técnica, conclusão preliminar, classificação geral,
+nível de risco prudente, fundamentos citados, apontamentos técnicos,
+recomendações priorizadas, IDs de rastreabilidade e limites da análise. O
+workflow interno passou a construir o prompt v2, exigir `parecer_tecnico`,
+classificar risco alto/crítico para revisão humana e registrar a nova versão no
+PostgreSQL. O renderer passou a apresentar as novas seções no PDF. O coletor
+DOU foi alinhado ao mesmo contrato.
+
+**Arquivos afetados:** `prompts/regulatory-extraction-v2.md`,
+`prompts/regulatory-extraction-v2.schema.json`,
+`workflows/automacao-regulatoria-internal-v1.json`,
+`infra/report_renderer/app.py`, `infra/regulatory_analysis/quality.py`,
+`infra/regulatory_analysis/confidence.py`, `infra/dou/package.py`,
+`scripts/prepare_dou_review_queue.py`, testes e documentação.
+
+**Testes:** Schema v2 e workflow JSON validados; `python -m pytest -q` passou
+com 57 testes e 2 avisos de depreciação do FastAPI; os dez arquivos JSON foram
+validados; `git diff --check` passou; a busca não encontrou segredos de alta
+confiança. O Docker não está disponível na estação local, portanto
+`docker compose config --quiet` não foi executado.
+
+**Pendências:** Comparar v2 contra documentos de referência, medir cobertura de
+citações, observar tempo/tamanho da resposta do `qwen2.5:3b` e revisar
+humanamente o documento real de 128 páginas. A saída continua preliminar e não
+constitui parecer jurídico, médico ou regulatório definitivo.
+
+**Impacto:** O relatório passa a responder não apenas “o que foi encontrado”,
+mas também “qual é a leitura técnica preliminar”, “qual o risco aparente” e
+“qual o próximo passo recomendado”, mantendo evidências, limites e aprovação
+humana como controles obrigatórios.

@@ -78,6 +78,12 @@ Conforme o conteúdo de cada documento, o sistema pode estruturar:
 - evidências e referências do documento de origem;
 - sinalização de confiança e necessidade de revisão.
 
+O contrato de análise v2 adiciona um parecer técnico preliminar: conclusão,
+classificação geral, nível de risco prudente, fundamentos citados, apontamentos
+técnicos e recomendações priorizadas. A saída continua sendo apoio documental e
+exige revisão humana quando houver ambiguidade, contradição, contexto parcial,
+risco relevante ou impacto externo.
+
 A ausência de uma informação é diferenciada de uma falha técnica de leitura, parsing, conversão ou análise. O sistema não deve transformar um erro de processamento em “informação não encontrada”.
 
 ## Para quem é
@@ -169,6 +175,11 @@ concluído. Revisões aprovadas podem receber uma análise corrigida e entrar no
 dataset JSONL protegido. O exportador só libera exemplos elegíveis e mantém um
 conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
 depois dos mínimos documentados no roadmap.
+
+O prompt versionado está em
+`prompts/regulatory-extraction-v2.md`, com schema em
+`prompts/regulatory-extraction-v2.schema.json`. O workflow usa o mesmo contrato
+para separar fatos, interpretação técnica e recomendações sem inventar dados.
 
 ## Corpus oficial do DOU
 

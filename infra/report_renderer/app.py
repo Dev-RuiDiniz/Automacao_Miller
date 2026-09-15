@@ -15,7 +15,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
-REPORT_VERSION = "1.1.0"
+REPORT_VERSION = "1.2.0"
 SECTIONS: tuple[tuple[str, str], ...] = (
     ("medicamentos_deferidos", "Medicamentos aprovados ou deferidos"),
     ("medicamentos_indeferidos", "Medicamentos indeferidos"),
@@ -34,6 +34,7 @@ SECTIONS: tuple[tuple[str, str], ...] = (
 
 FINDING_KEYS = tuple(key for key, _ in SECTIONS[:9])
 FIELD_LABELS = {
+    "id": "ID",
     "empresa": "Empresa",
     "cnpj": "CNPJ",
     "produto": "Produto",
@@ -49,8 +50,38 @@ FIELD_LABELS = {
     "categoria": "Categoria",
     "descricao": "Descrição",
     "observacao": "Observação",
+    "evidencia": "Evidência literal",
+    "fato_documentado": "Fato documentado",
+    "interpretacao_tecnica": "Interpretação técnica",
+    "classificacao": "Classificação",
+    "titulo": "Título",
+    "constatacao": "Constatação",
+    "impacto": "Impacto",
+    "prioridade": "Prioridade",
+    "acao_recomendada": "Ação recomendada",
+    "responsavel_sugerido": "Responsável sugerido",
+    "prazo_referencia": "Prazo de referência",
+    "acao": "Ação",
+    "justificativa": "Justificativa",
+    "dependencia": "Dependência",
+    "base_ids": "Base documental",
 }
 FIELD_ORDER = tuple(FIELD_LABELS)
+
+TECHNICAL_LABELS = {
+    "conforme_indicado": "Conforme indicado no documento",
+    "nao_conforme_indicada": "Não conformidade potencial indicada",
+    "misto": "Cenário misto",
+    "inconclusivo": "Inconclusivo",
+    "sem_ocorrencia": "Sem ocorrência localizada no recorte",
+}
+RISK_LABELS = {
+    "baixo": "Baixo",
+    "medio": "Médio",
+    "alto": "Alto",
+    "critico": "Crítico",
+    "nao_classificado": "Não classificado",
+}
 
 app = FastAPI(
     title="Regulatory Report Renderer",
@@ -235,6 +266,40 @@ def _practical_implications(analysis: dict[str, Any]) -> list[str]:
     return implications
 
 
+def _technical_opinion(analysis: dict[str, Any]) -> dict[str, Any] | None:
+    value = analysis.get("parecer_tecnico")
+    return value if isinstance(value, dict) else None
+
+
+def _technical_opinion_lines(opinion: dict[str, Any]) -> list[str]:
+    classification = TECHNICAL_LABELS.get(
+        str(opinion.get("classificacao_geral")),
+        "Classificação geral não informada",
+    )
+    risk = RISK_LABELS.get(str(opinion.get("nivel_risco")), "Não classificado")
+    lines = [
+        f"Escopo: {opinion.get('escopo', 'não informado')}",
+        f"Classificação geral: {classification}",
+        f"Nível de risco preliminar: {risk}",
+        f"Conclusão preliminar: {opinion.get('conclusao_preliminar', 'não informada')}",
+    ]
+    if opinion.get("base_ids"):
+        lines.append(f"Base documental: {_value_text(opinion['base_ids'])}")
+    return lines
+
+
+def _recommendation_lines(item: Any) -> list[str]:
+    if not isinstance(item, dict):
+        return [_value_text(item)]
+    lines = []
+    for key in ("id", "acao", "justificativa", "prioridade", "responsavel_sugerido", "dependencia", "base_ids"):
+        value = item.get(key)
+        if value in (None, "", [], {}):
+            continue
+        lines.append(f"{FIELD_LABELS.get(key, key)}: {_value_text(value)}")
+    return lines or [_value_text(item)]
+
+
 def _page_decor(canvas: Any, document: Any) -> None:
     canvas.saveState()
     canvas.setStrokeColor(colors.HexColor("#d6e0e8"))
@@ -287,6 +352,42 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
     story.extend([_summary_table(analysis, styles), Spacer(1, 2 * mm)])
     story.append(_paragraph("O que isso significa na prática", styles["heading"]))
     story.extend(_paragraph(f"- {text}", styles["body"]) for text in _practical_implications(analysis))
+    story.append(_paragraph("Parecer técnico preliminar", styles["heading"]))
+    opinion = _technical_opinion(analysis)
+    if opinion is None:
+        story.append(
+            _paragraph(
+                "O modelo não forneceu o bloco de análise técnica v2. Os achados abaixo permanecem como extração documental e não devem ser tratados como parecer.",
+                styles["body"],
+            )
+        )
+    else:
+        story.extend(_paragraph(text, styles["callout"]) for text in _technical_opinion_lines(opinion))
+        story.append(_paragraph("Fundamentos técnicos", styles["heading"]))
+        foundations = _items_for(opinion, "fundamentos")
+        if foundations:
+            for index, value in enumerate(foundations, start=1):
+                story.append(_paragraph(f"{index}. " + " | ".join(_item_lines(value)), styles["body"]))
+        else:
+            story.append(_paragraph("Nenhum fundamento técnico estruturado foi localizado.", styles["body"]))
+        story.append(_paragraph("Apontamentos técnicos", styles["heading"]))
+        technical_findings = _items_for(opinion, "apontamentos_tecnicos")
+        if technical_findings:
+            for index, value in enumerate(technical_findings, start=1):
+                story.append(_paragraph(f"{index}. " + " | ".join(_item_lines(value)), styles["body"]))
+        else:
+            story.append(_paragraph("Nenhum apontamento técnico estruturado foi localizado.", styles["body"]))
+        story.append(_paragraph("Recomendações priorizadas", styles["heading"]))
+        recommendations = _items_for(opinion, "recomendacoes")
+        if recommendations:
+            for index, value in enumerate(recommendations, start=1):
+                story.append(_paragraph(f"{index}. " + " | ".join(_recommendation_lines(value)), styles["body"]))
+        else:
+            story.append(_paragraph("Nenhuma recomendação foi estruturada.", styles["body"]))
+        limits = _items_for(opinion, "limites")
+        if limits:
+            story.append(_paragraph("Limites declarados pelo analista", styles["heading"]))
+            story.extend(_paragraph(f"- {text}", styles["body"]) for text in limits)
     story.append(_paragraph("Achados detalhados", styles["heading"]))
 
     for key, title in SECTIONS:

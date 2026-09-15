@@ -21,6 +21,24 @@ FINDING_FIELDS = (
     "outros_atos", "exigencias", "pendencias", "cancelados",
 )
 ALLOWED_STATUSES = {"deferido", "indeferido", "cancelado", "outro"}
+TECHNICAL_CLASSIFICATIONS = {
+    "conformidade",
+    "nao_conformidade_potencial",
+    "exigencia",
+    "pendencia",
+    "risco",
+    "contradicao",
+    "lacuna_documental",
+}
+TECHNICAL_PRIORITIES = {"critica", "alta", "media", "baixa", "informativa"}
+GENERAL_CLASSIFICATIONS = {
+    "conforme_indicado",
+    "nao_conforme_indicada",
+    "misto",
+    "inconclusivo",
+    "sem_ocorrencia",
+}
+RISK_LEVELS = {"baixo", "medio", "alto", "critico", "nao_classificado"}
 PAGE_RE = re.compile(r"^##\s+Página\s+(\d+)\s*$", re.IGNORECASE)
 
 
@@ -81,7 +99,7 @@ def validate_analysis(
     if not isinstance(analysis, dict):
         return QualityResult("rejeitado", 0.0, [_violation("schema", "$", "A análise precisa ser um objeto JSON")])
 
-    expected = set(REQUIRED_FIELDS) | {"cancelados"}
+    expected = set(REQUIRED_FIELDS) | {"cancelados", "parecer_tecnico"}
     for key in sorted(set(analysis) - expected):
         violations.append(_violation("unexpected_field", key, "Campo fora do schema"))
     for key in REQUIRED_FIELDS:
@@ -134,6 +152,94 @@ def validate_analysis(
         values = analysis.get(field, [])
         if not isinstance(values, list):
             violations.append(_violation("type", field, "Campo precisa ser uma lista"))
+
+    opinion = analysis.get("parecer_tecnico")
+    if opinion is not None:
+        if not isinstance(opinion, dict):
+            violations.append(_violation("technical_opinion", "parecer_tecnico", "Parecer técnico precisa ser um objeto"))
+        else:
+            required_opinion = (
+                "escopo",
+                "conclusao_preliminar",
+                "classificacao_geral",
+                "nivel_risco",
+                "base_ids",
+                "fundamentos",
+                "apontamentos_tecnicos",
+                "recomendacoes",
+                "limites",
+            )
+            for field in required_opinion:
+                if field not in opinion:
+                    violations.append(_violation("missing_field", f"parecer_tecnico.{field}", "Campo obrigatório ausente"))
+            if opinion.get("classificacao_geral") not in GENERAL_CLASSIFICATIONS:
+                violations.append(_violation("technical_classification", "parecer_tecnico.classificacao_geral", "Classificação geral inválida"))
+            if opinion.get("nivel_risco") not in RISK_LEVELS:
+                violations.append(_violation("technical_risk", "parecer_tecnico.nivel_risco", "Nível de risco inválido"))
+            for field in ("base_ids", "fundamentos", "apontamentos_tecnicos", "recomendacoes", "limites"):
+                if field in opinion and not isinstance(opinion[field], list):
+                    violations.append(_violation("type", f"parecer_tecnico.{field}", "Campo precisa ser uma lista"))
+
+            source_ids: set[str] = set()
+            for field in ("fundamentos", "apontamentos_tecnicos"):
+                values = opinion.get(field, [])
+                if not isinstance(values, list):
+                    continue
+                for index, item in enumerate(values):
+                    location = f"parecer_tecnico.{field}[{index}]"
+                    if not isinstance(item, dict):
+                        violations.append(_violation("technical_item", location, "Item técnico precisa ser um objeto"))
+                        continue
+                    item_id = item.get("id")
+                    if not isinstance(item_id, str) or not item_id.strip():
+                        violations.append(_violation("technical_id", location, "Item técnico precisa de ID"))
+                    else:
+                        source_ids.add(item_id)
+                    required_fields = (
+                        ("id", "fato_documentado", "interpretacao_tecnica", "paginas_origem", "evidencia")
+                        if field == "fundamentos"
+                        else ("id", "classificacao", "titulo", "constatacao", "impacto", "prioridade", "acao_recomendada", "paginas_origem", "evidencia")
+                    )
+                    for required_field in required_fields:
+                        if required_field not in item:
+                            violations.append(_violation("missing_field", f"{location}.{required_field}", "Campo obrigatório ausente"))
+                    if field == "apontamentos_tecnicos":
+                        if item.get("classificacao") not in TECHNICAL_CLASSIFICATIONS:
+                            violations.append(_violation("technical_classification", f"{location}.classificacao", "Classificação do apontamento inválida"))
+                        if item.get("prioridade") not in TECHNICAL_PRIORITIES:
+                            violations.append(_violation("technical_priority", f"{location}.prioridade", "Prioridade do apontamento inválida"))
+                    item_pages = item.get("paginas_origem")
+                    evidence = item.get("evidencia")
+                    if not isinstance(item_pages, list) or not item_pages:
+                        continue
+                    if not isinstance(evidence, str) or not evidence.strip():
+                        continue
+                    invalid_pages = [page for page in item_pages if not isinstance(page, int) or page not in pages]
+                    if invalid_pages:
+                        violations.append(_violation("page_not_found", location, "Página técnica não pertence ao documento atual", pages=invalid_pages))
+                        continue
+                    evidence_normalized = normalize_evidence(evidence)
+                    page_text = " ".join(normalize_evidence(pages[page]) for page in item_pages)
+                    if evidence_normalized not in page_text:
+                        violations.append(_violation("evidence_not_found", location, "Evidência técnica não foi localizada na página indicada", pages=item_pages))
+
+            values = opinion.get("recomendacoes", [])
+            if isinstance(values, list):
+                for index, item in enumerate(values):
+                    location = f"parecer_tecnico.recomendacoes[{index}]"
+                    if not isinstance(item, dict):
+                        violations.append(_violation("technical_recommendation", location, "Recomendação precisa ser um objeto"))
+                        continue
+                    for required_field in ("id", "acao", "justificativa", "prioridade", "base_ids"):
+                        if required_field not in item:
+                            violations.append(_violation("missing_field", f"{location}.{required_field}", "Campo obrigatório ausente"))
+                    if item.get("prioridade") not in TECHNICAL_PRIORITIES:
+                        violations.append(_violation("technical_priority", f"{location}.prioridade", "Prioridade da recomendação inválida"))
+                    base_ids = item.get("base_ids")
+                    if not isinstance(base_ids, list) or not base_ids:
+                        violations.append(_violation("technical_base", f"{location}.base_ids", "Recomendação precisa apontar sua base técnica"))
+                    elif any(str(value) not in source_ids for value in base_ids):
+                        violations.append(_violation("technical_base", f"{location}.base_ids", "Recomendação aponta para ID técnico inexistente"))
     confidence = analysis.get("controle_confianca")
     if not isinstance(confidence, dict) or confidence.get("status") not in {"aceitavel", "baixa_confianca", "inconclusivo"}:
         violations.append(_violation("confidence", "controle_confianca", "Controle de confiança inválido"))

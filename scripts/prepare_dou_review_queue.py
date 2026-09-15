@@ -30,13 +30,15 @@ def _context(markdown: str, limit: int = 24000) -> str:
 
 
 def _ollama_candidate(markdown: str, submission_id: str) -> dict[str, Any]:
-    schema_path = Path(__file__).parents[1] / "prompts" / "regulatory-extraction.schema.json"
+    project_root = Path(__file__).parents[1]
+    schema_path = project_root / "prompts" / "regulatory-extraction-v2.schema.json"
+    prompt_path = project_root / "prompts" / "regulatory-extraction-v2.md"
     payload = {
         "model": os.getenv("OLLAMA_MODEL", "qwen2.5:3b"),
         "stream": False,
         "format": json.loads(schema_path.read_text(encoding="utf-8")),
         "options": {"temperature": 0, "num_predict": 4096},
-        "prompt": "Você é um extrator documental regulatório. Retorne somente JSON válido conforme o schema. Use exclusivamente o contexto RAG deste documento, não invente dados e não use conhecimento externo. Todo achado positivo deve conter paginas_origem e evidencia literal curta. Status permitidos: deferido, indeferido, cancelado e outro. Preserve cancelado separado de indeferido e não classifique dispositivo como medicamento ou suplemento. Protocolo: " + submission_id + "\n\nCONTEXTO RAG:\n" + _context(markdown),
+        "prompt": prompt_path.read_text(encoding="utf-8") + "\n\nDOCUMENTO/PROTOCOLO:\n" + submission_id + "\n\nRAG_CONTEXT:\n" + _context(markdown),
     }
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     request = urllib.request.Request(base_url + "/api/generate", data=json.dumps(payload, ensure_ascii=False).encode("utf-8"), headers={"Content-Type": "application/json"})

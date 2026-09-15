@@ -45,3 +45,19 @@ def test_routes_contradiction_to_inconclusive_review() -> None:
 
     assert result["status"] == "inconclusivo"
     assert "contradicao" in result["motivos"]
+
+
+def test_routes_high_technical_risk_to_human_review() -> None:
+    result = classify_confidence(
+        {
+            "medicamentos_deferidos": [],
+            "evidencias_insuficientes": [],
+            "contradicoes": [],
+            "revisao_humana": {"necessaria": False, "motivos": []},
+            "parecer_tecnico": {"nivel_risco": "alto", "classificacao_geral": "misto", "fundamentos": [], "apontamentos_tecnicos": []},
+        },
+        [],
+    )
+
+    assert result["status"] == "baixa_confianca"
+    assert "risco alto ou critico" in result["motivos"]

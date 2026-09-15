@@ -87,15 +87,21 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert "$json.report_size_bytes" in report_state["parameters"]["query"]
     analysis_state = next(node for node in workflow["nodes"] if node["name"] == "State - Analysis persisted")
     assert "Prepare analysis file" in analysis_state["parameters"]["query"]
+    assert "regulatory-extraction-v2" in analysis_state["parameters"]["query"]
+    prepare_ai = next(node for node in workflow["nodes"] if node["name"] == "Prepare AI context")
+    assert "analista regulatório sênior" in prepare_ai["parameters"]["jsCode"]
+    assert "parecer_tecnico" in prepare_ai["parameters"]["jsCode"]
     ollama = next(node for node in workflow["nodes"] if node["name"] == "Ollama - Extract")
     normalize = next(node for node in workflow["nodes"] if node["name"] == "Normalize AI response")
-    assert "additionalProperties: false" in ollama["parameters"]["jsonBody"]
+    assert "format: 'json'" in ollama["parameters"]["jsonBody"]
+    assert "ai_prompt" in ollama["parameters"]["jsonBody"]
+    assert "parecer_tecnico" in normalize["parameters"]["jsCode"]
     assert "campos inesperados" in normalize["parameters"]["jsCode"]
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "ELSE 'aguardando_revisao'" in report_state["parameters"]["query"]
     report_payload = next(node for node in workflow["nodes"] if node["name"] == "Prepare report payload")
     assert "analysis_scope" in report_payload["parameters"]["jsCode"]
-    assert "paginas_origem" in ollama["parameters"]["jsonBody"]
+    assert "paginas_origem" in prepare_ai["parameters"]["jsCode"]
     rag_search = next(node for node in workflow["nodes"] if node["name"] == "RAG - Search context")
     assert "submission_id" in rag_search["parameters"]["jsonBody"]
     assert "/v1/search" in rag_search["parameters"]["url"]

@@ -13,6 +13,67 @@ def test_valid_finding_requires_real_page_and_excerpt() -> None:
     assert result.citation_coverage == 1
 
 
+def test_validates_preliminary_technical_opinion_and_recommendation_base() -> None:
+    opinion = {
+        "escopo": "Ato regulatório do documento",
+        "conclusao_preliminar": "Há indicação documental favorável, sujeita à revisão humana.",
+        "classificacao_geral": "conforme_indicado",
+        "nivel_risco": "baixo",
+        "base_ids": ["F1", "AT1"],
+        "fundamentos": [
+            {
+                "id": "F1",
+                "fato_documentado": "O produto aparece deferido.",
+                "interpretacao_tecnica": "O status pode apoiar o acompanhamento.",
+                "paginas_origem": [71],
+                "evidencia": "Alcovit deferido",
+            }
+        ],
+        "apontamentos_tecnicos": [
+            {
+                "id": "AT1",
+                "classificacao": "conformidade",
+                "titulo": "Status favorável",
+                "constatacao": "O deferimento foi localizado.",
+                "impacto": "Apoia a atualização operacional.",
+                "prioridade": "informativa",
+                "acao_recomendada": "Conferir o ato original.",
+                "paginas_origem": [71],
+                "evidencia": "Alcovit deferido",
+            }
+        ],
+        "recomendacoes": [
+            {
+                "id": "R1",
+                "acao": "Conferir o ato original.",
+                "justificativa": "A análise é preliminar.",
+                "prioridade": "baixa",
+                "base_ids": ["F1", "AT1"],
+            }
+        ],
+        "limites": ["Não substitui revisão especializada."],
+    }
+    result = validate_analysis(analysis(parecer_tecnico=opinion), "## Página 71\nAlcovit deferido.", "doc-1")
+    assert result.status == "aprovado"
+    assert not result.violations
+
+
+def test_rejects_technical_recommendation_without_existing_base_id() -> None:
+    opinion = {
+        "escopo": "Ato regulatório",
+        "conclusao_preliminar": "Inconclusivo por falta de evidência.",
+        "classificacao_geral": "inconclusivo",
+        "nivel_risco": "nao_classificado",
+        "base_ids": [],
+        "fundamentos": [],
+        "apontamentos_tecnicos": [],
+        "recomendacoes": [{"id": "R1", "acao": "Revisar", "justificativa": "Há lacuna", "prioridade": "alta", "base_ids": ["AT99"]}],
+        "limites": ["Contexto insuficiente."],
+    }
+    result = validate_analysis(analysis(parecer_tecnico=opinion), "## Página 71\nAlcovit deferido.", "doc-1")
+    assert "technical_base" in {item["code"] for item in result.violations}
+
+
 def test_page_and_excerpt_from_another_document_are_rejected_as_warning() -> None:
     result = validate_analysis(analysis(outros_atos=[{"paginas_origem": [79], "evidencia": "não consta"}]), "## Página 71\nAlcovit deferido.", "doc-1")
     assert result.status == "aviso"

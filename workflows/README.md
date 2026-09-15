@@ -110,5 +110,12 @@ permitido e classificação de dispositivos. O resultado segue como preliminar
 com aviso e revisão quando houver falha de qualidade. O workflow só persiste
 um resultado operacionalmente concluído depois da revisão exigida.
 
+O contrato ativo de análise é o `regulatory-extraction-v2`. Além das categorias
+regulatórias, ele exige `parecer_tecnico` com conclusão preliminar, fundamentos,
+apontamentos técnicos, risco e recomendações ligadas aos IDs das evidências.
+O Ollama retorna JSON e a validação estrutural e de citações ocorre depois no
+workflow e no serviço RAG. A análise técnica não é parecer regulatório
+definitivo.
+
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.

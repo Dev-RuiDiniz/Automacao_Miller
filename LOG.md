@@ -1413,3 +1413,36 @@ planejados e o ZIP de teste passou na verificação de integridade.
 **Pendências:** Não executar download real sem credenciais autorizadas do
 INLABS. Depois da configuração, executar a coleta em staging protegido,
 revisar os candidatos e exportar somente exemplos aprovados.
+
+## 2026-09-15 — Auditoria completa e relatório executivo
+
+**Tipo:** DOCUMENTAÇÃO / AUDITORIA
+**Status:** CONCLUÍDO
+
+**Contexto:** Foi solicitada uma visão única, técnica e comercial do projeto,
+com funcionamento, fluxos, funções, rotas, riscos, pendências e evidências de
+validação.
+
+**Decisão/Ação:** Criado RELATORIO_AUDITORIA_PROJETO.md na raiz, com a
+arquitetura atual landing-only, o histórico do Google Drive, os workflows,
+interfaces HTTP, modelo de dados, segurança, operação, matriz de aderência ao
+PRD e recomendações P0/P1/P2. O README.md passou a apontar para o relatório e
+o ROADMAP.md recebeu o marco documental correspondente.
+
+**Arquivos afetados:** RELATORIO_AUDITORIA_PROJETO.md, README.md, ROADMAP.md e
+LOG.md.
+
+**Testes:** python -m pytest -q passou com 53 testes e 2 avisos de depreciação
+do FastAPI; os oito exports JSON foram validados; git diff --check passou; a
+busca não encontrou credenciais reais. O Docker não está disponível na estação
+local, portanto docker compose config --quiet não pôde ser executado localmente.
+A validação remota histórica está descrita separadamente no relatório.
+
+**Pendências:** Permanecem os gates de produção já registrados: hardening da
+VPS, rotação/validação de acesso administrativo, revisão humana do DOU real,
+migração/indexação RAG, matriz de falhas e retomada, procedimento de restauração
+e aceite formal do operador.
+
+**Impacto:** O projeto passa a ter um documento único para apresentação
+comercial, onboarding técnico, operação e auditoria, sem alterar requisitos do
+PRD nem expor segredos.

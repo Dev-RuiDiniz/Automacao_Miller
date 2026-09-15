@@ -574,3 +574,17 @@ Pendências reais:
 - [ ] Configurar credencial autorizada do INLABS fora do Git.
 - [ ] Executar a coleta real e revisar os candidatos no painel.
 - [ ] Exportar exemplos aprovados e comparar as métricas do modelo base.
+
+## 27. Auditoria completa e relatório executivo — 2026-09-15
+
+- [x] Consolidar arquitetura, componentes, fluxos, funções, rotas e modelo de dados.
+- [x] Separar funcionalidades implementadas, validadas, históricas e pendentes.
+- [x] Registrar riscos de segurança, operação, ativação e qualidade da IA.
+- [x] Criar RELATORIO_AUDITORIA_PROJETO.md na raiz com linguagem executiva e comercial.
+- [x] Linkar o relatório na documentação principal.
+- [x] Validar a suíte local de testes antes do versionamento.
+
+**Resultado:** o projeto possui um relatório único para apresentação comercial,
+operação e auditoria técnica. A ativação produtiva continua condicionada aos
+gates de segurança, revisão humana, RAG, falhas/retomada e restauração já
+registrados nas pendências anteriores.

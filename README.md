@@ -147,6 +147,7 @@ conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
 - [ROADMAP.md](ROADMAP.md) — fases, marcos, pendências e bloqueios.
 - [LOG.md](LOG.md) — decisões, alterações e memória operacional.
 - [AGENTS.md](AGENTS.md) — regras de atuação e governança do repositório.
+- [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — auditoria técnica, funcional e operacional em linguagem executiva.
 - [workflows/README.md](workflows/README.md) — operação dos workflows, incluindo a entrada da landing.
 
 ## Responsáveis

@@ -1524,3 +1524,42 @@ real nem a homologação no ambiente autorizado.
 **Impacto:** O relatório passa a funcionar melhor como documento de decisão e
 acompanhamento, mantendo linguagem executiva sem transformar a análise
 automatizada em parecer regulatório definitivo.
+
+## 2026-09-15 — Relatório técnico automático sem gate de revisão humana
+
+**Tipo:** DECISÃO / ESCOPO / IA / WORKFLOW
+**Status:** REQUISITO ATUALIZADO; IMPLEMENTADO LOCALMENTE; PUBLICAÇÃO NA VPS PENDENTE
+
+**Contexto:** Foi solicitado que o resultado não dependesse de revisão humana
+para ser entregue. A equipe deve receber um relatório técnico automatizado com
+padrão de análise sênior e consultar as páginas indicadas apenas quando desejar
+confirmar algum ponto.
+
+**Decisão/Ação:** O PRD foi atualizado para tornar a conferência humana
+opcional. Confiança, contradições, riscos, limitações e páginas continuam sendo
+calculados e exibidos, mas deixam de ser gate de conclusão ou envio. Falhas
+técnicas de entrada, conversão, IA, armazenamento ou entrega continuam sendo
+interrompidas e registradas. A revisão existente permanece disponível para
+correção e treinamento, sem bloquear a operação normal.
+
+**Arquivos/Componentes afetados:** `PRD.md`, `ROADMAP.md`, `LOG.md`,
+`prompts/regulatory-extraction-v3.md`, `workflows/automacao-regulatoria-internal-v1.json`,
+`workflows/README.md`, `infra/report_renderer/app.py`,
+`infra/upload_gateway/static/`, testes e relatório de auditoria.
+
+**Testes:** `python -m pytest -q` passou com 59 testes e 2 avisos de depreciação
+do FastAPI; `python -m compileall -q infra` passou; 14 arquivos JSON foram
+validados; `git diff --check` passou; a varredura por formatos fortes de
+credenciais permaneceu limpa. O PDF de amostra foi renderizado em três páginas
+com PyMuPDF e inspecionado visualmente sem cortes ou sobreposição. O Docker não
+está disponível na estação, portanto `docker compose config --quiet` não pôde
+ser executado localmente.
+
+**Pendências:** Publicar o prompt e workflow atualizados na VPS, reprocessar o
+documento real de 128 páginas e observar qualidade, cobertura de citações,
+truncamento e taxa de correção operacional. A conferência humana do resultado
+real permanece opcional, não sendo requisito para entrega.
+
+**Impacto:** O tempo até a entrega do relatório é reduzido e a equipe pode agir
+com base na síntese técnica, mantendo uma trilha clara para confirmar a fonte
+original sem apresentar a IA como autoridade regulatória humana.

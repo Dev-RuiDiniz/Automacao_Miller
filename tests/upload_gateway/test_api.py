@@ -231,3 +231,21 @@ def test_human_review_can_release_or_request_reprocessing(tmp_path: Path, monkey
     assert response.status_code == 200
     assert response.json()["submission"]["status"] == "aguardando_envio"
     assert client.post(f"/api/v1/submissions/{submission_id}/review", headers=headers, json={"decision": "reprocessar", "notes": ""}).status_code == 409
+
+
+def test_optional_conference_can_be_recorded_without_review_gate(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
+    submission_id = created["submission_id"]
+    gateway.store.update(submission_id, status="aguardando_envio")
+    monkeypatch.setattr(gateway, "dispatch_webhook", lambda *_args, **_kwargs: None)
+
+    response = client.post(
+        f"/api/v1/submissions/{submission_id}/review",
+        headers=headers,
+        json={"decision": "liberar_envio", "notes": "Referências conferidas opcionalmente."},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["submission"]["status"] == "aguardando_envio"

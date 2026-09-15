@@ -47,7 +47,7 @@ def test_routes_contradiction_to_inconclusive_review() -> None:
     assert "contradicao" in result["motivos"]
 
 
-def test_routes_high_technical_risk_to_human_review() -> None:
+def test_routes_high_technical_risk_to_quality_alert() -> None:
     result = classify_confidence(
         {
             "medicamentos_deferidos": [],

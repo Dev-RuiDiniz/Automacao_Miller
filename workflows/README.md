@@ -7,7 +7,8 @@ inativos até a validação no n8n:
 
 1. `automacao-regulatoria-internal-v1.json` — recebe o protocolo, reivindica o
    documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
-   artefatos e deixa o documento em `aguardando_envio` ou `aguardando_revisao`;
+   artefatos e deixa o documento em `aguardando_envio`, com alertas de qualidade
+   e referências para conferência opcional;
 2. `automacao-regulatoria-send-report-v1.json` — recebe a solicitação manual do
    painel, reivindica a entrega, lê o relatório do volume, envia pelo Gmail e
    marca `concluido` somente após sucesso;
@@ -48,27 +49,27 @@ Além das permissões do volume, o n8n deve receber
 `N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts`, que libera os nós de arquivo
 somente dentro do repositório privado compartilhado.
 
-## Reprocessamento e revisão
+## Reprocessamento e conferência opcional
 
 A deduplicação é feita pelo SHA-256 no gateway e reforçada pela restrição única
 do PostgreSQL. Para autorizar reprocessamento, registre a decisão em
 `human_reviews`, mantenha o PDF no volume e devolva o documento ao estado
 `recebido`; o workflow de reconciliação fará o despacho pelo webhook interno.
 
-Resultados com baixa confiança, contradição ou evidência insuficiente ficam em
-`aguardando_revisao`. O relatório pode ser gerado para análise humana, mas o
-download oficial só é liberado quando o PostgreSQL indicar `concluido`. O
-operador visualiza o PDF, Markdown e JSON pelo painel autenticado antes de
-solicitar o envio.
+Resultados com baixa confiança, contradição ou evidência insuficiente seguem em
+`aguardando_envio` com o alerta preservado no relatório. O download oficial só é
+liberado quando o PostgreSQL indicar `concluido`. O operador pode visualizar o
+PDF, Markdown e JSON pelo painel autenticado e confirmar as páginas quando
+desejar, mas essa conferência não é obrigatória para solicitar o envio.
 
 O PDF é apresentado como relatório executivo: começa com resumo dos achados,
 leitura prática para acompanhamento operacional e comercial, pontos de atenção
 e próximos passos. As seções detalhadas continuam exibindo os dados extraídos e
 as evidências de página disponíveis; a linguagem comercial não substitui a
-conferência do documento original nem a revisão humana.
+conferência opcional do documento original.
 Cada achado exibe suas páginas de origem. Se a IA não conseguir comprovar a
 referência, o relatório mostra essa pendência de forma explícita e mantém o caso
-em revisão, sem inventar a numeração da página.
+disponível para conferência, sem inventar a numeração da página.
 
 ## Painel e envio manual
 
@@ -82,7 +83,7 @@ snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
 ## Documentos extensos
 
 Para documentos com mais de 20 páginas, a análise usa o recorte configurado no
-workflow e registra a necessidade de revisão humana. O Markdown integral
+workflow e registra o recorte e suas limitações. O Markdown integral
 continua preservado no volume e relacionado ao documento no PostgreSQL.
 
 ## Operação
@@ -106,16 +107,16 @@ registrar os chunks recuperados. O contexto enviado ao Ollama contém o marcador
 
 O nó `RAG - Validate citations` confere o resultado contra os chunks do mesmo
 documento, incluindo páginas existentes, trecho literal normalizado, status
-permitido e classificação de dispositivos. O resultado segue como preliminar
-com aviso e revisão quando houver falha de qualidade. O workflow só persiste
-um resultado operacionalmente concluído depois da revisão exigida.
+permitido e classificação de dispositivos. O resultado segue com avisos e
+limitações quando houver falha de qualidade, sem bloquear a disponibilização do
+relatório quando não houver falha técnica.
 
-O contrato ativo de análise é o `regulatory-extraction-v2`. Além das categorias
+O contrato ativo de análise é o `regulatory-extraction-v3`. Além das categorias
 regulatórias, ele exige `parecer_tecnico` com conclusão preliminar, fundamentos,
 apontamentos técnicos, risco e recomendações ligadas aos IDs das evidências.
 O Ollama retorna JSON e a validação estrutural e de citações ocorre depois no
 workflow e no serviço RAG. A análise técnica não é parecer regulatório
-definitivo.
+definitivo e a conferência humana é opcional.
 
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.

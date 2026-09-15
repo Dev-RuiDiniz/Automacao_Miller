@@ -51,7 +51,7 @@
 
 **Gate de saída:** governança versionada e acessos mínimos identificados.
 
-**Status da fase:** preparação interna concluída. Os acessos de homologação foram validados; permanecem pendências de segurança, revisão humana e simulação de falhas.
+**Status da fase:** preparação interna concluída. Os acessos de homologação foram validados; permanecem pendências de segurança, conferência opcional e simulação de falhas.
 
 ---
 
@@ -248,7 +248,7 @@ documentos.
 - [x] Definir política de evidência insuficiente
 - [x] Definir controle de confiança
 - [x] Definir regra de conteúdo contraditório
-- [x] Definir regra de revisão humana
+- [x] Definir regra de conferência humana opcional
 - [ ] Criar conjunto de documentos de validação
 
 **Gate de saída:** saída estruturada consistente nos casos de referência.
@@ -290,14 +290,14 @@ documentos.
 
 ---
 
-## 13. Fase 9 — Tratamento de erros e revisão humana
+## 13. Fase 9 — Tratamento de erros e conferência opcional
 
 **Objetivo:** impedir falhas silenciosas e resultados inseguros.
 
 - [x] Classificar tipos de erro
 - [x] Implementar log mínimo por execução
 - [x] Criar caminho de retry
-- [x] Criar caminho de revisão humana
+- [x] Criar caminho de conferência humana opcional
 - [x] Criar status de baixa confiança
 - [x] Criar status de erro técnico
 - [x] Garantir que erro não seja interpretado como dado ausente
@@ -349,7 +349,7 @@ documentos.
 - [ ] Conferir armazenamento
 - [ ] Conferir envio
 - [ ] Conferir logs
-- [ ] Conferir revisão humana
+- [x] Conferir uso opcional da revisão humana
 
 **Gate de saída:** cenários críticos aprovados sem bloqueios de severidade alta.
 
@@ -372,7 +372,8 @@ documentos.
 - [x] Documentar workflow final
 - [x] Documentar serviço PDF → Markdown e gate n8n
 - [ ] Entregar arquivos e acessos definidos
-- [x] Executar validação final técnica; aceite regulatório do DOU permanece em revisão humana
+- [x] Executar validação final técnica; a avaliação do DOU real permanece pendente,
+      com conferência humana opcional
 
 **Gate de saída:** operação pode ser entendida por outro responsável técnico sem depender exclusivamente do desenvolvedor original.
 
@@ -465,7 +466,11 @@ Ao concluir uma atividade:
 
 Este arquivo deve refletir a realidade do projeto, e não apenas a intenção inicial.
 
-## 22. Documento real validado com revisão pendente — 2026-09-09
+## 22. Documento real validado com revisão pendente — 2026-09-09 (registro histórico)
+
+> Este registro descreve o comportamento anterior do fluxo. Em 15/09/2026 a
+> revisão humana deixou de ser requisito; permanece apenas a validação técnica
+> do documento real e a conferência opcional das referências.
 
 - [x] Receber o PDF real pela landing e preservar o original no volume interno.
 - [x] Converter o documento de 128 páginas para Markdown com 1.585.605 bytes.
@@ -486,12 +491,12 @@ Este arquivo deve refletir a realidade do projeto, e não apenas a intenção in
 - [x] Exibir evidências de página, confiança e próximos passos no PDF.
 - [x] Validar a nova apresentação com teste automatizado e inspeção visual.
 
-## 24. Evidência de página obrigatória no relatório — 2026-09-10
+## 24. Evidência de página obrigatória no relatório — 2026-09-10 (regra vigente; revisão histórica superada)
 
 - [x] Solicitar `paginas_origem` em cada achado produzido pela IA.
 - [x] Exibir sempre as páginas de origem no relatório executivo.
 - [x] Informar explicitamente quando a página não for comprovada e manter a
-      revisão humana obrigatória.
+      conferência opcional, sem inventar a referência.
 - [x] Exibir no resumo o recorte de páginas usado pela análise automatizada.
 
 ## 25. RAG e hardening da qualidade — 2026-09-10
@@ -586,15 +591,16 @@ Pendências reais:
 
 **Resultado:** o projeto possui um relatório único para apresentação comercial,
 operação e auditoria técnica. A ativação produtiva continua condicionada aos
-gates de segurança, revisão humana, RAG, falhas/retomada e restauração já
-registrados nas pendências anteriores.
+gates de segurança, RAG, falhas/retomada e restauração já registrados nas
+pendências anteriores; a revisão humana deixou de ser requisito do fluxo e
+permanece apenas como conferência opcional.
 
-## 28. Prompt de análise técnica preliminar v2 — 2026-09-15
+## 28. Prompt de análise técnica preliminar v2 — 2026-09-15 (substituído pelo v3)
 
 - [x] Criar prompt especializado com separação entre fato e interpretação.
 - [x] Criar schema v2 com parecer técnico, fundamentos, apontamentos e recomendações.
 - [x] Integrar o contrato v2 ao workflow interno e ao coletor DOU.
-- [x] Exigir revisão humana para risco alto/crítico e conclusões inconclusivas.
+- [x] Exigir revisão humana para risco alto/crítico e conclusões inconclusivas (regra v2, substituída pelo v3).
 - [x] Exibir parecer técnico preliminar e recomendações no renderer PDF.
 - [x] Atualizar validação de qualidade, confiança e testes de contrato.
 - [ ] Comparar o prompt v2 com documentos de referência e medir cobertura de citações.
@@ -610,10 +616,24 @@ decisão regulatória, jurídica, médica ou comercial de alto impacto.
 - [x] Redesenhar o renderer PDF com identidade visual comercial e profissional.
 - [x] Exibir status de conferência, indicadores e parecer técnico em destaque.
 - [x] Organizar achados em cartões com evidências, páginas e rastreabilidade.
-- [x] Preservar revisão humana, aviso de responsabilidade e regras de liberação.
+- [x] Preservar conferência opcional, aviso de responsabilidade e regras de liberação.
 - [x] Renderizar e inspecionar visualmente PDF de amostra sem cortes ou sobreposição.
 - [ ] Publicar o renderer atualizado na VPS e regenerar o documento real de 128 páginas.
 
 **Resultado:** a versão local `1.3.0` melhora a leitura executiva do relatório
 final sem alterar o contrato funcional, a política de confiança ou os requisitos
 de auditoria.
+
+## 30. Relatório técnico automático sem gate de revisão humana — 2026-09-15
+
+- [x] Registrar no PRD que a conferência humana é opcional.
+- [x] Manter confiança, contradições, riscos e referências como informação explícita no relatório.
+- [x] Permitir que baixa confiança, lacuna ou contradição sigam para `aguardando_envio`.
+- [x] Preservar páginas, evidências literais, limites e erros técnicos sem inventar dados.
+- [x] Orientar o modelo a produzir relatório técnico automatizado com padrão de análise sênior.
+- [ ] Publicar o workflow/prompt atualizado na VPS e processar novamente o documento real de 128 páginas.
+
+**Decisão:** a equipe recebe o relatório técnico automaticamente e consulta as
+páginas indicadas quando desejar. A conferência humana permanece disponível no
+painel para confirmação ou correção, mas não é requisito para gerar, enviar ou
+baixar o relatório. Falhas técnicas continuam interrompendo o processamento.

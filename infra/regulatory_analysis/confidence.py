@@ -34,7 +34,7 @@ def classify_confidence(analysis: dict[str, Any], conversion_warnings: list[str]
     if conversion_warnings:
         reasons.append("aviso de layout ou conversao")
     if analysis.get("revisao_humana", {}).get("necessaria"):
-        reasons.append("revisao humana solicitada")
+        reasons.append("conferencia opcional recomendada")
 
     opinion = analysis.get("parecer_tecnico") if isinstance(analysis.get("parecer_tecnico"), dict) else {}
     if opinion.get("nivel_risco") in {"alto", "critico"}:

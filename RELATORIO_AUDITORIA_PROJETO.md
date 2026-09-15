@@ -8,24 +8,30 @@
 **Versão de código auditada:** 3148fa0, estado de referência antes das alterações documentais deste relatório
 
 **Atualização em 15/09/2026:** após a auditoria, o contrato de análise evoluiu
-para `regulatory-extraction-v2`, com parecer técnico preliminar, apontamentos e
+para `regulatory-extraction-v3`, com relatório técnico sênior automatizado,
+apontamentos e
 recomendações. Essa evolução está implementada localmente, mas ainda depende de
 homologação do modelo e do documento real antes da ativação na VPS.
 
 **Atualização visual em 15/09/2026:** o renderer foi evoluído para a versão
 `1.3.0`, com modelo executivo mais comercial e profissional: capa institucional,
-status de conferência, indicadores, parecer técnico em destaque, cartões de
+status de qualidade e conferência opcional, indicadores, parecer técnico em destaque, cartões de
 achados, hierarquia visual, cabeçalho/rodapé e aviso de responsabilidade. A
-mudança é de apresentação e legibilidade; as regras de evidência, revisão humana
+mudança é de apresentação e legibilidade; as regras de evidência, conferência opcional
 e liberação do relatório permanecem inalteradas.
 
-> Este documento traduz o projeto para leitores de negócio e também registra os detalhes técnicos necessários para operação, manutenção e auditoria. A solução é uma ferramenta de apoio documental. Não constitui parecer jurídico, médico ou regulatório e não substitui revisão humana especializada.
+**Atualização de requisito em 15/09/2026:** a conferência humana deixou de ser
+um requisito para concluir, enviar ou disponibilizar o relatório. O fluxo passa a
+entregar automaticamente um relatório técnico com padrão de análise sênior,
+mantendo confiança, limitações, páginas e evidências para confirmação opcional.
+
+> Este documento traduz o projeto para leitores de negócio e também registra os detalhes técnicos necessários para operação, manutenção e auditoria. A solução produz um relatório técnico automatizado de apoio documental. Não constitui decisão jurídica, médica ou regulatória definitiva; a conferência humana é opcional.
 
 ## 1. Resumo executivo
 
-O projeto automatiza o caminho entre o recebimento de um documento regulatório em PDF e a entrega de um relatório organizado para conferência e acompanhamento operacional.
+O projeto automatiza o caminho entre o recebimento de um documento regulatório em PDF e a entrega de um relatório técnico organizado para decisão e acompanhamento operacional.
 
-Na prática, o usuário autorizado envia um PDF pela landing privada. O sistema gera um protocolo, preserva o original, converte o conteúdo para Markdown, organiza a informação, usa IA local para identificar achados regulatórios, valida as evidências, gera um relatório em PDF e coloca o documento em uma fila de conferência. O envio por Gmail é uma decisão manual do operador. O download oficial só é liberado depois que o envio é confirmado.
+Na prática, o usuário autorizado envia um PDF pela landing privada. O sistema gera um protocolo, preserva o original, converte o conteúdo para Markdown, organiza a informação, usa IA local para identificar achados regulatórios, valida as evidências, gera um relatório em PDF e coloca o documento em uma fila de envio. O envio por Gmail é uma decisão manual do operador. O download oficial só é liberado depois que o envio é confirmado.
 
 O principal valor comercial está em transformar uma atividade repetitiva e sujeita a perda de contexto em um processo padronizado, rastreável e reutilizável:
 
@@ -33,15 +39,15 @@ O principal valor comercial está em transformar uma atividade repetitiva e suje
 - mantém PDF, Markdown, JSON e relatório ligados ao mesmo protocolo;
 - permite localizar a página e o trecho que sustentam cada achado;
 - evita que falha técnica seja confundida com ausência de informação;
-- preserva revisão humana para baixa confiança, contradição ou evidência insuficiente;
+- preserva alertas, limitações e possibilidade de conferência opcional para baixa confiança, contradição ou evidência insuficiente;
 - usa IA local via Ollama, reduzindo dependência de APIs externas de IA;
-- oferece uma operação clara para upload, fila, revisão, destinatários, envio e download.
+- oferece uma operação clara para upload, fila, conferência opcional, destinatários, envio e download.
 
 ### Conclusão da auditoria
 
 **Classificação geral: pronto para homologação operacional e com ativação produtiva condicionada.**
 
-O repositório contém uma implementação consistente do gateway, painel, workflows internos, persistência, conversão PDF→Markdown, RAG, análise, renderer, backup e coletor DOU. A homologação ponta a ponta da VPS está registrada no LOG.md e no ROADMAP.md. Entretanto, a ativação produtiva ainda depende de controles operacionais importantes: hardening da VPS, rotação/validação de acesso administrativo, aceite formal do operador, simulação completa de falhas e retomadas, revisão humana do documento real de 128 páginas e aplicação/validação da camada RAG no ambiente autorizado.
+O repositório contém uma implementação consistente do gateway, painel, workflows internos, persistência, conversão PDF→Markdown, RAG, análise, renderer, backup e coletor DOU. A homologação ponta a ponta da VPS está registrada no LOG.md e no ROADMAP.md. Entretanto, a ativação produtiva ainda depende de controles operacionais importantes: hardening da VPS, rotação/validação de acesso administrativo, aceite formal do operador, simulação completa de falhas e retomadas, regeneração e avaliação técnica do documento real de 128 páginas e aplicação/validação da camada RAG no ambiente autorizado.
 
 Os workflows versionados estão marcados como active=false. Isso é coerente com a estratégia de importar, configurar credenciais e ativar somente após a validação no n8n, mas significa que o Git, sozinho, não comprova que a execução está ativa na VPS.
 
@@ -61,9 +67,9 @@ O produto funciona como uma linha de produção documental controlada:
 4. recupera contexto relevante sem misturar documentos;
 5. estrutura medicamentos, suplementos, ensaios clínicos, exigências, pendências e outros atos;
 6. exige evidência por página e trecho literal para achados positivos;
-7. classifica confiança e encaminha casos duvidosos para revisão;
+7. classifica confiança e registra alertas para conferência opcional;
 8. gera relatório executivo em PDF;
-9. permite conferência antes do envio;
+9. permite consulta e conferência opcional antes do envio;
 10. registra destinatários, tentativa, resultado do Gmail e download oficial.
 
 ### Usuários
@@ -71,13 +77,13 @@ O produto funciona como uma linha de produção documental controlada:
 | Perfil | Uso principal |
 |---|---|
 | Usuário operacional | Envia documentos, acompanha protocolos e consulta resultados. |
-| Revisor humano | Confere baixa confiança, contradições, evidências e pode aprovar ou solicitar reprocessamento. |
+| Equipe de conferência opcional | Confere baixa confiança, contradições e evidências quando necessário; pode registrar correção ou solicitar reprocessamento. |
 | Responsável técnico | Mantém infraestrutura, workflows, prompts, modelo, banco, backups e controles de operação. |
 | Área comercial/gestão | Usa o resumo executivo para entender achados, pontos de atenção e próximos passos. |
 
 ### Limites do produto
 
-O sistema não produz decisão regulatória definitiva, não substitui profissional habilitado, não faz revisão jurídica e não inclui OCR comercial pago, aplicativo mobile, modelo proprietário ou fine-tuning como parte da operação inicial.
+O sistema não produz decisão regulatória definitiva, não substitui profissional habilitado, não faz revisão jurídica e não inclui OCR comercial pago, aplicativo mobile, modelo proprietário ou fine-tuning como parte da operação inicial. A conferência humana é opcional e serve para confirmar ou corrigir referências quando a equipe considerar necessário.
 
 ## 3. Arquitetura atual
 
@@ -106,7 +112,7 @@ PDF -> Markdown        pgvector + busca   análise + embeddings
                             |
                      aguardando_envio
                             |
-                   Gmail após revisão manual
+                     Gmail após consulta opcional
                             |
                          concluído
 ~~~
@@ -122,7 +128,7 @@ O docker-compose.yml define sete serviços na rede privada internal:
 | rag-service | Divide Markdown em chunks, indexa, busca contexto e valida citações. | 8092 somente na rede Docker. |
 | pdf-converter | Valida e converte PDFs textuais para Markdown. | 8080 somente na rede Docker. |
 | report-renderer | Gera o relatório PDF com resumo executivo e evidências. | 8091 somente na rede Docker. |
-| upload-gateway | Landing, login, upload, painel, artefatos, revisão, destinatários e download. | 8085 somente na rede Docker; publicação externa deve ocorrer por HTTPS/Caddy. |
+| upload-gateway | Landing, login, upload, painel, artefatos, conferência opcional, destinatários e download. | 8085 somente na rede Docker; publicação externa deve ocorrer por HTTPS/Caddy. |
 | n8n | Orquestra processamento, envio, reconciliação e tratamento de erros. | 127.0.0.1:25678, acessível por túnel SSH. |
 
 Limites de memória declarados no Compose: PostgreSQL 512 MB, Ollama 3 GB, RAG 512 MB, conversor 512 MB, renderer 512 MB, gateway 256 MB e n8n 1,5 GB. A referência de infraestrutura é Linux, 2 vCPU, aproximadamente 8 GB de RAM e 100 GB NVMe.
@@ -186,7 +192,7 @@ Depois de salvar o Markdown, o workflow chama o rag-service para:
 5. registrar cada recuperação em rag_retrievals;
 6. filtrar obrigatoriamente pelo submission_id atual.
 
-O workflow faz consultas sobre medicamentos, suplementos/ensaios clínicos e exigências/pendências/atos regulatórios. Quando há contexto, somente os chunks recuperados são enviados ao Ollama. O limite atual do contexto de análise é 24.000 caracteres. Quando o RAG não retorna contexto, o workflow registra aviso e exige revisão humana.
+O workflow faz consultas sobre medicamentos, suplementos/ensaios clínicos e exigências/pendências/atos regulatórios. Quando há contexto, somente os chunks recuperados são enviados ao Ollama. O limite atual do contexto de análise é 24.000 caracteres. Quando o RAG não retorna contexto, o workflow registra a limitação no relatório e mantém a conferência opcional.
 
 ### 4.5 Análise regulatória
 
@@ -200,9 +206,9 @@ O modelo local qwen2.5:3b recebe o protocolo e o contexto Markdown/RAG. O contra
 - categorias não localizadas;
 - evidências insuficientes, contradições e avisos;
 - controle de confiança;
-- revisão humana.
+- conferência opcional de referências.
 
-Na evolução v2 do contrato, a IA também atua como analista regulatório sênior
+Na evolução v3 do contrato, a IA também atua como analista regulatório sênior
 em caráter preliminar. O campo `parecer_tecnico` organiza escopo, conclusão
 preliminar, classificação geral, nível de risco, fundamentos técnicos,
 apontamentos técnicos e recomendações priorizadas. Fundamentos e apontamentos
@@ -225,9 +231,9 @@ O JSON é persistido como analysis_json. O renderer gera um PDF com:
 - achados por categoria;
 - páginas de origem;
 - evidências insuficientes e contradições;
-- confiança, revisão humana e próximos passos.
+- confiança, alertas, conferência opcional e próximos passos.
 
-O PDF também apresenta o parecer técnico preliminar, seus fundamentos,
+O PDF também apresenta o parecer técnico, seus fundamentos,
 apontamentos, recomendações e limites declarados pelo modelo. A redação
 comercial é montada pelo renderer de forma determinística; a IA fornece dados
 estruturados e não controla livremente o layout ou as regras de liberação.
@@ -244,14 +250,14 @@ O PDF é persistido como report_pdf. Depois disso:
 | Situação | Estado final da etapa |
 |---|---|
 | Confiança aceitável | aguardando_envio |
-| Baixa confiança, contradição ou evidência insuficiente | aguardando_revisao |
+| Baixa confiança, contradição ou evidência insuficiente | aguardando_envio, com alerta explícito |
 | Falha técnica | erro e registro em workflow_errors |
 
-Um documento em revisão pode ter relatório preliminar para conferência interna, mas não pode ser enviado nem baixado como relatório oficial.
+Baixa confiança, contradição ou evidência insuficiente não bloqueiam o relatório. As páginas e os trechos disponíveis ficam identificados para confirmação opcional da equipe. Somente falhas técnicas interrompem o processamento.
 
-### 4.7 Revisão, envio e download
+### 4.7 Conferência opcional, envio e download
 
-O operador autenticado visualiza PDF, Markdown e JSON. Em revisão, registra observações e escolhe:
+O operador autenticado visualiza PDF, Markdown e JSON. Se desejar, pode registrar uma conferência e escolher:
 
 - liberar_envio: muda o documento para aguardando_envio;
 - reprocessar: registra a autorização e devolve o documento para recebido.
@@ -278,7 +284,7 @@ O mecanismo está implementado e possui contrato automatizado, mas a retomada ap
 
 | Export | Responsabilidade | Entrada/saída |
 |---|---|---|
-| automacao-regulatoria-internal-v1.json | Processamento completo no repositório interno. | Webhook de protocolo → aguardando_envio ou aguardando_revisao. |
+| automacao-regulatoria-internal-v1.json | Processamento completo no repositório interno. | Webhook de protocolo → aguardando_envio, com alertas de qualidade quando aplicável. |
 | automacao-regulatoria-send-report-v1.json | Entrega manual pelo Gmail. | submission_id + delivery_id → concluido após sucesso. |
 | automacao-regulatoria-reconcile-v1.json | Retomada de documentos e entregas presas. | Agendamento → protocolos redisparados. |
 | automacao-regulatoria-internal-error-v1.json | Registro de erro interno. | Error Trigger → categoria, etapa, execução e mensagem. |
@@ -323,13 +329,13 @@ As rotas abaixo pertencem a infra/upload_gateway/app.py. As rotas protegidas exi
 | PUT | /api/v1/settings/report-recipients | Protegido | Substitui destinatários; inativos são preservados no banco. |
 | POST | /api/v1/submissions/{submission_id}/send-report | Protegido | Solicita novo envio manual. |
 | POST | /api/v1/submissions/{submission_id}/retry-email | Protegido | Solicita retry de entrega em erro. |
-| POST | /api/v1/submissions/{submission_id}/review | Protegido | Aprova para envio ou autoriza reprocessamento, com observação obrigatória. |
+| POST | /api/v1/submissions/{submission_id}/review | Protegido | Registra conferência opcional, aprova envio ou autoriza reprocessamento, com observação obrigatória. |
 | GET | /api/v1/submissions/{submission_id}/report | Protegido | Download oficial condicionado a concluido. |
 | GET | /internal/submissions/{submission_id}/file | Interno | Entrega o PDF original ao n8n. |
 | POST | /internal/submissions/{submission_id}/status | Interno | Atualiza estado e registra chave relativa do relatório. |
 | GET | /static/{arquivo} | Público técnico | Entrega arquivos estáticos da interface. |
 
-Estados aceitos no gateway: recebido, processando, aguardando_revisao, aguardando_envio, concluido e erro. O banco e os workflows também usam em_processamento como estado de reivindicação interna.
+Estados aceitos no gateway: recebido, processando, aguardando_envio, concluido e erro. `aguardando_revisao` permanece aceito apenas para compatibilidade com registros históricos. O banco e os workflows também usam em_processamento como estado de reivindicação interna.
 
 ### 6.2 Conversor PDF→Markdown
 
@@ -348,10 +354,11 @@ Códigos principais: 415 para tipo não suportado, 413 para arquivo acima de 100
 | POST | /v1/render | Recebe metadata e analysis e retorna PDF com header X-Report-Version. |
 
 Versão registrada no código: 1.3.0. O contrato ativo de análise é
-`regulatory-extraction-v2`, documentado em
-`prompts/regulatory-extraction-v2.md` e
+`regulatory-extraction-v3`, documentado em
+`prompts/regulatory-extraction-v3.md`, usando o schema estrutural compatível de
 `prompts/regulatory-extraction-v2.schema.json`. A geração usa JSON estrito no
-Ollama e validação posterior no workflow e no serviço RAG.
+Ollama e validação posterior no workflow e no serviço RAG. A conferência humana
+é opcional e não funciona como gate de envio ou conclusão.
 
 ### 6.4 Serviço RAG
 
@@ -383,7 +390,7 @@ O projeto é organizado em Python com FastAPI nos serviços e scripts de operaç
 | infra/upload_gateway/app.py | create_submission | Validação, hash, persistência atômica, deduplicação e despacho ao n8n. |
 | infra/upload_gateway/app.py | list_submissions, get_submission, list_artifacts, view_artifact | Consulta da fila, detalhe e artefatos. |
 | infra/upload_gateway/app.py | normalized_recipients, _request_report_send, send_report, retry_email | Validação de e-mails, snapshot e solicitação de envio. |
-| infra/upload_gateway/app.py | review_submission, download_report, update_submission_status | Revisão humana, liberação/reprocessamento e gate do download. |
+| infra/upload_gateway/app.py | review_submission, download_report, update_submission_status | Conferência opcional, liberação/reprocessamento e gate do download. |
 | infra/upload_gateway/storage.py | storage_root, object_prefix, original_key, resolve_storage_key | Organização por SHA-256 e proteção contra caminho absoluto/traversal. |
 | infra/pdf_converter/converter.py | ConversionError, _page_markdown, convert_pdf_bytes | Conversão determinística, metadados, páginas, tabelas e erros técnicos. |
 | infra/pdf_converter/app.py | healthz, convert_endpoint | Contrato HTTP do conversor. |
@@ -432,7 +439,9 @@ Um achado só é considerado comprovável quando:
 - o tipo de produto não contradiz a categoria;
 - não há mistura de dados de outro protocolo.
 
-Quando a regra falha por qualidade, o resultado é preliminar e exige revisão. Quando a falha é técnica, o workflow deve registrar erro técnico, e não “nenhum dado encontrado”.
+Quando a regra falha por qualidade, o relatório preserva o alerta, a limitação e
+as referências disponíveis para confirmação opcional. Quando a falha é técnica,
+o workflow deve registrar erro técnico, e não “nenhum dado encontrado”.
 
 ## 9. Segurança e privacidade
 
@@ -454,9 +463,9 @@ Quando a regra falha por qualidade, o resultado é preliminar e exige revisão. 
 ### Riscos e pontos de atenção
 
 1. O token legado pode ser enviado por query string e propagado nos links da interface. Isso facilita compatibilidade, mas pode deixar o token em histórico do navegador, logs ou cabeçalho de referência. O uso normal deve priorizar usuário/senha e o token legado deve ser descontinuado quando não for mais necessário.
-2. Não há evidência no código de rate limiting para login, upload, envio ou revisão. A publicação externa deve aplicar controles de borda e monitoramento.
+2. Não há evidência no código de rate limiting para login, upload, envio ou conferência. A publicação externa deve aplicar controles de borda e monitoramento.
 3. A autenticação por aplicação do rag-service, conversor e renderer não aparece implementada; a proteção atual depende do isolamento da rede Docker. Uma exposição acidental da rede interna aumentaria o risco.
-4. Não há RBAC granular: o modelo atual trabalha com um operador autenticado, sem perfis distintos para leitura, revisão, configuração e envio.
+4. Não há RBAC granular: o modelo atual trabalha com um operador autenticado, sem perfis distintos para leitura, conferência, configuração e envio.
 5. O cookie do n8n está configurado como não seguro porque o n8n é mantido em HTTP local e acessado por túnel SSH. Isso não deve ser convertido em exposição pública direta.
 6. O N8N_BLOCK_ENV_ACCESS_IN_NODE=false amplia a capacidade dos nós de acessar variáveis do ambiente. É uma dependência atual dos workflows, mas deve ser revisitada após estabilização.
 7. Não há política de retenção automática aprovada. Documentos e artefatos não devem ser removidos por conveniência sem decisão documentada.
@@ -466,7 +475,7 @@ Quando a regra falha por qualidade, o resultado é preliminar e exige revisão. 
 
 ### Cenários cobertos e aprovados localmente
 
-A execução local de python -m pytest -q na data-base terminou com **53 testes aprovados** em 12,70 segundos e código de saída zero. Foram emitidos dois avisos de depreciação do evento on_event do FastAPI. Também houve uma mensagem não bloqueante do Windows ao limpar uma pasta temporária do pytest após o término.
+A execução local de python -m pytest -q na data-base terminou com **59 testes aprovados** e código de saída zero. Foram emitidos dois avisos de depreciação do evento on_event do FastAPI. Também houve uma mensagem não bloqueante do Windows ao limpar uma pasta temporária do pytest após o término.
 
 Os testes existentes cobrem, entre outros:
 
@@ -475,7 +484,7 @@ Os testes existentes cobrem, entre outros:
 - login, sessão, expiração, logout e token legado;
 - upload, limite de tamanho, extensão, assinatura PDF, protocolo e deduplicação;
 - armazenamento por hash, bloqueio de caminho absoluto e download antes/depois de conclusão;
-- fila, detalhe, artefatos, destinatários, envio concorrente e revisão humana;
+- fila, detalhe, artefatos, destinatários, envio concorrente e conferência opcional;
 - renderer com seções obrigatórias e página de origem ausente;
 - confiança aceitável, baixa confiança e inconclusivo;
 - schema regulatório, status, cancelamento, dispositivo e citações;
@@ -506,7 +515,7 @@ O roadmap mantém pendentes, ou parcialmente pendentes, os seguintes cenários:
 - falha real do Ollama e retomada a partir da etapa adequada;
 - falha real do conversor, renderer, armazenamento ou entrega e conferência do caminho de erro;
 - validação completa de documentos regulatórios com medicamentos, suplementos, ensaios clínicos, exigências e pendências;
-- revisão humana final das classificações e evidências do DOU real de 128 páginas;
+- comparação técnica do relatório e das evidências do DOU real de 128 páginas;
 - migração e indexação dos Markdowns existentes no RAG da homologação;
 - comparação do fluxo atual com RAG nas páginas de referência;
 - conjunto mínimo de 30 exemplos de treino e 10 de validação;
@@ -521,13 +530,13 @@ O Docker não estava disponível nesta estação de auditoria; portanto, docker 
 | Grupo | Resultado da auditoria |
 |---|---|
 | RF-01 a RF-03 — entrada, leitura e Markdown | Implementados; conversor e contratos possuem testes locais. |
-| RF-04 a RF-08 — IA, categorias, estrutura, confiança e revisão | Implementados no workflow, prompt e módulos de qualidade; validação regulatória ampla do corpus real ainda pendente. |
+| RF-04 a RF-08 — IA, categorias, estrutura, confiança e conferência opcional | Implementados no workflow, prompt e módulos de qualidade; validação regulatória ampla do corpus real ainda pendente. |
 | RF-09 e RF-10 — relatório e PDF | Implementados; renderer possui testes e homologação histórica com PDF gerado. |
 | RF-11 — armazenamento | Implementado com PostgreSQL e volume privado; migração de ambiente existente depende de backup e execução controlada. |
 | RF-12 — envio manual Gmail | Implementado no painel e workflow separado; homologação histórica registra sucesso, falha e retry. |
 | RF-13 e RF-14 — erros e rastreabilidade | Implementados com categorias, tentativas, estados e workflow de erro; matriz integral de falhas ainda precisa ser repetida. |
 | RF-15 a RF-18 — painel, gateway, download, destinatários e auditoria de entrega | Implementados e cobertos por testes de API/contrato; RBAC granular não faz parte da versão atual. |
-| RN-01 a RN-12 — limites da IA e evidências | Implementados no prompt, schema, quality check e fluxo de revisão. |
+| RN-01 a RN-12 — limites da IA e evidências | Implementados no prompt, schema, quality check e conferência opcional. |
 | RN-13 a RN-15 — privacidade, download e sessão | Implementados com dependência de HTTPS/Caddy, tokens protegidos e configuração correta do ambiente. |
 | RNF-01 a RNF-07 — Docker, privacidade, manutenção, observabilidade, recuperação e conversor | Arquitetura implementada; recuperação e hardening operacional ainda condicionam produção. |
 
@@ -564,7 +573,7 @@ O n8n deve receber N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts, e gateway/n8n pr
 4. Importar os quatro workflows internos.
 5. Associar somente as credenciais necessárias.
 6. Validar um caso completo pela landing.
-7. Confirmar erro, revisão, envio, retry e download.
+7. Confirmar erro, conferência opcional, envio, retry e download.
 8. Ativar os workflows internos no n8n e manter os exports Drive históricos inativos.
 
 ### Backup e restauração
@@ -578,9 +587,13 @@ BACKUP_DIR=/opt/backups/automacao-miller ./deploy/backup/backup.sh
 
 Cada execução gera dump PostgreSQL, arquivo compactado do volume e manifesto com nomes, volume e SHA-256. A restauração deve parar o processamento, validar os hashes, restaurar o dump em banco vazio, extrair os artefatos na raiz do volume e só então reativar n8n. A execução prática desse procedimento ainda é uma pendência de produção.
 
-### Revisão e reprocessamento
+### Conferência opcional e reprocessamento
 
-O procedimento operacional deve ser feito pelo painel, com observação obrigatória. O operador não deve editar arquivos diretamente nem alterar estado no banco sem registrar a decisão. Para reprocessar, usar a ação de revisão, manter o PDF original e permitir que a reconciliação ou o webhook interno despache nova tentativa.
+O relatório deve ser consultado pelo painel; a conferência de páginas e
+evidências é opcional. O operador não deve editar arquivos diretamente nem
+alterar estado no banco sem registrar a decisão. Para reprocessar, usar a ação
+de conferência, manter o PDF original e permitir que a reconciliação ou o
+webhook interno despache nova tentativa.
 
 ### Corpus DOU
 
@@ -594,7 +607,7 @@ O coletor autenticado usa DOU_INLABS_EMAIL e DOU_INLABS_PASSWORD apenas no ambie
 2. Formalizar hardening da VPS, permissões, firewall, HTTPS/Caddy, exposição de portas e responsáveis.
 3. Fazer backup conjunto, aplicar migrações/RAG no ambiente autorizado e validar restauração em janela aprovada.
 4. Confirmar no n8n os workflows internos corretos, credenciais, errorWorkflow e ativação; manter todos os históricos Drive inativos.
-5. Executar a revisão humana do DOU real de 128 páginas e validar envio manual e download oficial após aprovação.
+5. Regenerar o relatório técnico do DOU real de 128 páginas, avaliar cobertura de citações e validar envio manual e download oficial; a conferência detalhada de páginas permanece opcional.
 
 ### P1 — estabilização operacional
 
@@ -607,7 +620,7 @@ O coletor autenticado usa DOU_INLABS_EMAIL e DOU_INLABS_PASSWORD apenas no ambie
 ### P2 — evolução
 
 1. Concluir dataset revisado com pelo menos 30 exemplos de treino e 10 de validação antes de avaliar fine-tuning.
-2. Criar observabilidade avançada, métricas de tempo por etapa, volume processado e taxa de revisão.
+2. Criar observabilidade avançada, métricas de tempo por etapa, volume processado e taxa de correção/conferência opcional.
 3. Substituir o handler FastAPI depreciado por lifespan.
 4. Avaliar filas dedicadas, alta disponibilidade e escalabilidade somente após validar volume e custo reais.
 
@@ -650,4 +663,4 @@ O coletor autenticado usa DOU_INLABS_EMAIL e DOU_INLABS_PASSWORD apenas no ambie
 
 O projeto já oferece uma base sólida para transformar a análise documental regulatória em um processo operacional repetível, com rastreabilidade e supervisão humana. A principal decisão para a próxima etapa não é criar mais funcionalidades básicas, mas concluir a governança de produção: segurança da VPS, ativação controlada, validação dos casos reais, retomada após falhas e aceite formal dos resultados.
 
-Com esses gates concluídos, a solução pode ser apresentada como uma plataforma interna de apoio à leitura regulatória, capaz de acelerar a triagem e a organização de documentos sem perder a evidência, a auditoria e a responsabilidade da revisão humana.
+Com esses gates concluídos, a solução pode ser apresentada como uma plataforma interna de apoio à leitura regulatória, capaz de acelerar a triagem e a organização de documentos sem perder a evidência, a auditoria e a possibilidade de conferência opcional pela equipe.

@@ -1,6 +1,6 @@
 # Agente de Automação e Análise Regulatória
 
-Uma solução self-hosted para transformar documentos regulatórios em relatórios organizados, rastreáveis e prontos para revisão.
+Uma solução self-hosted para transformar documentos regulatórios em relatórios organizados, rastreáveis e prontos para uso interno e envio.
 
 Desenvolvido pela **DB Tecnologia**, o produto automatiza o fluxo entre o recebimento de PDFs, a leitura assistida por IA local, a organização das informações e a distribuição do relatório final.
 
@@ -17,9 +17,9 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 - Identifica informações regulatórias relevantes quando elas estão presentes no documento.
 - Estrutura os resultados para facilitar a leitura e a conferência.
 - Gera relatórios padronizados em PDF.
-- Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e permite o envio manual por Gmail após conferência.
-- Sinaliza baixa confiança, ambiguidade, contradições e falhas para revisão humana.
-- Mantém o processamento rastreável, com estados de recebido, em processamento, concluído, aguardando revisão ou com erro.
+- Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e permite o envio manual por Gmail após a geração do relatório.
+- Sinaliza baixa confiança, ambiguidade, contradições e falhas para orientar a equipe; a conferência humana é opcional.
+- Mantém o processamento rastreável, com estados de recebido, em processamento, aguardando envio, concluído ou com erro.
 
 ## Como funciona
 
@@ -42,7 +42,7 @@ PDF final no volume privado
         ↓
 Documento em aguardando envio
         ↓
-Conferência no painel
+Consulta opcional no painel
         ↓
 Envio manual por Gmail e liberação do download
 ```
@@ -61,7 +61,7 @@ estados, tentativas, erros, análises e revisões humanas.
 
 O painel autenticado em `/upload` apresenta a fila, os indicadores e os detalhes
 de cada protocolo. O operador pode abrir o PDF, Markdown e JSON, registrar uma
-revisão, configurar destinatários padrão e solicitar o envio. O relatório só
+conferência opcional, configurar destinatários padrão e solicitar o envio. O relatório só
 fica disponível para download oficial depois que o workflow manual confirmar o
 envio no Gmail e marcar o documento como `concluido`.
 
@@ -76,15 +76,16 @@ Conforme o conteúdo de cada documento, o sistema pode estruturar:
 - exigências;
 - pendências;
 - evidências e referências do documento de origem;
-- sinalização de confiança e necessidade de revisão.
+- sinalização de confiança, alertas de qualidade e referências de página.
 
-O contrato de análise v2 adiciona um parecer técnico preliminar: conclusão,
+O contrato de análise v3 adiciona um parecer técnico: conclusão,
 classificação geral, nível de risco prudente, fundamentos citados, apontamentos
 técnicos e recomendações priorizadas. A saída continua sendo apoio documental e
-exige revisão humana quando houver ambiguidade, contradição, contexto parcial,
-risco relevante ou impacto externo.
+mantém alertas, limitações e referências de páginas quando houver ambiguidade,
+contradição, contexto parcial, risco relevante ou impacto externo. A equipe pode
+confirmar esses pontos, mas a conferência humana não é obrigatória.
 
-O PDF final usa um modelo executivo da DB Tecnologia, com status de conferência,
+O PDF final usa um modelo executivo da DB Tecnologia, com status de qualidade,
 indicadores, parecer técnico, cartões de achados, próximos passos e aviso de
 responsabilidade. A apresentação é comercial e profissional, mas continua
 determinística e vinculada às evidências do documento original.
@@ -98,13 +99,13 @@ A ausência de uma informação é diferenciada de uma falha técnica de leitura
 Envia documentos pela landing privada, opera a fila, confere artefatos,
 seleciona destinatários e solicita o envio dos relatórios.
 
-### Revisor humano
+### Conferência humana opcional
 
-Avalia documentos com baixa confiança, evidência insuficiente, conteúdo ambíguo, informações contraditórias ou falhas parciais de extração e análise.
+Confere páginas, evidências e limitações quando isso agrega valor à operação; não é requisito para gerar ou enviar o relatório.
 
 ### Equipe responsável
 
-Acompanha a operação, valida os resultados e mantém as regras, prompts, integrações e critérios de revisão conforme a necessidade do negócio.
+Acompanha a operação, avalia os resultados e mantém as regras, prompts e integrações conforme a necessidade do negócio.
 
 ## Segurança e responsabilidade
 
@@ -113,7 +114,7 @@ Acompanha a operação, valida os resultados e mantém as regras, prompts, integ
 - Credenciais e tokens devem permanecer fora do código-fonte e dos arquivos versionados.
 - O documento original e os artefatos derivados devem permanecer relacionados para permitir auditoria.
 - A IA é uma ferramenta de apoio à leitura, classificação e organização documental.
-- O resultado não constitui parecer jurídico, médico ou regulatório definitivo e não substitui a revisão de um profissional habilitado.
+- O resultado não constitui parecer jurídico, médico ou regulatório definitivo; pontos de impacto podem ser confirmados no documento original quando necessário.
 
 ## Infraestrutura de referência
 
@@ -128,7 +129,7 @@ O MVP foi dimensionado inicialmente para uma infraestrutura de baixo custo, suje
 
 ## Escopo inicial
 
-O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs iniciado pela landing, a persistência operacional em PostgreSQL, o armazenamento interno em volume privado, a integração com Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização para revisão humana, os testes e a documentação de operação.
+O produto contempla a implantação e configuração do n8n e do Ollama, o workflow de processamento de PDFs iniciado pela landing, a persistência operacional em PostgreSQL, o armazenamento interno em volume privado, a integração com Gmail, a geração de relatórios e PDFs, o tratamento básico de erros, a sinalização de qualidade para conferência opcional, os testes e a documentação de operação.
 
 Não fazem parte do escopo inicial OCR comercial pago, aplicativo mobile,
 fine-tuning, modelo proprietário, revisão jurídica, responsabilidade técnica
@@ -146,7 +147,7 @@ Para iniciar a implantação, são necessários:
 3. definição dos limites de armazenamento, política de backup e responsáveis pela operação;
 4. arquivos PDF reais ou de exemplo para validação;
 5. definição dos destinatários dos relatórios;
-6. responsáveis pela validação e revisão humana.
+6. responsáveis pela operação e pela eventual conferência técnica das referências.
 
 O projeto está com a stack de homologação versionada e a migração para o
 repositório interno implementada no código. A ativação depende do backup
@@ -158,6 +159,7 @@ conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
 - [ROADMAP.md](ROADMAP.md) — fases, marcos, pendências e bloqueios.
 - [LOG.md](LOG.md) — decisões, alterações e memória operacional.
 - [AGENTS.md](AGENTS.md) — regras de atuação e governança do repositório.
+- [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — parecer técnico executivo, arquitetura, fluxos, rotas, riscos e próximos passos.
 - [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — auditoria técnica, funcional e operacional em linguagem executiva.
 - [workflows/README.md](workflows/README.md) — operação dos workflows, incluindo a entrada da landing.
 
@@ -175,16 +177,18 @@ chunk, hash, score e consulta para auditoria. O `nomic-embed-text` gera os
 embeddings e o `qwen2.5:3b` continua responsável pela análise.
 
 Achados positivos precisam trazer página e trecho literal comprovável. Falhas
-de citação geram aviso e revisão humana; não podem transformar o documento em
+de citação geram aviso e referência para conferência opcional; não podem transformar o documento em
 concluído. Revisões aprovadas podem receber uma análise corrigida e entrar no
 dataset JSONL protegido. O exportador só libera exemplos elegíveis e mantém um
 conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
 depois dos mínimos documentados no roadmap.
 
 O prompt versionado está em
-`prompts/regulatory-extraction-v2.md`, com schema em
+`prompts/regulatory-extraction-v3.md`, com schema estrutural compatível em
 `prompts/regulatory-extraction-v2.schema.json`. O workflow usa o mesmo contrato
-para separar fatos, interpretação técnica e recomendações sem inventar dados.
+para separar fatos, interpretação técnica e recomendações sem inventar dados. A
+conferência humana é opcional; o relatório técnico segue para envio quando as
+etapas técnicas terminam sem erro.
 
 ## Corpus oficial do DOU
 

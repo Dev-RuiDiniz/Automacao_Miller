@@ -43,7 +43,7 @@ def sample_payload() -> dict:
             "revisao_humana": {"necessaria": False, "motivos": []},
             "parecer_tecnico": {
                 "escopo": "Ato regulatório do documento de referência",
-                "conclusao_preliminar": "O documento indica deferimento do produto, sujeito à conferência humana.",
+                "conclusao_preliminar": "O documento indica deferimento do produto, com referências disponíveis para confirmação opcional.",
                 "classificacao_geral": "conforme_indicado",
                 "nivel_risco": "baixo",
                 "base_ids": ["F1", "AT1"],
@@ -101,13 +101,27 @@ def test_render_endpoint_returns_readable_pdf_with_required_sections() -> None:
     assert "DB TECNOLOGIA" in text
     assert "Resumo executivo" in text
     assert "O que isso significa na prática" in text
-    assert "Parecer técnico preliminar" in text
+    assert "Parecer técnico" in text
     assert "Apontamentos técnicos" in text
     assert "Recomendações priorizadas" in text
     assert "Próximos passos recomendados" in text
     assert "Páginas de origem: p. 1" in text
     assert "Páginas consideradas pela análise automatizada: p. 1, p. 2." in text
     assert response.headers["x-report-version"] == "1.3.0"
+
+
+def test_render_endpoint_marks_quality_alert_as_optional_confirmation() -> None:
+    payload = sample_payload()
+    payload["analysis"]["controle_confianca"] = {"status": "baixa_confianca", "motivos": ["evidencia insuficiente"]}
+    payload["analysis"]["revisao_humana"] = {"necessaria": True, "motivos": ["evidencia insuficiente"]}
+
+    response = client.post("/v1/render", json=payload)
+
+    assert response.status_code == 200
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(response.content)).pages)
+    assert "Conferência opcional de referências" in text
+    assert "Conferência humana: Opcional" in text
+    assert "não bloqueia" not in text
 
 
 def test_render_endpoint_makes_missing_source_page_explicit() -> None:

@@ -177,7 +177,7 @@ class InMemoryStore:
         return delivery
 
     def add_review(self, submission_id: str, decision: str, notes: str, actor: str, corrected_payload: dict[str, Any] | None = None, training_eligible: bool = False) -> dict[str, Any]:
-        review = {"review_id": self.next_id, "submission_id": submission_id, "reason": "revisão operacional", "decision": decision, "reviewer": actor, "notes": notes, "corrected_payload": corrected_payload, "training_eligible": training_eligible, "requested_at": now(), "reviewed_at": now()}
+        review = {"review_id": self.next_id, "submission_id": submission_id, "reason": "conferência operacional", "decision": decision, "reviewer": actor, "notes": notes, "corrected_payload": corrected_payload, "training_eligible": training_eligible, "requested_at": now(), "reviewed_at": now()}
         self.next_id += 1
         self.reviews.setdefault(submission_id, []).append(review)
         item = self.get(submission_id)
@@ -470,7 +470,7 @@ class PostgresStore:
                 raise KeyError(submission_id)
             row = connection.execute(
                 "INSERT INTO automacao_miller.human_reviews (submission_id, reason, decision, reviewer, notes, corrected_payload, training_eligible, eligibility_reason, reviewed_at) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, NOW()) RETURNING review_id, reason, decision, reviewer, notes, training_eligible, requested_at, reviewed_at",
-                (submission_id, "revisão operacional", decision, actor, notes, json.dumps(corrected_payload) if corrected_payload else None, training_eligible, "revisão aprovada com citações válidas" if training_eligible else "sem payload corrigido elegível"),
+                (submission_id, "conferência operacional", decision, actor, notes, json.dumps(corrected_payload) if corrected_payload else None, training_eligible, "conferência aprovada com citações válidas" if training_eligible else "sem payload corrigido elegível"),
             ).fetchone()
             connection.execute("UPDATE automacao_miller.documents SET status = %s, current_stage = %s, message = NULL, updated_at = NOW() WHERE submission_id = %s", (status, stage, submission_id))
         return dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "training_eligible", "requested_at", "reviewed_at"), [row[0], row[1], row[2], row[3], row[4], row[5], row[6].isoformat(), row[7].isoformat()]))
@@ -957,12 +957,14 @@ def review_submission(submission_id: str, payload: dict[str, Any], request: Requ
     item = store.get(submission_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
-    if item.status != "aguardando_revisao":
-        raise HTTPException(status_code=409, detail="O documento não está aguardando revisão.")
+    if item.status not in {"aguardando_revisao", "aguardando_envio"}:
+        raise HTTPException(status_code=409, detail="O documento não está disponível para conferência.")
     decision = payload.get("decision")
     notes = str(payload.get("notes", "")).strip()
     if decision not in {"liberar_envio", "reprocessar"}:
         raise HTTPException(status_code=422, detail="Decisão de revisão inválida.")
+    if item.status == "aguardando_envio" and decision == "reprocessar":
+        raise HTTPException(status_code=409, detail="O documento não está disponível para reprocessamento.")
     if not notes:
         raise HTTPException(status_code=422, detail="Informe uma observação para registrar a revisão.")
     corrected_payload = payload.get("corrected_payload")

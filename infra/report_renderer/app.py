@@ -237,20 +237,19 @@ def _attention_count(analysis: dict[str, Any]) -> int:
 
 def _confidence_label(status: Any) -> str:
     return {
-        "aceitavel": "Leitura preliminar sem alerta automático",
-        "baixa_confianca": "Leitura preliminar com revisão humana",
-        "inconclusivo": "Leitura preliminar inconclusiva",
+        "aceitavel": "Leitura técnica sem alerta de qualidade",
+        "baixa_confianca": "Leitura técnica com alerta de qualidade",
+        "inconclusivo": "Leitura técnica inconclusiva; alternativas preservadas",
     }.get(str(status), "Classificação de confiança não informada")
 
 
 def _summary_table(analysis: dict[str, Any], styles: dict[str, ParagraphStyle]) -> Table:
     confidence = analysis.get("controle_confianca") or {}
-    review = analysis.get("revisao_humana") or {}
     cells = [
         ("Achados estruturados", str(_finding_count(analysis))),
         ("Pontos de atenção", str(_attention_count(analysis))),
         ("Confiança", _confidence_label(confidence.get("status"))),
-        ("Revisão humana", "Necessária" if review.get("necessaria") else "Não sinalizada"),
+        ("Conferência humana", "Opcional"),
     ]
     table = Table(
         [
@@ -331,12 +330,11 @@ def _executive_summary(metadata: dict[str, Any], analysis: dict[str, Any]) -> li
     page_count = metadata.get("page_count", "não informado")
     finding_count = _finding_count(analysis)
     confidence = analysis.get("controle_confianca") or {}
-    review = analysis.get("revisao_humana") or {}
     if finding_count:
         opening = (
             f"A leitura do documento de {page_count} páginas localizou {finding_count} "
             "achados estruturados no recorte analisado. Eles estão organizados abaixo "
-            "para facilitar a conferência e o acompanhamento da operação."
+            "para orientar decisões e acelerar o acompanhamento da operação."
         )
     else:
         opening = (
@@ -345,17 +343,11 @@ def _executive_summary(metadata: dict[str, Any], analysis: dict[str, Any]) -> li
             "a conferência do PDF e do Markdown de origem."
         )
     status_text = _confidence_label(confidence.get("status"))
-    if review.get("necessaria") or confidence.get("status") in {"baixa_confianca", "inconclusivo"}:
-        decision = (
-            f"A classificação atual é: {status_text}. Antes de compartilhar este "
-            "resultado ou tomar uma decisão comercial, confira os achados no documento "
-            "original e registre a revisão humana no painel."
-        )
-    else:
-        decision = (
-            f"A classificação atual é: {status_text}. O relatório serve como síntese "
-            "para a conferência operacional e deve ser lido junto com o documento de origem."
-        )
+    decision = (
+        f"A classificação atual é: {status_text}. O relatório técnico está pronto "
+        "para orientar a equipe; as páginas e evidências ficam disponíveis para "
+        "confirmação opcional no documento de origem."
+    )
     scope = metadata.get("analysis_scope") or {}
     pages = scope.get("pages") if isinstance(scope, dict) else None
     if pages:
@@ -400,8 +392,8 @@ def _technical_opinion_lines(opinion: dict[str, Any]) -> list[str]:
     lines = [
         f"Escopo: {opinion.get('escopo', 'não informado')}",
         f"Classificação geral: {classification}",
-        f"Nível de risco preliminar: {risk}",
-        f"Conclusão preliminar: {opinion.get('conclusao_preliminar', 'não informada')}",
+        f"Nível de risco indicado: {risk}",
+        f"Conclusão técnica: {opinion.get('conclusao_preliminar', 'não informada')}",
     ]
     if opinion.get("base_ids"):
         lines.append(f"Base documental: {_value_text(opinion['base_ids'])}")
@@ -414,7 +406,7 @@ def _technical_opinion_table(opinion: dict[str, Any], styles: dict[str, Paragrap
     base_ids = _list_text(opinion.get("base_ids") or "Não informada")
     cells = [
         ("Classificação geral", classification),
-        ("Nível de risco preliminar", risk),
+        ("Nível de risco indicado", risk),
         ("Base documental", base_ids),
     ]
     table = Table(
@@ -469,7 +461,7 @@ def _page_decor(canvas: Any, document: Any) -> None:
     canvas.line(18 * mm, 13 * mm, A4[0] - 18 * mm, 13 * mm)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(colors.HexColor(MUTED))
-    canvas.drawString(18 * mm, 8 * mm, "Documento de apoio | análise regulatória preliminar")
+    canvas.drawString(18 * mm, 8 * mm, "Relatório técnico automatizado | uso interno")
     canvas.drawRightString(A4[0] - 18 * mm, 8 * mm, f"Página {document.page}")
     canvas.restoreState()
 
@@ -507,21 +499,21 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
     }
     confidence = analysis.get("controle_confianca") or {}
     review = analysis.get("revisao_humana") or {}
-    needs_review = bool(review.get("necessaria") or confidence.get("status") in {"baixa_confianca", "inconclusivo"})
-    status_label = "Revisão humana necessária" if needs_review else "Pronto para conferência"
+    quality_alert = bool(confidence.get("status") in {"baixa_confianca", "inconclusivo"})
+    status_label = "Conferência opcional de referências" if quality_alert else "Relatório técnico pronto"
     status_text = (
-        "O conteúdo pode orientar a conferência interna, mas deve ser validado no documento original antes de qualquer envio ou decisão."
-        if needs_review
-        else "A leitura automatizada não gerou alerta de confiança. Confira o documento original antes do uso externo."
+        "Há alertas de qualidade registrados. Use as páginas e evidências indicadas para confirmação quando isso agregar valor ao trabalho."
+        if quality_alert
+        else "A leitura automatizada foi concluída. As páginas e evidências ficam disponíveis para confirmação opcional."
     )
     story: list[Any] = [
         Spacer(1, 3 * mm),
         _paragraph("DB TECNOLOGIA", styles["brand"]),
         _paragraph("INTELIGÊNCIA DOCUMENTAL PARA DECISÕES MAIS RÁPIDAS", styles["eyebrow"]),
-        _paragraph("Relatório executivo de análise regulatória", styles["title"]),
-        _paragraph("Síntese técnica e operacional para conferência e acompanhamento comercial", styles["subtitle"]),
+        _paragraph("Relatório técnico executivo de análise regulatória", styles["title"]),
+        _paragraph("Síntese sênior automatizada para orientar decisões e acelerar o trabalho da equipe", styles["subtitle"]),
         HRFlowable(width="100%", thickness=1.2, color=colors.HexColor(BRAND_TEAL), spaceBefore=3, spaceAfter=8),
-        _notice_box("STATUS DA LEITURA", f"{status_label}. {status_text}", styles, SURFACE_GOLD if needs_review else SURFACE_TEAL),
+        _notice_box("STATUS DA LEITURA", f"{status_label}. {status_text}", styles, SURFACE_GOLD if quality_alert else SURFACE_TEAL),
         Spacer(1, 5 * mm),
         _section_heading("Identificação do documento", styles),
         _metadata_table(metadata, styles),
@@ -533,10 +525,10 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
     story.extend([_summary_table(analysis, styles), Spacer(1, 2 * mm)])
     story.append(_section_heading("O que isso significa na prática", styles))
     story.extend(_paragraph(f"- {text}", styles["body"]) for text in _practical_implications(analysis))
-    story.append(_section_heading("Parecer técnico preliminar", styles))
+    story.append(_section_heading("Parecer técnico", styles))
     opinion = _technical_opinion(analysis)
     if opinion is None:
-        story.append(_notice_box("LIMITAÇÃO", "O modelo não forneceu o bloco de análise técnica v2. Os achados abaixo permanecem como extração documental e não devem ser tratados como parecer.", styles))
+        story.append(_notice_box("LIMITAÇÃO", "O modelo não forneceu o bloco de análise técnica v3. Os achados abaixo permanecem como extração documental; confira as referências disponíveis quando necessário.", styles))
     else:
         story.append(_paragraph(f"Escopo analisado: {opinion.get('escopo', 'não informado')}", styles["muted"]))
         story.append(_technical_opinion_table(opinion, styles))
@@ -580,14 +572,14 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
 
     story.extend(
         [
-            _section_heading("Controle de confiança e revisão humana", styles),
+            _section_heading("Controle de qualidade e conferência opcional", styles),
             _paragraph(f"Leitura: {_confidence_label(confidence.get('status'))}", styles["body"]),
-            _paragraph(f"Revisão humana necessária: {'Sim' if review.get('necessaria') else 'Não'}", styles["body"]),
+            _paragraph("Conferência humana: Opcional", styles["body"]),
             _paragraph(f"Motivos: {_value_text(review.get('motivos', []))}", styles["body"]),
             _section_heading("Próximos passos recomendados", styles),
-            _paragraph("1. Conferir os achados no PDF original e no Markdown convertido.", styles["body"]),
-            _paragraph("2. Registrar a revisão humana quando houver baixa confiança, ambiguidade ou evidência incompleta.", styles["body"]),
-            _paragraph("3. Liberar o envio pelo painel somente depois da conferência dos destinatários e do conteúdo.", styles["body"]),
+            _paragraph("1. Usar as páginas e evidências indicadas para confirmação quando necessário.", styles["body"]),
+            _paragraph("2. Aplicar a síntese técnica para orientar a operação, o compliance e o acompanhamento comercial.", styles["body"]),
+            _paragraph("3. Solicitar o envio pelo painel após conferir os destinatários do relatório.", styles["body"]),
             Spacer(1, 2 * mm),
             _notice_box("RESPONSABILIDADE", "Material de apoio documental; não constitui parecer jurídico, médico ou regulatório definitivo.", styles, SURFACE_BLUE),
         ]

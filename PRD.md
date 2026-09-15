@@ -17,9 +17,9 @@ Na homologação anterior, a entrada e os artefatos ainda passavam pelo Google D
 Esta é a arquitetura aprovada para a próxima implementação; a migração deve
 ser concluída antes de considerar o repositório interno como operacional.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório padronizado e gerar um PDF final. O PostgreSQL será a fonte de verdade dos metadados, estados, tentativas, erros, vínculos, destinatários e entregas; o volume privado do Docker armazenará os arquivos. O envio por Gmail será solicitado manualmente pelo operador após a conferência dos artefatos.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório técnico padronizado com padrão de análise sênior e gerar um PDF final. O PostgreSQL será a fonte de verdade dos metadados, estados, tentativas, erros, vínculos, destinatários e entregas; o volume privado do Docker armazenará os arquivos. O envio por Gmail será solicitado manualmente pelo operador após a geração do relatório; a conferência das páginas e evidências será opcional e não bloqueará o fluxo.
 
-A IA deve atuar como ferramenta de apoio à leitura, classificação, organização e geração de relatórios. O sistema **não substitui análise humana especializada** em questões jurídicas, médicas ou regulatórias.
+A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
 
 ---
 
@@ -44,15 +44,19 @@ O produto deverá reduzir:
 
 Responsável por enviar documentos pela landing privada e consultar os resultados gerados.
 
-### 4.2 Revisor humano
+### 4.2 Equipe de conferência opcional
 
-Responsável por revisar casos classificados como:
+Pode conferir o relatório, as páginas e as evidências quando a equipe desejar:
 
 - baixa confiança;
 - conteúdo ambíguo;
 - informações contraditórias;
 - ausência de evidência suficiente;
 - falha parcial de extração ou análise.
+
+Essa conferência é um recurso operacional e não é pré-requisito para gerar,
+enviar ou disponibilizar o relatório. Falhas técnicas continuam sendo tratadas
+como erro e não como resultado válido.
 
 ### 4.3 Sistema automatizado
 
@@ -64,7 +68,7 @@ Responsável por:
 4. produzir o relatório;
 5. armazenar os artefatos;
 6. encaminhar o resultado por e-mail;
-7. registrar erros e casos que exigem revisão.
+7. registrar erros, alertas de qualidade e referências que merecem conferência opcional.
 
 ---
 
@@ -184,11 +188,17 @@ A saída da análise deve ser transformada em dados estruturados antes da geraç
 
 ### RF-07 — Controle de confiança
 
-O sistema deve possuir mecanismo de classificação ou sinalização de confiança da resposta.
+O sistema deve possuir mecanismo de classificação ou sinalização de confiança da
+resposta. Esse indicador deve aparecer no relatório para orientar a leitura, mas
+não deve bloquear a geração, o envio ou o download oficial quando as etapas
+técnicas forem concluídas.
 
-### RF-08 — Revisão humana
+### RF-08 — Conferência humana opcional
 
-Casos com baixa confiança, ambiguidade, informações contraditórias ou evidência insuficiente devem ser sinalizados para revisão humana.
+Casos com baixa confiança, ambiguidade, informações contraditórias ou evidência
+insuficiente devem ser sinalizados no relatório com linguagem clara, páginas
+disponíveis e limitações. A equipe pode conferir esses pontos pelo painel, mas a
+revisão humana não é obrigatória para concluir o processamento.
 
 ### RF-09 — Geração de relatório
 
@@ -208,15 +218,16 @@ vínculo de cada artefato.
 ### RF-12 — Envio manual por e-mail
 
 Depois de gerar e persistir o PDF final, o workflow deve colocar o documento em
-`aguardando_envio`. O operador autenticado deve visualizar os artefatos,
-selecionar os destinatários padrão ou substituí-los para aquele documento e
-solicitar o envio pelo Gmail. O status só pode mudar para `concluido` após a
-confirmação do Gmail; uma falha deve ser registrada em `email_deliveries` e
-permitir nova tentativa controlada.
+`aguardando_envio`, independentemente do indicador de confiança. O operador
+autenticado pode visualizar os artefatos, conferir páginas e evidências quando
+desejar, selecionar os destinatários padrão ou substituí-los para aquele
+documento e solicitar o envio pelo Gmail. O status só pode mudar para
+`concluido` após a confirmação do Gmail; uma falha deve ser registrada em
+`email_deliveries` e permitir nova tentativa controlada.
 
 ### RF-13 — Tratamento de erros
 
-O workflow deve possuir tratamento básico de erros para evitar que falhas silenciosas sejam consideradas processamento concluído. Falha na conversão PDF → Markdown deve interromper a extração e encaminhar o documento para erro ou revisão.
+O workflow deve possuir tratamento básico de erros para evitar que falhas silenciosas sejam consideradas processamento concluído. Falha na conversão PDF → Markdown deve interromper a extração e encaminhar o documento para erro. Alertas de qualidade, baixa confiança ou ausência de evidência devem ser registrados no relatório técnico e não podem ser confundidos com falha técnica.
 
 ### RF-14 — Rastreabilidade
 
@@ -224,15 +235,18 @@ Cada documento deve possuir estado de processamento identificável, permitindo d
 
 - recebido;
 - em processamento;
+- aguardando envio;
 - concluído;
-- aguardando revisão;
 - com erro.
+
+`aguardando_revisao` pode existir apenas como estado legado ou de compatibilidade;
+o fluxo atual não depende dele para concluir o relatório.
 
 ### RF-15 — Painel operacional autenticado
 
 O sistema deve oferecer login por sessão, painel de fila com busca, filtros,
-indicadores, detalhes do protocolo, linha do tempo, tentativas, erros, revisão
-humana e configuração de destinatários. O detalhe deve permitir visualizar o
+indicadores, detalhes do protocolo, linha do tempo, tentativas, erros, conferência
+opcional e configuração de destinatários. O detalhe deve permitir visualizar o
 relatório PDF, o Markdown e o JSON da análise antes do envio.
 
 ### RF-16 — Gateway de upload
@@ -244,9 +258,9 @@ protocolo ao n8n sem expor credenciais de integrações ao navegador.
 ### RF-17 — Download e visualização controlados
 
 As visualizações autenticadas podem ocorrer enquanto o documento aguarda envio
-ou revisão. O download oficial do relatório deve responder somente quando o
-documento estiver em `concluido`; nenhuma chave absoluta ou caminho do volume
-pode ser exposto ao navegador.
+ou possui um registro legado de revisão. O download oficial do relatório deve
+responder somente quando o documento estiver em `concluido`; nenhuma chave
+absoluta ou caminho do volume pode ser exposto ao navegador.
 
 ### RF-18 — Destinatários e auditoria de entrega
 
@@ -273,11 +287,16 @@ Nenhuma resposta do modelo deve ser apresentada como parecer jurídico, médico 
 
 ### RN-02 — Não inventar informação ausente
 
-Se o documento não fornecer evidência suficiente para determinada conclusão, o sistema deve registrar a ausência de evidência ou encaminhar para revisão.
+Se o documento não fornecer evidência suficiente para determinada conclusão, o
+sistema deve registrar a ausência de evidência, explicitar a limitação e
+apresentar as páginas disponíveis para conferência opcional.
 
-### RN-03 — Ambiguidade exige revisão
+### RN-03 — Ambiguidade deve ser explicitada
 
-Quando a saída possuir baixa confiança ou conteúdo contraditório, o fluxo não deve tratar o resultado como totalmente validado.
+Quando a saída possuir baixa confiança ou conteúdo contraditório, o fluxo deve
+preservar as versões conflitantes, sinalizar o nível de confiança e manter o
+relatório disponível. A conferência humana pode ocorrer depois, mas não é um
+gate obrigatório.
 
 ### RN-04 — Fonte primária é o documento processado
 
@@ -382,7 +401,7 @@ O relatório deve conter seções fixas para:
 7. estudos clínicos indeferidos;
 8. outros atos identificados;
 9. categorias não localizadas;
-10. erros, avisos e revisão humana;
+10. erros, avisos e conferência opcional;
 11. evidências por página.
 
 Para facilitar a leitura por equipes operacionais e comerciais, o relatório
@@ -391,11 +410,11 @@ achados traduzidos em implicações práticas de acompanhamento e indicar próxi
 passos. A redação pode explicar possíveis impactos em cadastro, registros,
 processos, prazos e comunicação interna, mas não deve criar impacto financeiro,
 jurídico ou regulatório que não esteja evidenciado no documento. O resumo deve
-preservar o status de confiança, os alertas e a necessidade de revisão humana.
+preservar o status de confiança, os alertas e as limitações encontradas.
 Cada achado exibido deve informar as páginas de origem. Quando a página não
 puder ser comprovada, o relatório deve indicar explicitamente que a referência
-está pendente e encaminhar o item para revisão humana, sem preencher a página
-por inferência.
+está pendente, sem preencher a página por inferência, e permitir conferência
+opcional pela equipe.
 
 Para estudos clínicos, o produto relacionado deve ser classificado como medicamento, suplemento, dispositivo, outro ou não identificado. O sistema não pode converter um dispositivo em medicamento ou suplemento por inferência.
 
@@ -426,9 +445,9 @@ O projeto contempla:
 - geração de relatórios;
 - conversão para PDF;
 - armazenamento automático;
-- envio manual por e-mail após conferência no painel;
+- envio manual por e-mail pelo painel, com conferência opcional;
 - tratamento básico de erros;
-- regra para revisão humana;
+- recurso opcional de conferência humana;
 - testes;
 - ajustes finais;
 - documentação básica de operação.
@@ -465,8 +484,12 @@ modelo. A importação de um modelo ajustado depende das métricas aprovadas.
 - A página e o trecho precisam pertencer ao documento atual e ser auditáveis.
 - Os únicos status são `deferido`, `indeferido`, `cancelado` e `outro`.
 - Cancelamento não é indeferimento; dispositivo não é medicamento ou suplemento por inferência.
-- Falha técnica interrompe a etapa e é registrada. Falha de qualidade gera rascunho com aviso e revisão humana.
-- Nenhum resultado com citação inválida pode ser marcado como validado ou concluído.
+- Falha técnica interrompe a etapa e é registrada. Falha de qualidade gera
+  relatório técnico com aviso, limitação e referências disponíveis; não bloqueia
+  o processamento quando não houver falha técnica.
+- Nenhum resultado com citação inválida pode ser apresentado como evidência
+  comprovada; o relatório deve marcar a referência como pendente, sem impedir a
+  conclusão operacional.
 
 ---
 
@@ -488,8 +511,8 @@ O MVP poderá ser considerado entregue quando:
 12. o relatório puder ser visualizado internamente antes do envio;
 13. o envio manual for confirmado pelo Gmail e registrado no PostgreSQL;
 14. um caso de falha de conversão impedir a extração e ser identificado;
-15. um caso de baixa confiança puder ser encaminhado para revisão;
-16. a fila, o detalhe, os destinatários e a revisão forem operáveis pela sessão autenticada;
+15. um caso de baixa confiança for identificado no relatório e puder ser conferido opcionalmente;
+16. a fila, o detalhe, os destinatários e a conferência opcional forem operáveis pela sessão autenticada;
 17. houver documentação mínima de operação;
 18. os testes de funcionamento definidos no repositório estiverem aprovados;
 19. a landing protegida aceitar um PDF, gerar protocolo e mostrar seu status;
@@ -502,7 +525,7 @@ O MVP poderá ser considerado entregue quando:
 Toda evolução do produto deve preservar:
 
 - rastreabilidade;
-- revisão humana para casos duvidosos;
+- conferência humana opcional para casos duvidosos;
 - separação entre conteúdo original e interpretação da IA;
 - possibilidade de troca do modelo;
 - documentação atualizada;

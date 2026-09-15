@@ -185,7 +185,7 @@ services:
       timeout: 10s
       retries: 10
       start_period: 45s
-    mem_limit: 1536m
+    mem_limit: 2048m
     networks: [internal]
 
 volumes:

@@ -72,7 +72,7 @@ def embedding(text: str) -> list[float]:
 def embeddings(texts: list[str], batch_size: int | None = None) -> list[list[float]]:
     if not texts:
         return []
-    size = batch_size or env_int("RAG_EMBEDDING_BATCH_SIZE", 32)
+    size = batch_size or env_int("RAG_EMBEDDING_BATCH_SIZE", 8)
     if size <= 0:
         raise ValueError("RAG_EMBEDDING_BATCH_SIZE deve ser positivo")
     url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/") + "/api/embed"
@@ -83,7 +83,7 @@ def embeddings(texts: list[str], batch_size: int | None = None) -> list[list[flo
         response = httpx.post(
             url,
             json={"model": os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"), "input": batch},
-            timeout=120,
+            timeout=300,
         )
         response.raise_for_status()
         values = response.json().get("embeddings")

@@ -498,7 +498,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ submission_id: $('Internal Storage - Prepare keys').item.json.submission_id, markdown: $('Internal Storage - Prepare keys').item.json.markdown, markdown_sha256: $('Internal Storage - Prepare keys').item.json.metadata.markdown_sha256 }) }}",
         "options": {
-          "timeout": 180000
+          "timeout": 900000
         }
       },
       "id": "rag---index-markdown",

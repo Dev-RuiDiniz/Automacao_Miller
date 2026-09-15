@@ -97,6 +97,8 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     normalize = next(node for node in workflow["nodes"] if node["name"] == "Normalize AI response")
     assert "format: 'json'" in ollama["parameters"]["jsonBody"]
     assert "ai_prompt" in ollama["parameters"]["jsonBody"]
+    assert "WORKFLOW_TIMEOUT_SECONDS" in ollama["parameters"]["options"]["timeout"]
+    assert "* 1000" in ollama["parameters"]["options"]["timeout"]
     assert "parecer_tecnico" in normalize["parameters"]["jsCode"]
     assert "campos inesperados" in normalize["parameters"]["jsCode"]
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")

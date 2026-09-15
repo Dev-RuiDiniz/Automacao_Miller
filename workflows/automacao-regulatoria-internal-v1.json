@@ -208,7 +208,7 @@
         "specifyBody": "json",
          "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0, num_predict: 4096 }, prompt: $('Prepare AI context').item.json.ai_prompt }) }}",
         "options": {
-          "timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 600000) }}"
+          "timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 3600) * 1000 }}"
         }
       },
       "id": "ollama-extract",

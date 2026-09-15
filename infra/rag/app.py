@@ -69,6 +69,34 @@ def embedding(text: str) -> list[float]:
     return [float(value) for value in values]
 
 
+def embeddings(texts: list[str], batch_size: int | None = None) -> list[list[float]]:
+    if not texts:
+        return []
+    size = batch_size or env_int("RAG_EMBEDDING_BATCH_SIZE", 32)
+    if size <= 0:
+        raise ValueError("RAG_EMBEDDING_BATCH_SIZE deve ser positivo")
+    url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434").rstrip("/") + "/api/embed"
+    expected = env_int("RAG_EMBEDDING_DIMENSION", 768)
+    result: list[list[float]] = []
+    for start in range(0, len(texts), size):
+        batch = texts[start : start + size]
+        response = httpx.post(
+            url,
+            json={"model": os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"), "input": batch},
+            timeout=120,
+        )
+        response.raise_for_status()
+        values = response.json().get("embeddings")
+        if not isinstance(values, list) or len(values) != len(batch):
+            raise RuntimeError("Ollama nao retornou embeddings para todo o lote")
+        for vector in values:
+            if not isinstance(vector, list) or len(vector) != expected:
+                actual = len(vector) if isinstance(vector, list) else 0
+                raise RuntimeError(f"Embedding com dimensao {actual}; esperado {expected}")
+            result.append([float(value) for value in vector])
+    return result
+
+
 def ensure_document(connection: psycopg.Connection, submission_id: str) -> None:
     if not connection.execute("SELECT 1 FROM automacao_miller.documents WHERE submission_id = %s", (submission_id,)).fetchone():
         raise HTTPException(status_code=404, detail="Documento não encontrado")
@@ -96,7 +124,7 @@ def index_markdown(payload: IndexRequest) -> dict[str, Any]:
         # A geracao dos embeddings pode demorar em documentos extensos.
         # Mantemos essa etapa fora de uma transacao para nao segurar locks
         # PostgreSQL enquanto o Ollama processa cada chunk.
-        vectors = [embedding(chunk.content) for chunk in chunks]
+        vectors = embeddings([chunk.content for chunk in chunks])
 
         with db_connection() as connection:
             ensure_document(connection, payload.submission_id)

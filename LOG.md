@@ -1607,3 +1607,25 @@ separada. Nenhum segredo foi adicionado ao versionamento.
 RAG está aplicada. O documento extenso continua sendo o principal gate técnico
 de desempenho e confiabilidade da homologação; falhas técnicas permanecem
 explícitas e não são convertidas em ausência de informação.
+
+## 2026-09-16 — Recuperação do acesso administrativo do n8n
+
+**Tipo:** SEGURANÇA / OPERAÇÃO / ACESSO
+**Status:** CONCLUÍDO
+
+**Contexto:** O acesso da conta proprietária do n8n não estava disponível para
+o operador. Foi utilizado o comando oficial `user-management:reset` e criada
+uma nova conta proprietária pela tela de configuração local do n8n.
+
+**Decisão/Ação:** O painel foi acessado e a lista de workflows foi carregada
+com sucesso. Workflows, credenciais de integração e dados operacionais foram
+preservados no volume do n8n. Os dados do novo acesso foram salvos apenas no
+arquivo local `N8N_ACESSO_LOCAL.txt`, protegido pelo ignore local do Git; nenhum
+segredo foi incluído neste registro, no repositório ou no GitHub.
+
+**Testes:** A tela inicial de configuração concluiu sem erro e o painel
+`/home/workflows` exibiu os workflows da instância autenticada.
+
+**Pendências:** Rotacionar novamente o acesso caso o arquivo local seja
+compartilhado ou perdido e concluir o hardening SSH da VPS em atividade
+separada.

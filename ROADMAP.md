@@ -676,3 +676,22 @@ interrompida antes do fechamento do ciclo.
 continuam disponíveis para uma futura camada opcional, mas deixam de ser
 critério de aceite do fluxo simplificado. A versão atual prioriza velocidade,
 clareza do relatório e rastreabilidade por página.
+
+## 33. Validação remota do fluxo simplificado — 2026-09-16
+
+- [x] Publicar o commit `0ea18ee` na VPS e validar `docker compose config`.
+- [x] Aplicar a migração aditiva `005_simple_report_flow.sql`.
+- [x] Reconstruir gateway/renderer e ativar o workflow interno de 22 nós.
+- [x] Reprocessar `2026_08_24_ASSINADO_do1.pdf` como tentativa 34 sem apagar
+      histórico ou artefatos anteriores.
+- [x] Gerar relatório Markdown e PDF com `regulatory-extraction-v3`, parecer,
+      recomendações e referências de páginas.
+- [x] Confirmar envio `enviado`, documento `concluido` e download oficial HTTP 200.
+- [x] Confirmar seis serviços saudáveis, quatro workflows operacionais ativos e
+      workflows históricos do Drive inativos.
+
+**Resultado:** o caminho linear foi validado ponta a ponta no DOU de 128 páginas.
+O teste final levou aproximadamente 3 minutos e 9 segundos entre o disparo e a
+conclusão do relatório, incluindo a inferência do modelo local. RAG, embeddings,
+JSON estruturado e `quality_checks` não foram executados por decisão de escopo
+do fluxo simplificado.

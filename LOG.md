@@ -1664,3 +1664,36 @@ n8n e executar o reprocessamento controlado do documento extenso.
 extração e a entrega, reduzindo o tempo de resposta e o risco de truncamento,
 sem remover rastreabilidade, persistência, controle de tentativas ou segurança
 do envio.
+
+## 2026-09-16 — Validação remota do fluxo linear
+
+**Tipo:** DEPLOY / HOMOLOGAÇÃO / VALIDAÇÃO
+**Status:** CONCLUÍDO
+
+**Contexto:** O commit `0ea18ee` foi publicado na `main` e aplicado na VPS. A
+janela operacional preservou banco, volume de artefatos, credenciais e os
+workflows existentes.
+
+**Decisão/Ação:** Foi aplicada a migração aditiva `005_simple_report_flow.sql`.
+Gateway e renderer foram reconstruídos. O workflow interno foi importado com 22
+nós e cinco vínculos de credenciais preservados por ID de nó, ativado e carregado
+após reinício do n8n. O workflow de envio, reconciliação e erros internos também
+permaneceu ativo; os históricos do Google Drive permaneceram inativos.
+
+**Testes:** O documento `2026_08_24_ASSINADO_do1.pdf` foi reprocessado como
+tentativa 34. A execução gerou `report-v34.md` e `report-v34.pdf`, registrou
+`prompt_version = regulatory-extraction-v3`, e o Markdown contém as seções de
+resumo, parecer técnico, achados, apontamentos, recomendações, limitações e
+referências de páginas. O envio de homologação foi registrado como `enviado`, o
+documento terminou em `concluido` e o download oficial retornou HTTP 200. Os seis
+serviços permaneceram saudáveis.
+
+**Pendências:** O fluxo simplificado não executa RAG, embeddings, JSON
+estruturado ou `quality_checks`; não há pendência nesses itens para este caminho.
+Eles permanecem disponíveis como capacidade opcional. Continuam pendentes o
+hardening SSH, a rotação da senha root e a matriz completa de falhas/retomadas.
+
+**Impacto:** O DOU extenso concluiu o ciclo sem o truncamento que afetava a
+saída JSON anterior. A arquitetura agora reduz chamadas intermediárias e entrega
+um artefato Markdown auditável e um PDF comercial, mantendo persistência,
+deduplicação, controle de tentativas, envio e download protegido.

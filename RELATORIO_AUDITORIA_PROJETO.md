@@ -687,3 +687,22 @@ reduzir latência e evitar o truncamento observado no modelo local. Isso signifi
 que chunks e recuperações não são critérios do fluxo atual. Persistência,
 deduplicação, retries, reconciliação, envio autenticado, estado `concluido` e
 download HTTP 200 continuam sendo requisitos operacionais.
+
+## Evidência de validação remota do fluxo linear
+
+Após a publicação do commit `0ea18ee`, a VPS foi atualizada sem remoção de
+volumes ou dados. A migração aditiva `005_simple_report_flow.sql` foi aplicada,
+o gateway e o renderer foram reconstruídos e o workflow interno foi importado
+com cinco vínculos de credenciais preservados por ID de nó.
+
+O documento `2026_08_24_ASSINADO_do1.pdf` foi reprocessado na tentativa 34. O
+resultado confirmou `report-v34.md`, `report-v34.pdf`, prompt
+`regulatory-extraction-v3`, parecer técnico, recomendações e referências de
+páginas. O envio de homologação terminou como `enviado`, o documento ficou em
+`concluido` e o download oficial respondeu HTTP 200. Os seis serviços ficaram
+saudáveis e os quatro workflows operacionais permaneceram ativos; os históricos
+do Google Drive permaneceram inativos.
+
+Neste fluxo, a ausência de novos chunks, recuperações RAG e `quality_checks` é
+intencional e não representa falha de validação: esses componentes foram
+retirados do caminho crítico para atender à simplificação solicitada.

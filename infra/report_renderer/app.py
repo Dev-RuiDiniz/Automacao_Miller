@@ -588,6 +588,79 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
     return buffer.getvalue()
 
 
+def _markdown_story(markdown: str, styles: dict[str, ParagraphStyle]) -> list[Any]:
+    story: list[Any] = []
+    for raw_line in str(markdown or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            story.append(Spacer(1, 2 * mm))
+            continue
+        clean = line.replace("**", "").replace("__", "").replace("`", "")
+        if clean.startswith("### "):
+            story.append(_paragraph(clean[4:], styles["heading3"]))
+        elif clean.startswith("## "):
+            story.append(_section_heading(clean[3:], styles))
+            story.append(Spacer(1, 1 * mm))
+        elif clean.startswith("# "):
+            story.append(_paragraph(clean[2:], styles["heading1"]))
+        elif clean.startswith(("- ", "* ")):
+            story.append(_paragraph("• " + clean[2:], styles["body"]))
+        elif clean.startswith("> "):
+            story.append(_notice_box("NOTA", clean[2:], styles))
+        else:
+            story.append(_paragraph(clean, styles["body"]))
+    return story
+
+
+def build_markdown_report_pdf(metadata: dict[str, Any], report_markdown: str) -> bytes:
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=22 * mm,
+        bottomMargin=17 * mm,
+        title=f"Relatório técnico - {metadata.get('source_filename', 'documento')}",
+        author="DB Tecnologia | Agente de Automação e Análise Regulatória",
+    )
+    base = getSampleStyleSheet()
+    styles = {
+        "brand": ParagraphStyle("MarkdownBrand", parent=base["Normal"], fontName="Helvetica-Bold", fontSize=10, textColor=colors.HexColor(BRAND_TEAL), spaceAfter=4),
+        "eyebrow": ParagraphStyle("MarkdownEyebrow", parent=base["Normal"], fontName="Helvetica-Bold", fontSize=7.5, textColor=colors.HexColor(BRAND_GOLD), spaceAfter=5),
+        "title": ParagraphStyle("MarkdownTitle", parent=base["Title"], fontName="Helvetica-Bold", fontSize=19, leading=23, textColor=colors.HexColor(BRAND_NAVY), spaceAfter=5),
+        "subtitle": ParagraphStyle("MarkdownSubtitle", parent=base["Normal"], fontSize=9.5, leading=13, textColor=colors.HexColor(MUTED), spaceAfter=8),
+        "heading1": ParagraphStyle("MarkdownHeading1", parent=base["Heading1"], fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=colors.HexColor(BRAND_NAVY), spaceBefore=7, spaceAfter=5),
+        "heading3": ParagraphStyle("MarkdownHeading3", parent=base["Heading3"], fontName="Helvetica-Bold", fontSize=10, leading=13, textColor=colors.HexColor(BRAND_TEAL), spaceBefore=5, spaceAfter=3),
+        "section_title": ParagraphStyle("MarkdownSection", parent=base["Heading2"], fontName="Helvetica-Bold", fontSize=10, leading=13, textColor=colors.HexColor(BRAND_NAVY), spaceBefore=5, spaceAfter=4),
+        "body": ParagraphStyle("MarkdownBody", parent=base["BodyText"], fontSize=9, leading=12.5, textColor=colors.HexColor(INK), spaceAfter=4),
+        "notice_label": ParagraphStyle("MarkdownNoticeLabel", parent=base["BodyText"], textColor=colors.HexColor(BRAND_GOLD), fontName="Helvetica-Bold", fontSize=7.5, leading=10),
+        "notice_body": ParagraphStyle("MarkdownNoticeBody", parent=base["BodyText"], textColor=colors.HexColor(INK), fontSize=8.8, leading=12),
+        "table_header": ParagraphStyle("MarkdownTableHeader", parent=base["BodyText"], fontSize=8, leading=10, textColor=colors.white),
+        "table_cell": ParagraphStyle("MarkdownTableCell", parent=base["BodyText"], fontSize=8, leading=10, textColor=colors.HexColor(INK)),
+    }
+    story: list[Any] = [
+        Spacer(1, 3 * mm),
+        _paragraph("DB TECNOLOGIA", styles["brand"]),
+        _paragraph("INTELIGÊNCIA DOCUMENTAL PARA DECISÕES MAIS RÁPIDAS", styles["eyebrow"]),
+        _paragraph("Relatório técnico executivo", styles["title"]),
+        _paragraph("Análise automatizada por especialista local com referências para conferência", styles["subtitle"]),
+        HRFlowable(width="100%", thickness=1.2, color=colors.HexColor(BRAND_TEAL), spaceBefore=3, spaceAfter=8),
+        _section_heading("Identificação do documento", styles),
+        _metadata_table(metadata, styles),
+        Spacer(1, 5 * mm),
+    ]
+    story.extend(_markdown_story(report_markdown, styles))
+    story.extend(
+        [
+            Spacer(1, 4 * mm),
+            _notice_box("RESPONSABILIDADE", "Material de apoio documental; não constitui parecer jurídico, médico ou regulatório definitivo.", styles, SURFACE_BLUE),
+        ]
+    )
+    document.build(story, onFirstPage=_page_decor, onLaterPages=_page_decor)
+    return buffer.getvalue()
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok", "service": "report-renderer", "version": REPORT_VERSION}
@@ -600,6 +673,20 @@ def render_report(payload: dict[str, Any]) -> Response:
     if not isinstance(metadata, dict) or not isinstance(analysis, dict):
         raise HTTPException(status_code=422, detail="metadata e analysis sao obrigatorios")
     pdf = build_report_pdf(metadata, analysis)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"X-Report-Version": REPORT_VERSION},
+    )
+
+
+@app.post("/v1/render-markdown")
+def render_markdown_report(payload: dict[str, Any]) -> Response:
+    metadata = payload.get("metadata")
+    report_markdown = payload.get("report_markdown")
+    if not isinstance(metadata, dict) or not isinstance(report_markdown, str) or not report_markdown.strip():
+        raise HTTPException(status_code=422, detail="metadata e report_markdown sao obrigatorios")
+    pdf = build_markdown_report_pdf(metadata, report_markdown)
     return Response(
         content=pdf,
         media_type="application/pdf",

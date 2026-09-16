@@ -1629,3 +1629,38 @@ segredo foi incluído neste registro, no repositório ou no GitHub.
 **Pendências:** Rotacionar novamente o acesso caso o arquivo local seja
 compartilhado ou perdido e concluir o hardening SSH da VPS em atividade
 separada.
+
+## 2026-09-16 — Simplificação do pipeline de relatório
+
+**Tipo:** DECISÃO / ARQUITETURA / PERFORMANCE
+**Status:** IMPLEMENTADO LOCALMENTE; PUBLICAÇÃO E VALIDAÇÃO REMOTA PENDENTES
+
+**Contexto:** O processamento do DOU extenso permaneceu lento e a geração JSON
+do modelo local falhou por truncamento de contexto. Foi solicitada uma solução
+mais direta, sem revisão humana como pré-requisito operacional.
+
+**Decisão/Ação:** O workflow interno foi reduzido para PDF → Markdown → prompt
+do especialista → relatório Markdown → PDF. O prompt `regulatory-extraction-v3`
+produz somente Markdown, com linguagem técnica sênior, parecer, apontamentos,
+recomendações, limitações e referências de páginas. O relatório Markdown é
+persistido como `report_markdown` antes da renderização do PDF. RAG, embeddings,
+JSON estruturado e `quality_checks` foram retirados do caminho crítico, mas os
+componentes permanecem versionados para evolução futura.
+
+**Arquivos/Componentes afetados:** `workflows/automacao-regulatoria-internal-v1.json`,
+`infra/report_renderer/app.py`, `infra/upload_gateway/app.py`,
+`infra/upload_gateway/static/submission.html`, `deploy/postgres/init/005_simple_report_flow.sql`,
+testes e documentação de governança.
+
+**Testes:** A validação local do workflow e do renderer Markdown será executada
+antes do commit. A validação remota deve confirmar o documento DOU real, o envio,
+o estado `concluido` e o download oficial HTTP 200.
+
+**Pendências:** Publicar na VPS, aplicar a migração aditiva, reconstruir gateway
+e renderer, importar o workflow preservando credenciais por node ID, reiniciar o
+n8n e executar o reprocessamento controlado do documento extenso.
+
+**Impacto:** O fluxo passa a ter menos chamadas e menos transformações entre a
+extração e a entrega, reduzindo o tempo de resposta e o risco de truncamento,
+sem remover rastreabilidade, persistência, controle de tentativas ou segurança
+do envio.

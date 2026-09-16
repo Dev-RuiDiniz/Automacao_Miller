@@ -27,7 +27,7 @@ from infra.regulatory_analysis.quality import validate_analysis
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
 STATUSES = {"recebido", "processando", "aguardando_revisao", "aguardando_envio", "concluido", "erro"}
-ARTIFACT_TYPES = {"original_pdf", "markdown", "analysis_json", "report_pdf"}
+ARTIFACT_TYPES = {"original_pdf", "markdown", "analysis_json", "report_markdown", "report_pdf"}
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 MAX_RECIPIENTS = 50
 STATIC_DIR = Path(__file__).with_name("static")
@@ -889,6 +889,12 @@ def view_artifact(submission_id: str, artifact_type: str, disposition: str = "in
     content_disposition = "attachment" if disposition == "download" else "inline"
     if artifact_type in {"original_pdf", "report_pdf"}:
         return Response(path.read_bytes(), media_type="application/pdf", headers={"Content-Disposition": f'{content_disposition}; filename="{filename}"'})
+    if artifact_type == "report_markdown":
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise HTTPException(status_code=422, detail="Invalid report Markdown.") from exc
+        return Response(content, media_type="text/markdown", headers={"Content-Disposition": f'{content_disposition}; filename="{filename}"'})
     if artifact_type == "analysis_json":
         try:
             content = json.dumps(json.loads(path.read_text(encoding="utf-8")), ensure_ascii=False, indent=2)

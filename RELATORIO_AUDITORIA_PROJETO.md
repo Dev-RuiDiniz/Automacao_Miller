@@ -664,3 +664,26 @@ O coletor autenticado usa DOU_INLABS_EMAIL e DOU_INLABS_PASSWORD apenas no ambie
 O projeto já oferece uma base sólida para transformar a análise documental regulatória em um processo operacional repetível, com rastreabilidade e supervisão humana. A principal decisão para a próxima etapa não é criar mais funcionalidades básicas, mas concluir a governança de produção: segurança da VPS, ativação controlada, validação dos casos reais, retomada após falhas e aceite formal dos resultados.
 
 Com esses gates concluídos, a solução pode ser apresentada como uma plataforma interna de apoio à leitura regulatória, capaz de acelerar a triagem e a organização de documentos sem perder a evidência, a auditoria e a possibilidade de conferência opcional pela equipe.
+
+## Atualização de arquitetura — fluxo linear de relatório
+
+Em 16/09/2026, o caminho crítico foi simplificado para eliminar processamento
+redundante em documentos extensos:
+
+```text
+PDF -> Markdown paginado -> prompt do especialista -> relatório Markdown -> PDF
+```
+
+O Markdown convertido é persistido e serve como fonte única do prompt
+`regulatory-extraction-v3`. A IA entrega um relatório técnico em Markdown, com
+parecer, achados, apontamentos, recomendações, limitações e referências de
+página. O renderer transforma esse resultado no PDF comercial final. O
+`report_markdown` e o `report_pdf` ficam associados à tentativa e ao SHA-256 do
+documento.
+
+RAG, embeddings, JSON estruturado e `quality_checks` continuam no repositório
+para compatibilidade e evolução, mas foram retirados do caminho ativo para
+reduzir latência e evitar o truncamento observado no modelo local. Isso significa
+que chunks e recuperações não são critérios do fluxo atual. Persistência,
+deduplicação, retries, reconciliação, envio autenticado, estado `concluido` e
+download HTTP 200 continuam sendo requisitos operacionais.

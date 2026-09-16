@@ -658,3 +658,21 @@ pequeno foi aprovado ponta a ponta e a tentativa extensa do DOU ficou em
 processamento para retomada/acompanhamento. A ausência de resultado final do DOU
 não deve ser interpretada como aprovação ou falha de conteúdo; a validação foi
 interrompida antes do fechamento do ciclo.
+
+## 32. Simplificação do fluxo ativo — 2026-09-16
+
+- [x] Reduzir o caminho crítico para PDF → Markdown → prompt do especialista →
+      relatório Markdown → PDF.
+- [x] Manter PostgreSQL, volume privado, deduplicação, tentativas e envio manual
+      como controles operacionais.
+- [x] Retirar JSON, indexação RAG, recuperação semântica e `quality_checks` do
+      caminho crítico para evitar processamento redundante e truncamento.
+- [x] Persistir `report_markdown` e disponibilizar o artefato pelo gateway.
+- [x] Adicionar renderização direta de Markdown para PDF no renderer.
+- [ ] Publicar o workflow simplificado na VPS e reprocessar o DOU de 128 páginas.
+- [ ] Confirmar envio, estado `concluido` e download HTTP 200 do documento real.
+
+**Decisão de arquitetura:** RAG, embeddings, JSON estruturado e `quality_checks`
+continuam disponíveis para uma futura camada opcional, mas deixam de ser
+critério de aceite do fluxo simplificado. A versão atual prioriza velocidade,
+clareza do relatório e rastreabilidade por página.

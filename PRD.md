@@ -554,3 +554,29 @@ documento independente, com data, seção, edição, URL e SHA-256. O corpus ser
 como referência RAG e fila de candidatos; nenhum documento bruto entra
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
+
+## Decisão vigente sobre o fluxo operacional — 2026-09-16
+
+Para reduzir tempo, custo de processamento e pontos de falha, o caminho ativo do
+produto é deliberadamente linear:
+
+```text
+PDF recebido -> Markdown paginado -> prompt do especialista regulatório
+             -> relatório técnico Markdown -> PDF final -> envio/download
+```
+
+O relatório Markdown é o resultado técnico principal; o PDF é a apresentação
+final para distribuição. O prompt ativo é `regulatory-extraction-v3` e produz
+somente Markdown, com parecer técnico, achados, recomendações, limitações e
+referências de página. O modelo usa apenas o Markdown persistido e deve declarar
+quando a evidência for insuficiente.
+
+JSON estruturado, RAG, embeddings e `quality_checks` permanecem versionados para
+compatibilidade, auditoria e evolução futura, mas não fazem parte do caminho
+crítico vigente nem bloqueiam a entrega. Os itens de aceite que exigem JSON,
+RAG ou revisão humana como etapa operacional ficam substituídos por este fluxo
+linear. A revisão humana continua disponível como conferência opcional.
+
+Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
+reconciliação, classificação de erros, envio autenticado e download somente após
+`concluido` continuam obrigatórios.

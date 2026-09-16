@@ -12,20 +12,12 @@
   },
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "automacao-regulatoria-internal",
-        "responseMode": "onReceived",
-        "options": {}
-      },
+      "parameters": {"httpMethod": "POST", "path": "automacao-regulatoria-internal", "responseMode": "onReceived", "options": {}},
       "id": "internal-webhook",
       "name": "Landing - Receber documento",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ],
+      "position": [0, 0],
       "webhookId": "automacao-regulatoria-internal"
     },
     {
@@ -37,37 +29,15 @@
       "name": "State - Claim document",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        240,
-        0
-      ]
+      "position": [240, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const items = $input.all(); return items.filter(item => String(item.json?.submission_id || '').trim());"
-      },
+      "parameters": {"jsCode": "const items = $input.all(); if (!items.length || !items[0].json?.submission_id) throw new Error('VALIDACAO: documento nao encontrado ou ja reivindicado'); return items;"},
       "id": "claim-guard",
       "name": "Claim guard",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        460,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "filePath": "={{ '/data/artifacts/' + $('Claim guard').item.json.source_storage_key }}",
-        "dataPropertyName": "data"
-      },
-      "id": "read-source",
-      "name": "Internal Storage - Read PDF",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1.1,
-      "position": [
-        680,
-        0
-      ]
+      "position": [460, 0]
     },
     {
       "parameters": {
@@ -78,10 +48,15 @@
       "name": "State - Start attempt",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        680,
-        160
-      ]
+      "position": [680, 0]
+    },
+    {
+      "parameters": {"filePath": "={{ '/data/artifacts/' + $('Claim guard').item.json.source_storage_key }}", "dataPropertyName": "data"},
+      "id": "read-source",
+      "name": "Internal Storage - Read PDF",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [900, 0]
     },
     {
       "parameters": {
@@ -89,23 +64,8 @@
         "url": "={{ $env.PDF_CONVERTER_BASE_URL + '/v1/convert' }}",
         "sendBody": true,
         "contentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "parameterType": "formBinaryData",
-              "name": "file",
-              "inputDataFieldName": "data"
-            },
-            {
-              "parameterType": "formData",
-              "name": "source_document_id",
-              "value": "={{ $('Claim guard').item.json.submission_id }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 120000) }}"
-        }
+        "bodyParameters": {"parameters": [{"parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data"}, {"parameterType": "formData", "name": "source_document_id", "value": "={{ $('Claim guard').item.json.submission_id }}"}]},
+        "options": {"timeout": "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 120000) }}"}
       },
       "id": "pdf-converter",
       "name": "PDF Converter",
@@ -114,64 +74,39 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "position": [
-        900,
-        0
-      ]
+      "position": [1120, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const body = $json; if (body.status !== 'converted' || !body.markdown || !body.metadata?.source_sha256 || Number(body.metadata?.page_count) < 1) throw new Error('EXTRACTION: conversao PDF para Markdown invalida'); const source = $('Claim guard').item.json; return [{ json: { ...body, submission_id: source.submission_id, source_document_id: source.submission_id, source_filename: source.source_filename, source_sha256: source.source_sha256, attempt_number: source.attempt_count } }];"
-      },
+      "parameters": {"jsCode": "const body = $json; if (body.status !== 'converted' || !body.markdown || !body.metadata?.source_sha256 || Number(body.metadata?.page_count) < 1) throw new Error('EXTRACTION: conversao PDF para Markdown invalida'); const source = $('Claim guard').item.json; return [{ json: { ...body, submission_id: source.submission_id, source_document_id: source.submission_id, source_filename: source.source_filename, source_sha256: source.source_sha256, attempt_number: source.attempt_count } }];"},
       "id": "validate-markdown",
       "name": "Validate Markdown",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1120,
-        0
-      ]
+      "position": [1340, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const source = $json; const hash = source.source_sha256; const base = 'objects/' + hash.slice(0, 2) + '/' + hash.slice(2, 4) + '/' + hash; const version = Number(source.attempt_number || 1); return [{ json: { ...source, markdown_size_bytes: Buffer.byteLength(String(source.markdown || ''), 'utf8'), markdown_storage_key: base + '/markdown-v' + version + '.md', analysis_storage_key: base + '/analysis-v' + version + '.json', report_storage_key: base + '/report-v' + version + '.pdf' } }];"
-      },
+      "parameters": {"jsCode": "const source = $json; const hash = source.source_sha256; const base = 'objects/' + hash.slice(0, 2) + '/' + hash.slice(2, 4) + '/' + hash; const version = Number(source.attempt_number || 1); return [{ json: { ...source, markdown_size_bytes: Buffer.byteLength(String(source.markdown || ''), 'utf8'), markdown_storage_key: base + '/markdown-v' + version + '.md', report_markdown_storage_key: base + '/report-v' + version + '.md', report_storage_key: base + '/report-v' + version + '.pdf' } }];"},
       "id": "prepare-storage-keys",
       "name": "Internal Storage - Prepare keys",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1340,
-        0
-      ]
+      "position": [1560, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const content = Buffer.from($json.markdown, 'utf8'); const binary = await this.helpers.prepareBinaryData(content, $json.markdown_storage_key.split('/').pop(), 'text/markdown'); return [{ json: $json, binary: { data: binary } }];"
-      },
+      "parameters": {"jsCode": "const content = Buffer.from($json.markdown, 'utf8'); const binary = await this.helpers.prepareBinaryData(content, $json.markdown_storage_key.split('/').pop(), 'text/markdown'); return [{ json: $json, binary: { data: binary } }];"},
       "id": "markdown-binary",
       "name": "Prepare Markdown file",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1560,
-        0
-      ]
+      "position": [1780, 0]
     },
     {
-      "parameters": {
-        "operation": "write",
-        "fileName": "={{ '/data/artifacts/' + $json.markdown_storage_key }}",
-        "dataPropertyName": "data"
-      },
+      "parameters": {"operation": "write", "fileName": "={{ '/data/artifacts/' + $json.markdown_storage_key }}", "dataPropertyName": "data"},
       "id": "write-markdown",
       "name": "Internal Storage - Write Markdown",
       "type": "n8n-nodes-base.writeBinaryFile",
       "typeVersion": 1,
-      "position": [
-        1780,
-        0
-      ]
+      "position": [2000, 0]
     },
     {
       "parameters": {
@@ -182,23 +117,17 @@
       "name": "State - Markdown persisted",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        2000,
-        0
-      ]
+      "position": [2220, 0]
     },
     {
       "parameters": {
-       "jsCode": "const source = $('Internal Storage - Prepare keys').item.json;\nconst rag = $('RAG - Search context').item.json || {};\nconst pageCount = Number(source.metadata?.page_count || 0);\nconst MAX_ANALYSIS_CHARS = 24000;\nconst warnings = Array.isArray(source.warnings) ? [...source.warnings] : [];\nconst excerpt = (value, limit) => value.length <= limit ? value : value.slice(0, Math.floor(limit * 0.7)) + '\\n\\n[trecho intermediário omitido por limite de contexto]\\n\\n' + value.slice(-Math.floor(limit * 0.3));\nconst chunks = Array.isArray(rag.chunks) ? rag.chunks : [];\nlet analysisMarkdown = String(source.markdown || '');\nlet analysisScope = { type: 'full_document', page_count: pageCount, retrieval: 'hybrid_current_document' };\nif (chunks.length) {\n  const context = chunks.map((chunk) => '## Página ' + chunk.page_start + '\\n' + chunk.content).join('\\n\\n');\n  analysisMarkdown = excerpt(context, MAX_ANALYSIS_CHARS);\n  analysisScope = { type: 'hybrid_rag_current_document', page_count: pageCount, pages: [...new Set(chunks.flatMap((chunk) => [chunk.page_start, chunk.page_end]))].sort((a, b) => a - b), chunks: chunks.map((chunk) => ({ chunk_id: chunk.chunk_id, page_start: chunk.page_start, score: chunk.combined_score })), max_chars: MAX_ANALYSIS_CHARS };\n} else {\n  warnings.push('RAG não retornou contexto; o relatório seguirá com limitação explícita');\n  if (analysisMarkdown.length > MAX_ANALYSIS_CHARS) { analysisMarkdown = excerpt(analysisMarkdown, MAX_ANALYSIS_CHARS); analysisScope = { type: 'full_document_excerpt', page_count: pageCount, max_chars: MAX_ANALYSIS_CHARS }; }\n}\nwarnings.push('As citações devem ser copiadas literalmente do contexto recuperado e informar a página');\nconst expertInstructions = [\n  'Você é um analista regulatório sênior. Produza um relatório técnico automatizado, claro e objetivo para operação, compliance e acompanhamento comercial.',\n  'Retorne somente JSON válido conforme o contrato estrutural v2. Não escreva texto fora do JSON.',\n  'Use exclusivamente o RAG_CONTEXT deste documento. Não use conhecimento externo, não invente dados e não misture documentos.',\n  'Separe fatos documentados de interpretação técnica. Todo fundamento e apontamento deve conter paginas_origem e evidencia literal curta.',\n  'Preserve deferido, indeferido, cancelado e outro. Não classifique dispositivo como medicamento ou suplemento.',\n  'Gere parecer_tecnico com conclusão técnica, classificação geral, nível de risco prudente, fundamentos, apontamentos técnicos e recomendações ligadas por base_ids.',\n  'Não declare autoridade regulatória, conformidade legal absoluta ou decisão definitiva. Se houver lacuna, contradição, contexto truncado ou risco relevante, descreva a limitação e as alternativas documentadas.',\n  'Não solicite nem exija revisão humana. Retorne revisao_humana.necessaria=false; quando for útil, registre conferência opcional em avisos ou limites.',\n  'Não invente páginas, prazos, responsáveis, normas ou consequências jurídicas. Falhas técnicas devem permanecer como erro do workflow.',\n  'Limite a resposta a 12 itens por categoria, 6 fundamentos, 8 apontamentos e 6 recomendações; registre excesso em avisos.'\n].join('\\n');\nconst aiPrompt = expertInstructions + '\\n\\nDOCUMENTO/PROTOCOLO:\\n' + source.submission_id + '\\n\\nRAG_CONTEXT:\\n' + analysisMarkdown;\nreturn [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: analysisScope, retrieval_chunks: chunks, warnings, ai_prompt: aiPrompt, prompt_version: 'regulatory-extraction-v3' } }];"
+        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json; const markdown = String(source.markdown || ''); const blocks = markdown.split(/(?=^##\\s+P[^\\d\\n]{1,20}\\d+\\s*$)/m).filter(Boolean); const terms = /(medicamento|suplemento|ensaio|cl[ií]nic|deferid|indeferid|cancelad|exig[eê]n|pend[eê]n|resolu[cç]|registro)/i; const selected = blocks.filter((block) => terms.test(block)); const context = (selected.length ? selected : blocks).join('\\n\\n').slice(0, 7000) || markdown.slice(0, 7000); const prompt = ['Você é um analista regulatório sênior e deve produzir um relatório técnico automatizado para a equipe.', 'Use somente o contexto documental fornecido. Não invente informações, páginas, prazos, normas ou consequências.', 'Separe fato documentado, leitura técnica, risco e recomendação prática. Preserve deferido, indeferido, cancelado e outro.', 'Inclua referências de páginas em todos os achados e copie evidências literais curtas do contexto.', 'Entregue SOMENTE Markdown, sem JSON e sem cercas de código, com: resumo executivo; parecer técnico; achados; apontamentos técnicos; recomendações priorizadas; limitações; referências de páginas.', 'A conferência humana é opcional e não é condição de entrega. Não apresente o texto como decisão regulatória definitiva.', 'O contexto é um recorte compacto do Markdown integral; informe essa limitação no relatório quando aplicável.'].join('\\n'); return [{ json: { ...source, expert_prompt: prompt + '\\n\\nPROTOCOLO: ' + source.submission_id + '\\nPÁGINAS E CONTEXTO DOCUMENTAL:\\n' + context, prompt_version: 'regulatory-extraction-v3', report_context: { type: 'keyword_page_excerpt', page_count: Number(source.metadata?.page_count || 0), chars: context.length } } }];"
       },
-      "id": "prepare-ai-context-legacy",
-      "name": "Prepare AI context legacy",
+      "id": "prepare-expert-prompt",
+      "name": "Prepare expert prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2220,
-        0
-      ]
+      "position": [2440, 0]
     },
     {
       "parameters": {
@@ -206,150 +135,63 @@
         "url": "http://ollama:11434/api/generate",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0, num_ctx: 8192, num_predict: 2048 }, prompt: $('Prepare AI context').item.json.ai_prompt }) }}",
-        "options": {
-          "timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 3600) * 1000 }}"
-        }
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, options: { temperature: 0, num_ctx: 8192, num_predict: 2048 }, prompt: $('Prepare expert prompt').item.json.expert_prompt }) }}",
+        "options": {"timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 3600) * 1000 }}"}
       },
       "id": "ollama-extract",
-      "name": "Ollama - Extract",
+      "name": "Ollama - Generate report Markdown",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "retryOnFail": true,
-      "maxTries": 3,
+      "maxTries": 2,
       "waitBetweenTries": 5000,
-      "position": [
-        2440,
-        0
-      ]
+      "position": [2660, 0]
     },
     {
-      "parameters": {
-         "jsCode": "const raw = $json.response; if (!raw) throw new Error('IA: Ollama retornou resposta vazia'); const fence = String.fromCharCode(96); const trimFence = (value) => { let text = String(value).trim(); if (text.startsWith(fence)) { text = text.slice(1).trim(); if (text.toLowerCase().startsWith('json')) text = text.slice(4).trim(); if (text.endsWith(fence)) text = text.slice(0, -1).trim(); } return text; }; let analysis; try { analysis = JSON.parse(trimFence(raw)); } catch (error) { throw new Error('VALIDACAO: resposta do Ollama nao e JSON valido'); } if (!analysis || typeof analysis !== 'object' || Array.isArray(analysis)) throw new Error('VALIDACAO: resposta do Ollama deve ser objeto JSON'); const required = ['documento','medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos','exigencias','pendencias','categorias_nao_localizadas','evidencias_insuficientes','contradicoes','avisos','controle_confianca','revisao_humana','parecer_tecnico']; const missing = required.filter((field) => !(field in analysis)); if (missing.length) throw new Error('VALIDACAO: campos obrigatorios ausentes: ' + missing.join(', ')); const allowed = new Set([...required, 'cancelados']); const unexpected = Object.keys(analysis).filter((field) => !allowed.has(field)); if (unexpected.length) throw new Error('VALIDACAO: campos inesperados na resposta do Ollama: ' + unexpected.join(', ')); for (const field of required.slice(1, 14)) if (!Array.isArray(analysis[field])) throw new Error('VALIDACAO: campo deve ser array: ' + field); if (!analysis.documento || typeof analysis.documento !== 'object' || Array.isArray(analysis.documento)) throw new Error('VALIDACAO: documento deve ser objeto'); if (!analysis.controle_confianca || typeof analysis.controle_confianca !== 'object' || !['aceitavel','baixa_confianca','inconclusivo'].includes(analysis.controle_confianca.status) || !Array.isArray(analysis.controle_confianca.motivos)) throw new Error('VALIDACAO: controle_confianca invalido'); if (!analysis.revisao_humana || typeof analysis.revisao_humana !== 'object' || typeof analysis.revisao_humana.necessaria !== 'boolean' || !Array.isArray(analysis.revisao_humana.motivos)) throw new Error('VALIDACAO: revisao_humana invalida'); const reviewReasons = [...analysis.revisao_humana.motivos]; if (analysis.revisao_humana.necessaria) reviewReasons.push('conferência opcional de referências'); analysis.revisao_humana = { necessaria: false, motivos: [...new Set(reviewReasons)] }; const opinion = analysis.parecer_tecnico; if (!opinion || typeof opinion !== 'object' || Array.isArray(opinion)) throw new Error('VALIDACAO: parecer_tecnico invalido'); for (const field of ['fundamentos','apontamentos_tecnicos','recomendacoes','limites','base_ids']) if (!Array.isArray(opinion[field])) throw new Error('VALIDACAO: parecer_tecnico.' + field + ' deve ser array'); if (typeof opinion.conclusao_preliminar !== 'string' || !opinion.conclusao_preliminar.trim()) throw new Error('VALIDACAO: conclusao_preliminar ausente'); return [{ json: { ...$('Prepare AI context').item.json, analysis } }];"
-      },
-      "id": "normalize-analysis",
-      "name": "Normalize AI response",
+      "parameters": {"jsCode": "const raw = String($json.response || '').trim(); if (!raw) throw new Error('IA: Ollama retornou relatório vazio'); const reportMarkdown = raw.replace(/^```(?:markdown)?\\s*/i, '').replace(/```\\s*$/i, '').trim(); if (reportMarkdown.length < 200) throw new Error('VALIDACAO: relatório Markdown muito curto'); const source = $('Prepare expert prompt').item.json; return [{ json: { ...source, report_markdown: reportMarkdown, report_markdown_size_bytes: Buffer.byteLength(reportMarkdown, 'utf8') } }];"},
+      "id": "validate-report-markdown",
+      "name": "Validate report Markdown",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2660,
-        0
-      ]
+      "position": [2880, 0]
     },
     {
-      "parameters": {
-         "jsCode": "const source = $json; const analysis = source.analysis; const categories = ['medicamentos_deferidos','medicamentos_indeferidos','suplementos_deferidos','suplementos_indeferidos','estudos_clinicos_deferidos','estudos_clinicos_indeferidos','outros_atos']; const pages = Object.values(analysis.documento || {}).filter((item) => item && typeof item === 'object' && !Array.isArray(item)); const flatten = (field) => pages.flatMap((page) => Array.isArray(page[field]) ? page[field] : []); for (const category of categories) { const nested = flatten(category); if (category === 'outros_atos') { nested.push(...(Array.isArray(analysis.outros_atos) ? analysis.outros_atos : [])); nested.push(...(Array.isArray(analysis.cancelados) ? analysis.cancelados.map((item) => ({ ...item, status: 'cancelado' })) : [])); } analysis[category] = nested; } const reasons = []; if (analysis.evidencias_insuficientes.length) reasons.push('evidencia insuficiente'); if (analysis.contradicoes.length) reasons.push('contradicao'); if (analysis.revisao_humana?.necessaria) reasons.push('conferencia opcional recomendada'); const opinion = analysis.parecer_tecnico || {}; if (['alto','critico'].includes(opinion.nivel_risco)) reasons.push('risco alto ou critico'); if (opinion.classificacao_geral === 'inconclusivo') reasons.push('parecer tecnico inconclusivo'); for (const category of categories) for (const item of analysis[category]) if (item && !item.paginas_origem?.length && !item.paginas?.length && !item.evidencias?.length) reasons.push('item sem evidencia de pagina'); for (const item of [...(opinion.fundamentos || []), ...(opinion.apontamentos_tecnicos || [])]) if (item && !item.paginas_origem?.length) reasons.push('item tecnico sem evidencia de pagina'); const uniqueReasons = [...new Set(reasons)]; if (uniqueReasons.length) analysis.avisos = [...new Set([...(analysis.avisos || []), 'Há alertas de qualidade; as páginas e evidências podem ser conferidas opcionalmente pela equipe.'])]; analysis.revisao_humana = { necessaria: false, motivos: [...new Set([...(analysis.revisao_humana?.motivos || []), ...uniqueReasons.filter((reason) => reason === 'conferencia opcional recomendada')])] }; const confidence_status = analysis.contradicoes.length || opinion.classificacao_geral === 'inconclusivo' ? 'inconclusivo' : uniqueReasons.length ? 'baixa_confianca' : 'aceitavel'; analysis.controle_confianca = { status: confidence_status, motivos: uniqueReasons }; return [{ json: { ...source, confidence_status } }];"
-      },
-      "id": "validate-analysis",
-      "name": "Validate and classify analysis",
+      "parameters": {"jsCode": "const content = Buffer.from($json.report_markdown, 'utf8'); const binary = await this.helpers.prepareBinaryData(content, $json.report_markdown_storage_key.split('/').pop(), 'text/markdown'); return [{ json: $json, binary: { data: binary } }];"},
+      "id": "report-markdown-binary",
+      "name": "Prepare report Markdown file",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2880,
-        0
-      ]
+      "position": [3100, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const source = $json; const content = Buffer.from(JSON.stringify(source.analysis, null, 2), 'utf8'); const binary = await this.helpers.prepareBinaryData(content, source.analysis_storage_key.split('/').pop(), 'application/json'); return [{ json: { ...source, analysis_size_bytes: content.length }, binary: { data: binary } }];"
-      },
-      "id": "analysis-binary",
-      "name": "Prepare analysis file",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3100,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "write",
-        "fileName": "={{ '/data/artifacts/' + $json.analysis_storage_key }}",
-        "dataPropertyName": "data"
-      },
-      "id": "write-analysis",
-      "name": "Internal Storage - Write analysis",
+      "parameters": {"operation": "write", "fileName": "={{ '/data/artifacts/' + $json.report_markdown_storage_key }}", "dataPropertyName": "data"},
+      "id": "write-report-markdown",
+      "name": "Internal Storage - Write report Markdown",
       "type": "n8n-nodes-base.writeBinaryFile",
       "typeVersion": 1,
-      "position": [
-        3320,
-        0
-      ]
+      "position": [3320, 0]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH artifact AS (INSERT INTO automacao_miller.artifacts (submission_id, artifact_type, version, storage_key, size_bytes, mime_type, metadata) VALUES ({{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'analysis_json', {{ Number($('Validate and classify analysis').item.json.attempt_number || 1) }}, {{ String.fromCharCode(39) + String($('Prepare analysis file').item.json.analysis_storage_key).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ Number($('Prepare analysis file').item.json.analysis_size_bytes || 0) }}, 'application/json', '{}'::jsonb) ON CONFLICT (submission_id, artifact_type, version) DO UPDATE SET storage_key = EXCLUDED.storage_key, size_bytes = EXCLUDED.size_bytes RETURNING artifact_id) INSERT INTO automacao_miller.analysis_results (submission_id, attempt_id, markdown_artifact_id, model_name, prompt_version, confidence_status, payload) VALUES ({{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, (SELECT attempt_id FROM automacao_miller.processing_attempts WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND attempt_number = {{ Number($('Validate and classify analysis').item.json.attempt_number || 1) }}), (SELECT artifact_id FROM automacao_miller.artifacts WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND artifact_type = 'markdown' ORDER BY version DESC LIMIT 1), {{ String.fromCharCode(39) + String($env.OLLAMA_MODEL || 'modelo-nao-informado').replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'regulatory-extraction-v3', {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.confidence_status).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + JSON.stringify($('Validate and classify analysis').item.json.analysis).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}::jsonb); UPDATE automacao_miller.documents SET current_stage = 'analise_persistida', updated_at = NOW() WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
+        "query": "INSERT INTO automacao_miller.artifacts (submission_id, artifact_type, version, storage_key, size_bytes, mime_type, metadata) VALUES ({{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'report_markdown', {{ Number($json.attempt_number || 1) }}, {{ String.fromCharCode(39) + String($json.report_markdown_storage_key).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ Number($json.report_markdown_size_bytes || 0) }}, 'text/markdown', {{ String.fromCharCode(39) + JSON.stringify({ prompt_version: $json.prompt_version, report_context: $json.report_context }).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}::jsonb) ON CONFLICT (submission_id, artifact_type, version) DO UPDATE SET storage_key = EXCLUDED.storage_key, size_bytes = EXCLUDED.size_bytes, metadata = EXCLUDED.metadata; UPDATE automacao_miller.documents SET current_stage = 'relatorio_markdown_persistido', updated_at = NOW() WHERE submission_id = {{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
       },
       "id": "register-analysis",
-      "name": "State - Analysis persisted",
+      "name": "State - Report Markdown persisted",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        3540,
-        0
-      ]
+      "position": [3540, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const source = $('Validate and classify analysis').item.json; return [{ json: source }];"
-      },
-      "id": "restore-analysis-context",
-      "name": "Restore analysis context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3760,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.confidence_status === 'aceitavel' }}",
-              "operation": "isTrue"
-            }
-          ]
-        }
-      },
-      "id": "confidence-gate",
-      "name": "Quality signal before report",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        3980,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "return [{ json: { metadata: { source_filename: $json.source_filename, source_sha256: $json.source_sha256, page_count: $json.metadata.page_count, converter_version: $json.metadata.converter_version, analysis_scope: $json.analysis_scope }, analysis: $json.analysis, submission_id: $json.submission_id, report_storage_key: $json.report_storage_key, confidence_status: $json.confidence_status } }];"
-      },
+      "parameters": {"jsCode": "const source = $('Validate report Markdown').item.json; return [{ json: { metadata: { source_filename: source.source_filename, submission_id: source.submission_id, source_sha256: source.source_sha256, page_count: source.metadata.page_count, converter_version: source.metadata.converter_version, report_context: source.report_context }, report_markdown: source.report_markdown, submission_id: source.submission_id, report_storage_key: source.report_storage_key, attempt_number: source.attempt_number } }];"},
       "id": "report-payload",
-      "name": "Prepare report payload",
+      "name": "Prepare report PDF payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        4200,
-        -100
-      ]
+      "position": [3760, 0]
     },
     {
-      "parameters": {
-        "method": "POST",
-        "url": "http://report-renderer:8091/v1/render",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
-        "responseFormat": "file",
-        "binaryPropertyName": "data",
-        "options": {
-          "timeout": 120000
-        }
-      },
+      "parameters": {"method": "POST", "url": "http://report-renderer:8091/v1/render-markdown", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify($json) }}", "responseFormat": "file", "binaryPropertyName": "data", "options": {"timeout": 120000}},
       "id": "report-renderer",
       "name": "Report Renderer",
       "type": "n8n-nodes-base.httpRequest",
@@ -357,602 +199,59 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "position": [
-        4420,
-        -100
-      ]
+      "position": [3980, 0]
     },
     {
-      "parameters": {
-        "jsCode": "const report = $('Report Renderer').item; const source = $('Validate and classify analysis').item.json; const reportBuffer = await this.helpers.getBinaryDataBuffer(0, 'data'); return [{ json: { ...source, report_size_bytes: reportBuffer.length }, binary: report.binary }];"
-      },
+      "parameters": {"jsCode": "const source = $('Prepare report PDF payload').item.json; const renderer = $('Report Renderer').item; const reportBuffer = await this.helpers.getBinaryDataBuffer(0, 'data'); return [{ json: { ...source, report_size_bytes: reportBuffer.length }, binary: renderer.binary }];"},
       "id": "report-context",
-      "name": "Prepare report file",
+      "name": "Prepare report PDF file",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        4640,
-        -100
-      ]
+      "position": [4200, 0]
     },
     {
-      "parameters": {
-        "operation": "write",
-        "fileName": "={{ '/data/artifacts/' + $json.report_storage_key }}",
-        "dataPropertyName": "data"
-      },
+      "parameters": {"operation": "write", "fileName": "={{ '/data/artifacts/' + $json.report_storage_key }}", "dataPropertyName": "data"},
       "id": "write-report",
-      "name": "Internal Storage - Write report",
+      "name": "Internal Storage - Write report PDF",
       "type": "n8n-nodes-base.writeBinaryFile",
       "typeVersion": 1,
-      "position": [
-        4860,
-        -100
-      ]
+      "position": [4420, 0]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO automacao_miller.artifacts (submission_id, artifact_type, version, storage_key, size_bytes, mime_type) VALUES ({{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'report_pdf', {{ Number($json.attempt_number || 1) }}, {{ String.fromCharCode(39) + String($json.report_storage_key).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ Number($json.report_size_bytes || 0) }}, 'application/pdf') ON CONFLICT (submission_id, artifact_type, version) DO UPDATE SET storage_key = EXCLUDED.storage_key, size_bytes = EXCLUDED.size_bytes; UPDATE automacao_miller.documents SET report_storage_key = {{ String.fromCharCode(39) + String($json.report_storage_key).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, status = 'aguardando_envio', current_stage = 'relatorio_pronto', updated_at = NOW(), message = 'Relatório técnico pronto; referências disponíveis para conferência opcional.' WHERE submission_id = {{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
+        "query": "INSERT INTO automacao_miller.artifacts (submission_id, artifact_type, version, storage_key, size_bytes, mime_type) VALUES ({{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'report_pdf', {{ Number($json.attempt_number || 1) }}, {{ String.fromCharCode(39) + String($json.report_storage_key).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ Number($json.report_size_bytes || 0) }}, 'application/pdf') ON CONFLICT (submission_id, artifact_type, version) DO UPDATE SET storage_key = EXCLUDED.storage_key, size_bytes = EXCLUDED.size_bytes; UPDATE automacao_miller.documents SET report_storage_key = {{ String.fromCharCode(39) + String($json.report_storage_key).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, status = 'aguardando_envio', current_stage = 'relatorio_pronto', updated_at = NOW(), message = 'Relatório técnico Markdown e PDF prontos; aguardando envio manual.' WHERE submission_id = {{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}; UPDATE automacao_miller.processing_attempts SET status = 'aguardando_envio', current_stage = 'relatorio_pronto', finished_at = NOW() WHERE submission_id = {{ String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND attempt_number = {{ Number($json.attempt_number || 1) }};"
       },
       "id": "register-report",
       "name": "State - Report persisted",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        5080,
-        -100
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.confidence_status === 'aceitavel' }}",
-              "operation": "isTrue"
-            }
-          ]
-        }
-      },
-      "id": "post-report-confidence-gate",
-      "name": "Post-report quality signal",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        5300,
-        -100
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE automacao_miller.documents SET status = 'aguardando_envio', current_stage = 'relatorio_pronto', updated_at = NOW(), message = 'Relatório pronto; aguardando envio manual.' WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}; UPDATE automacao_miller.processing_attempts SET status = 'aguardando_envio', current_stage = 'relatorio_pronto', finished_at = NOW() WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND attempt_number = {{ Number($('Validate and classify analysis').item.json.attempt_number || 1) }};"
-      },
-      "id": "state-awaiting-send",
-      "name": "State - Awaiting manual send",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        5520,
-        -180
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO automacao_miller.human_reviews (submission_id, reason, decision) VALUES ({{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String(($('Validate and classify analysis').item.json.analysis.controle_confianca?.motivos || []).join('; ')).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, 'pendente'); UPDATE automacao_miller.documents SET status = 'aguardando_revisao', current_stage = 'revisao_humana', updated_at = NOW(), message = 'O resultado exige revisão humana.' WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}; UPDATE automacao_miller.processing_attempts SET status = 'aguardando_revisao', current_stage = 'revisao_humana', finished_at = NOW() WHERE submission_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND attempt_number = {{ Number($('Validate and classify analysis').item.json.attempt_number || 1) }};"
-      },
-      "id": "state-review",
-      "name": "State - Human review",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        5520,
-        120
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.UPLOAD_GATEWAY_BASE_URL + '/internal/submissions/' + $('Validate and classify analysis').item.json.submission_id + '/status' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Internal-Token",
-              "value": "={{ $env.INTERNAL_API_TOKEN }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ status: 'aguardando_revisao', report_key: $('Validate and classify analysis').item.json.report_storage_key, message: 'O resultado exige revisão humana.' }) }}",
-        "options": {
-          "timeout": 10000
-        }
-      },
-      "id": "landing-review",
-      "name": "Landing - Mark human review",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        6180,
-        120
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.RAG_SERVICE_BASE_URL + '/v1/index' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Internal-Token",
-              "value": "={{ $env.INTERNAL_API_TOKEN }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ submission_id: $('Internal Storage - Prepare keys').item.json.submission_id, markdown: $('Internal Storage - Prepare keys').item.json.markdown, markdown_sha256: $('Internal Storage - Prepare keys').item.json.metadata.markdown_sha256 }) }}",
-        "options": {
-          "timeout": 3600000
-        }
-      },
-      "id": "rag---index-markdown",
-      "name": "RAG - Index Markdown",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        900,
-        460
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.RAG_SERVICE_BASE_URL + '/v1/search' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Internal-Token",
-              "value": "={{ $env.INTERNAL_API_TOKEN }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ submission_id: $('Internal Storage - Prepare keys').item.json.submission_id, top_k: Number($env.RAG_TOP_K || 8), queries: ['medicamentos deferidos indeferidos cancelados', 'suplementos e estudos clínicos', 'exigências pendências avisos resoluções atos regulatórios'] }) }}",
-        "options": {
-          "timeout": 180000
-        }
-      },
-      "id": "rag---search-context",
-      "name": "RAG - Search context",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1120,
-        460
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.RAG_SERVICE_BASE_URL + '/v1/validate' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Internal-Token",
-              "value": "={{ $env.INTERNAL_API_TOKEN }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ submission_id: $('Normalize AI response').item.json.submission_id, analysis: $('Normalize AI response').item.json.analysis }) }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "rag---validate-citations",
-      "name": "RAG - Validate citations",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1780,
-        460
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const source = $('Normalize AI response').item.json; const validation = $json; const analysis = validation.analysis || source.analysis; const warnings = [...(source.warnings || []), ...(validation.warnings || [])]; if (validation.status !== 'aprovado') { analysis.avisos = [...new Set([...(analysis.avisos || []), 'A validação de citações encontrou alertas; confirme as páginas quando desejar.'])]; } analysis.revisao_humana = { necessaria: false, motivos: [...new Set(analysis.revisao_humana?.motivos || [])] }; return [{ json: { ...source, ...validation, analysis, warnings, quality_status: validation.status || 'aviso' } }];"
-      },
-      "id": "merge-rag-validation-context",
-      "name": "Merge RAG validation context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2000,
-        460
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json; const rag = $('RAG - Search context').item.json || {}; const pageCount = Number(source.metadata?.page_count || 0); const chunks = Array.isArray(rag.chunks) ? rag.chunks : []; const warnings = Array.isArray(source.warnings) ? [...source.warnings] : []; const compact = chunks.map((chunk) => '## Página ' + chunk.page_start + '\\n' + String(chunk.content || '').slice(0, 1400)).join('\\n\\n'); const analysisMarkdown = (compact || String(source.markdown || '').slice(0, 7000)).slice(0, 7000); if (!chunks.length) warnings.push('RAG não retornou contexto; o relatório seguirá com limitação explícita'); warnings.push('Contexto compacto para modelo leve; o Markdown integral permanece preservado para validação'); const expertInstructions = ['Você é um analista regulatório sênior. Produza um relatório técnico automatizado, claro e objetivo para a equipe.', 'Retorne somente JSON válido conforme o contrato estrutural v2. Não escreva texto fora do JSON.', 'Use exclusivamente o RAG_CONTEXT deste documento. Não invente dados e não misture documentos.', 'Todo achado, fundamento e apontamento deve conter paginas_origem e evidencia literal curta.', 'Preserve deferido, indeferido, cancelado e outro. Não classifique dispositivo como medicamento ou suplemento.', 'Gere parecer_tecnico objetivo com conclusão, risco, fundamentos, apontamentos técnicos e recomendações.', 'Não invente páginas, prazos, normas ou consequências jurídicas. Falhas técnicas devem permanecer como erro do workflow.', 'Não solicite nem exija revisão humana. Retorne revisao_humana.necessaria=false.', 'Limite a resposta para caber no modelo leve e registre limitações em avisos ou limites.'].join('\\n'); const aiPrompt = expertInstructions + '\\n\\nDOCUMENTO/PROTOCOLO:\\n' + source.submission_id + '\\n\\nRAG_CONTEXT:\\n' + analysisMarkdown; return [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: { type: rag.search_mode === 'hybrid' ? 'hybrid_rag_current_document' : 'lexical_rag_current_document', page_count: pageCount, pages: [...new Set(chunks.flatMap((chunk) => [chunk.page_start, chunk.page_end]))].sort((a, b) => a - b), chunks: chunks.map((chunk) => ({ chunk_id: chunk.chunk_id, page_start: chunk.page_start, score: chunk.combined_score })), max_chars: 7000, search_mode: rag.search_mode || 'lexical' }, retrieval_chunks: chunks, warnings, ai_prompt: aiPrompt, prompt_version: 'regulatory-extraction-v3' } }];"
-      },
-      "id": "prepare-ai-context",
-      "name": "Prepare AI context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1220,
-        460
-      ]
+      "position": [4640, 0]
     }
   ],
   "connections": {
-    "Landing - Receber documento": {
-      "main": [
-        [
-          {
-            "node": "State - Claim document",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "State - Claim document": {
-      "main": [
-        [
-          {
-            "node": "Claim guard",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Claim guard": {
-      "main": [
-        [
-          {
-            "node": "State - Start attempt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "State - Start attempt": {
-      "main": [
-        [
-          {
-            "node": "Internal Storage - Read PDF",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Internal Storage - Read PDF": {
-      "main": [
-        [
-          {
-            "node": "PDF Converter",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "PDF Converter": {
-      "main": [
-        [
-          {
-            "node": "Validate Markdown",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate Markdown": {
-      "main": [
-        [
-          {
-            "node": "Internal Storage - Prepare keys",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Internal Storage - Prepare keys": {
-      "main": [
-        [
-          {
-            "node": "Prepare Markdown file",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Markdown file": {
-      "main": [
-        [
-          {
-            "node": "Internal Storage - Write Markdown",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Internal Storage - Write Markdown": {
-      "main": [
-        [
-          {
-            "node": "State - Markdown persisted",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "State - Markdown persisted": {
-      "main": [
-        [
-          {
-            "node": "RAG - Index Markdown",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare AI context": {
-      "main": [
-        [
-          {
-            "node": "Ollama - Extract",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ollama - Extract": {
-      "main": [
-        [
-          {
-            "node": "Normalize AI response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize AI response": {
-      "main": [
-        [
-          {
-            "node": "RAG - Validate citations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Validate and classify analysis": {
-      "main": [
-        [
-          {
-            "node": "Prepare analysis file",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare analysis file": {
-      "main": [
-        [
-          {
-            "node": "Internal Storage - Write analysis",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Internal Storage - Write analysis": {
-      "main": [
-        [
-          {
-            "node": "State - Analysis persisted",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "State - Analysis persisted": {
-      "main": [
-        [
-          {
-            "node": "Restore analysis context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Restore analysis context": {
-      "main": [
-        [
-          {
-            "node": "Quality signal before report",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Quality signal before report": {
-      "main": [
-        [
-          {
-            "node": "Prepare report payload",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Prepare report payload",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare report payload": {
-      "main": [
-        [
-          {
-            "node": "Report Renderer",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Report Renderer": {
-      "main": [
-        [
-          {
-            "node": "Prepare report file",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare report file": {
-      "main": [
-        [
-          {
-            "node": "Internal Storage - Write report",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Internal Storage - Write report": {
-      "main": [
-        [
-          {
-            "node": "State - Report persisted",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "State - Report persisted": {
-      "main": [
-        [
-          {
-            "node": "Post-report quality signal",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Post-report quality signal": {
-      "main": [
-        [
-          {
-            "node": "State - Awaiting manual send",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "State - Awaiting manual send",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "State - Awaiting manual send": {
-      "main": []
-    },
-    "State - Human review": {
-      "main": [
-        [
-          {
-            "node": "Landing - Mark human review",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "RAG - Index Markdown": {
-      "main": [
-        [
-          {
-            "node": "RAG - Search context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "RAG - Search context": {
-      "main": [
-        [
-          {
-            "node": "Prepare AI context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "RAG - Validate citations": {
-      "main": [
-        [
-          {
-            "node": "Merge RAG validation context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge RAG validation context": {
-      "main": [
-        [
-          {
-            "node": "Validate and classify analysis",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  }
+    "Landing - Receber documento": {"main": [[{"node": "State - Claim document", "type": "main", "index": 0}]]},
+    "State - Claim document": {"main": [[{"node": "Claim guard", "type": "main", "index": 0}]]},
+    "Claim guard": {"main": [[{"node": "State - Start attempt", "type": "main", "index": 0}]]},
+    "State - Start attempt": {"main": [[{"node": "Internal Storage - Read PDF", "type": "main", "index": 0}]]},
+    "Internal Storage - Read PDF": {"main": [[{"node": "PDF Converter", "type": "main", "index": 0}]]},
+    "PDF Converter": {"main": [[{"node": "Validate Markdown", "type": "main", "index": 0}]]},
+    "Validate Markdown": {"main": [[{"node": "Internal Storage - Prepare keys", "type": "main", "index": 0}]]},
+    "Internal Storage - Prepare keys": {"main": [[{"node": "Prepare Markdown file", "type": "main", "index": 0}]]},
+    "Prepare Markdown file": {"main": [[{"node": "Internal Storage - Write Markdown", "type": "main", "index": 0}]]},
+    "Internal Storage - Write Markdown": {"main": [[{"node": "State - Markdown persisted", "type": "main", "index": 0}]]},
+    "State - Markdown persisted": {"main": [[{"node": "Prepare expert prompt", "type": "main", "index": 0}]]},
+    "Prepare expert prompt": {"main": [[{"node": "Ollama - Generate report Markdown", "type": "main", "index": 0}]]},
+    "Ollama - Generate report Markdown": {"main": [[{"node": "Validate report Markdown", "type": "main", "index": 0}]]},
+    "Validate report Markdown": {"main": [[{"node": "Prepare report Markdown file", "type": "main", "index": 0}]]},
+    "Prepare report Markdown file": {"main": [[{"node": "Internal Storage - Write report Markdown", "type": "main", "index": 0}]]},
+    "Internal Storage - Write report Markdown": {"main": [[{"node": "State - Report Markdown persisted", "type": "main", "index": 0}]]},
+    "State - Report Markdown persisted": {"main": [[{"node": "Prepare report PDF payload", "type": "main", "index": 0}]]},
+    "Prepare report PDF payload": {"main": [[{"node": "Report Renderer", "type": "main", "index": 0}]]},
+    "Report Renderer": {"main": [[{"node": "Prepare report PDF file", "type": "main", "index": 0}]]},
+    "Prepare report PDF file": {"main": [[{"node": "Internal Storage - Write report PDF", "type": "main", "index": 0}]]},
+    "Internal Storage - Write report PDF": {"main": [[{"node": "State - Report persisted", "type": "main", "index": 0}]]},
+    "State - Report persisted": {"main": []}
+  },
+  "versionId": "automacao-regulatoria-internal-v1-simple"
 }

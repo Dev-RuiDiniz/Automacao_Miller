@@ -98,7 +98,12 @@ pastas do Drive para representar estados. Arquivos antigos do Drive não são
 apagados automaticamente e só podem entrar por procedimento de importação
 controlada futuro.
 
-## RAG e validação de citações
+## RAG e validação de citações — capacidade opcional, fora do fluxo ativo
+
+**Nota de vigência:** os parágrafos abaixo descrevem a capacidade legada de RAG
+e não o caminho operacional atual. O workflow ativo não chama esse serviço, não
+gera JSON estruturado e não cria `quality_checks`; ele usa o fluxo linear descrito
+acima.
 
 Depois de persistir o Markdown, o workflow chama o serviço interno
 `RAG_SERVICE_BASE_URL` para indexar chunks por página, executar busca híbrida e
@@ -120,3 +125,20 @@ definitivo e a conferência humana é opcional.
 
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
+
+## Fluxo simplificado vigente
+
+O workflow interno ativo segue uma cadeia linear para reduzir latência e
+instabilidades em documentos extensos:
+
+```text
+PDF -> Markdown com marcadores de página -> prompt do especialista sênior
+    -> relatório Markdown -> PDF comercial -> aguardando_envio
+```
+
+O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
+`regulatory-extraction-v3` recebe um recorte compacto e rastreável do Markdown,
+produz somente Markdown e é instruído a não inventar páginas ou fatos. JSON,
+RAG, embeddings e `quality_checks` não são executados no caminho ativo; ficam
+como capacidade legada/opcional. O envio, a reconciliação, o tratamento de erros
+e o download oficial continuam operacionais.

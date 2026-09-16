@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS documents_status_idx
 CREATE TABLE IF NOT EXISTS automacao_miller.artifacts (
     artifact_id BIGSERIAL PRIMARY KEY,
     submission_id TEXT NOT NULL REFERENCES automacao_miller.documents(submission_id),
-    artifact_type TEXT NOT NULL CHECK (artifact_type IN ('original_pdf', 'markdown', 'analysis_json', 'report_pdf')),
+    artifact_type TEXT NOT NULL CHECK (artifact_type IN ('original_pdf', 'markdown', 'analysis_json', 'report_markdown', 'report_pdf')),
     version INTEGER NOT NULL CHECK (version > 0),
     storage_key TEXT NOT NULL,
     sha256 CHAR(64),

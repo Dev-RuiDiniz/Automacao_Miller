@@ -706,3 +706,31 @@ do Google Drive permaneceram inativos.
 Neste fluxo, a ausência de novos chunks, recuperações RAG e `quality_checks` é
 intencional e não representa falha de validação: esses componentes foram
 retirados do caminho crítico para atender à simplificação solicitada.
+
+## Atualização do parecer técnico — prompt v4 orientado a mercado
+
+Em 16/09/2026, o prompt do especialista foi refinado para produzir um parecer
+técnico mais útil à operação e à decisão comercial. A versão ativa no código é
+`regulatory-extraction-v4`, documentada em `prompts/regulatory-extraction-v4.md`.
+
+O relatório agora responde obrigatoriamente a nove perguntas estabelecidas:
+
+1. O que aconteceu?
+2. Quem é afetado?
+3. Qual é o status regulatório?
+4. Qual é o impacto direto no negócio?
+5. Qual é o impacto potencial de mercado?
+6. Existe urgência ou prazo?
+7. O que a empresa deve fazer agora?
+8. O que ainda não foi comprovado?
+9. Qual é a prioridade executiva?
+
+Além disso, cada achado precisa separar fato, interpretação, impacto, risco,
+recomendação, evidência literal e página. O workflow valida a presença das
+seções principais antes de persistir o Markdown, incluindo plano de ação,
+limitações e referências de páginas.
+
+Esta melhoria está validada localmente no contrato do repositório. A
+homologação remota registrada neste documento para o prompt v3 continua como
+evidência histórica e não deve ser confundida com a validação do v4 até a
+publicação e execução controlada na VPS.

@@ -103,7 +103,12 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     expert_code = prepare_expert["parameters"]["jsCode"]
     assert "analista" in expert_code
     assert "relat" in expert_code
-    assert "prompt_version: 'regulatory-extraction-v3'" in expert_code
+    assert "prompt_version: 'regulatory-extraction-v4'" in expert_code
+    assert "O que aconteceu?" in expert_code
+    assert "impacto potencial de mercado" in expert_code
+    assert "Respostas às perguntas de negócio" in expert_code
+    assert "Plano de ação recomendado" in expert_code
+    assert "market_questionnaire_excerpt" in expert_code
     assert "page_count" in expert_code
 
     ollama = next(node for node in workflow["nodes"] if node["name"] == "Ollama - Generate report Markdown")
@@ -126,6 +131,21 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "/v1/render-markdown" in renderer["parameters"]["url"]
     assert "report_markdown" in json.dumps(workflow)
     assert "RAG - Search context" not in names
+
+
+def test_market_prompt_file_matches_active_contract() -> None:
+    prompt = (ROOT / "prompts" / "regulatory-extraction-v4.md").read_text(encoding="utf-8")
+    assert "analista sênior de inteligência regulatória" in prompt
+    for marker in (
+        "O que aconteceu?",
+        "Qual é o impacto direto no negócio?",
+        "Qual é o impacto potencial de mercado?",
+        "O que a empresa deve fazer agora?",
+        "Referências de páginas",
+    ):
+        assert marker in prompt
+    assert "Retorne somente Markdown" in prompt
+    assert "RAG_CONTEXT" not in prompt
 
 
 def test_internal_repository_schema_contract() -> None:

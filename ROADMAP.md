@@ -695,3 +695,18 @@ O teste final levou aproximadamente 3 minutos e 9 segundos entre o disparo e a
 conclusão do relatório, incluindo a inferência do modelo local. RAG, embeddings,
 JSON estruturado e `quality_checks` não foram executados por decisão de escopo
 do fluxo simplificado.
+
+## 34. Prompt v4 orientado a mercado — 2026-09-16
+
+- [x] Criar `prompts/regulatory-extraction-v4.md` com papel de analista sênior.
+- [x] Estabelecer nove perguntas fixas de negócio para todos os relatórios.
+- [x] Separar impacto confirmado, impacto potencial e impacto não comprovado.
+- [x] Exigir plano de ação, prioridade executiva e referências de páginas.
+- [x] Validar seções obrigatórias antes de persistir o relatório Markdown.
+- [x] Atualizar README, documentação de workflows, PRD, testes e auditoria.
+- [ ] Publicar o prompt v4 na VPS e executar nova homologação controlada.
+
+**Estado:** A implementação v4 está validada no repositório. A homologação
+remota registrada anteriormente continua sendo evidência histórica do prompt v3;
+ela não deve ser apresentada como validação da nova redação até que a VPS seja
+atualizada e o fluxo seja executado novamente.

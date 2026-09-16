@@ -184,11 +184,14 @@ conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
 depois dos mínimos documentados no roadmap.
 
 O prompt versionado está em
-`prompts/regulatory-extraction-v3.md`, com schema estrutural compatível em
-`prompts/regulatory-extraction-v2.schema.json`. O workflow usa o mesmo contrato
-para separar fatos, interpretação técnica e recomendações sem inventar dados. A
-conferência humana é opcional; o relatório técnico segue para envio quando as
-etapas técnicas terminam sem erro.
+`prompts/regulatory-extraction-v4.md`. O prompt ativo agora usa perguntas
+comerciais estabelecidas, impacto direto e potencial de mercado, prioridade
+executiva, plano de ação e referências de página. O schema estrutural v2 fica
+versionado apenas para compatibilidade e evolução futura; o prompt histórico v3
+também permanece no repositório para compatibilidade e auditoria. O fluxo ativo
+produz Markdown. A conferência humana é opcional;
+o relatório técnico segue para envio quando as etapas técnicas terminam sem
+erro.
 
 ## Corpus oficial do DOU
 

@@ -1697,3 +1697,37 @@ hardening SSH, a rotação da senha root e a matriz completa de falhas/retomadas
 saída JSON anterior. A arquitetura agora reduz chamadas intermediárias e entrega
 um artefato Markdown auditável e um PDF comercial, mantendo persistência,
 deduplicação, controle de tentativas, envio e download protegido.
+
+## 2026-09-16 — Especialização comercial do prompt regulatório v4
+
+**Tipo:** DECISÃO / PROMPT / GOVERNANÇA
+**Status:** IMPLEMENTADO NO REPOSITÓRIO; HOMOLOGAÇÃO REMOTA PENDENTE
+
+**Contexto:** O prompt v3 produzia uma síntese técnica útil, porém sem um
+roteiro comercial suficientemente explícito para responder às perguntas que a
+empresa precisa usar na priorização operacional e de mercado.
+
+**Decisão/Ação:** Foi criado o `regulatory-extraction-v4` com atuação de
+analista sênior de inteligência regulatória, operações, compliance e impacto de
+mercado. A resposta passou a exigir, em ordem, nove perguntas: o que aconteceu;
+quem é afetado; status regulatório; impacto direto no negócio; impacto potencial
+de mercado; urgência ou prazo; ação imediata da empresa; pontos não comprovados;
+e prioridade executiva. Também foram fixadas as seções de achados, impacto
+comercial, plano de ação, riscos, limitações e referências de páginas.
+
+**Arquivos afetados:** `prompts/regulatory-extraction-v4.md`,
+`workflows/automacao-regulatoria-internal-v1.json`, `README.md`,
+`workflows/README.md`, `PRD.md`, `ROADMAP.md` e
+`tests/contracts/test_deployment_contract.py`.
+
+**Testes:** JSONs do repositório validados; contrato do workflow atualizado
+para v4; teste específico do prompt criado; `git diff --check` executado.
+
+**Pendências:** Publicar a alteração na VPS e repetir a homologação controlada.
+Os resultados remotos anteriores com `regulatory-extraction-v3` permanecem
+válidos apenas como evidência histórica.
+
+**Impacto:** O relatório fica mais acionável para a equipe empresarial, reduz a
+ambiguidade de interpretação e acelera a confirmação no PDF por meio de
+perguntas e referências padronizadas, sem transformar a análise em decisão
+regulatória definitiva.

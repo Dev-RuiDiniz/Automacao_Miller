@@ -566,10 +566,11 @@ PDF recebido -> Markdown paginado -> prompt do especialista regulatório
 ```
 
 O relatório Markdown é o resultado técnico principal; o PDF é a apresentação
-final para distribuição. O prompt ativo é `regulatory-extraction-v3` e produz
-somente Markdown, com parecer técnico, achados, recomendações, limitações e
-referências de página. O modelo usa apenas o Markdown persistido e deve declarar
-quando a evidência for insuficiente.
+final para distribuição. O prompt ativo é `regulatory-extraction-v4` e produz
+somente Markdown, com nove perguntas de negócio estabelecidas, foco em impacto
+direto e potencial de mercado, prioridade executiva, plano de ação, limitações
+e referências de página. O modelo usa apenas o Markdown persistido e deve
+declarar quando a evidência for insuficiente.
 
 JSON estruturado, RAG, embeddings e `quality_checks` permanecem versionados para
 compatibilidade, auditoria e evolução futura, mas não fazem parte do caminho

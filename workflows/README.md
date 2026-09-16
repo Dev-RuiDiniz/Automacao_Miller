@@ -116,11 +116,14 @@ permitido e classificação de dispositivos. O resultado segue com avisos e
 limitações quando houver falha de qualidade, sem bloquear a disponibilização do
 relatório quando não houver falha técnica.
 
-O contrato ativo de análise é o `regulatory-extraction-v3`. Além das categorias
-regulatórias, ele exige `parecer_tecnico` com conclusão preliminar, fundamentos,
-apontamentos técnicos, risco e recomendações ligadas aos IDs das evidências.
-O Ollama retorna JSON e a validação estrutural e de citações ocorre depois no
-workflow e no serviço RAG. A análise técnica não é parecer regulatório
+O contrato histórico de análise estruturada é o `regulatory-extraction-v3`. O
+contrato ativo é o `regulatory-extraction-v4`, orientado a inteligência
+regulatória e impacto de mercado. Ele responde, em ordem, a nove perguntas:
+o que aconteceu; quem é afetado; qual é o status regulatório; qual é o impacto
+direto no negócio; qual é o impacto potencial de mercado; se existe urgência ou
+prazo; o que a empresa deve fazer agora; o que ainda não foi comprovado; e qual
+é a prioridade executiva. O Ollama retorna Markdown com seções obrigatórias,
+plano de ação e referências de páginas. A análise não é parecer regulatório
 definitivo e a conferência humana é opcional.
 
 Para reconstruir a base de embeddings, execute a indexação somente para os
@@ -137,8 +140,9 @@ PDF -> Markdown com marcadores de página -> prompt do especialista sênior
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
-`regulatory-extraction-v3` recebe um recorte compacto e rastreável do Markdown,
-produz somente Markdown e é instruído a não inventar páginas ou fatos. JSON,
+`regulatory-extraction-v4` recebe um recorte compacto e rastreável do Markdown,
+responde perguntas de negócio estabelecidas, produz somente Markdown e é
+instruído a não inventar páginas ou fatos. JSON,
 RAG, embeddings e `quality_checks` não são executados no caminho ativo; ficam
 como capacidade legada/opcional. O envio, a reconciliação, o tratamento de erros
 e o download oficial continuam operacionais.

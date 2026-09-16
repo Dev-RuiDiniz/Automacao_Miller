@@ -12,6 +12,7 @@ def test_compose_declares_isolated_required_services() -> None:
         assert service in compose
     assert "pgvector/pgvector:pg15" in compose
     assert "RAG_SERVICE_BASE_URL" in compose
+    assert "RAG_ENABLE_SEMANTIC_SEARCH" in compose
     assert "127.0.0.1:${N8N_HOST_PORT:-25678}:5678" in compose
     assert "automacao_miller_n8n_data" in compose
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
@@ -99,6 +100,8 @@ def test_internal_workflow_is_landing_only_and_uses_private_repository() -> None
     assert "ai_prompt" in ollama["parameters"]["jsonBody"]
     assert "WORKFLOW_TIMEOUT_SECONDS" in ollama["parameters"]["options"]["timeout"]
     assert "* 1000" in ollama["parameters"]["options"]["timeout"]
+    assert "num_ctx: 8192" in ollama["parameters"]["jsonBody"]
+    assert "num_predict: 2048" in ollama["parameters"]["jsonBody"]
     assert "parecer_tecnico" in normalize["parameters"]["jsCode"]
     assert "campos inesperados" in normalize["parameters"]["jsCode"]
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")

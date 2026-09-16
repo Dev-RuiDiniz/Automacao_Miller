@@ -48,3 +48,17 @@ def hybrid_query() -> str:
                + (COALESCE(s.semantic_score, 0) * %(semantic_weight)s) DESC
         LIMIT %(top_k)s
     """
+
+
+def lexical_query() -> str:
+    """Busca lexical barata para documentos extensos sem embeddings por chunk."""
+    return """
+        SELECT chunk_id, page_start, page_end, content,
+               ts_rank_cd(content_tsv, plainto_tsquery('simple', %(query)s)) AS lexical_score,
+               0::double precision AS semantic_score
+        FROM automacao_miller.document_chunks
+        WHERE submission_id = %(submission_id)s
+          AND content_tsv @@ plainto_tsquery('simple', %(query)s)
+        ORDER BY lexical_score DESC, chunk_index ASC
+        LIMIT %(top_k)s
+    """

@@ -191,8 +191,8 @@
       "parameters": {
        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json;\nconst rag = $('RAG - Search context').item.json || {};\nconst pageCount = Number(source.metadata?.page_count || 0);\nconst MAX_ANALYSIS_CHARS = 24000;\nconst warnings = Array.isArray(source.warnings) ? [...source.warnings] : [];\nconst excerpt = (value, limit) => value.length <= limit ? value : value.slice(0, Math.floor(limit * 0.7)) + '\\n\\n[trecho intermediário omitido por limite de contexto]\\n\\n' + value.slice(-Math.floor(limit * 0.3));\nconst chunks = Array.isArray(rag.chunks) ? rag.chunks : [];\nlet analysisMarkdown = String(source.markdown || '');\nlet analysisScope = { type: 'full_document', page_count: pageCount, retrieval: 'hybrid_current_document' };\nif (chunks.length) {\n  const context = chunks.map((chunk) => '## Página ' + chunk.page_start + '\\n' + chunk.content).join('\\n\\n');\n  analysisMarkdown = excerpt(context, MAX_ANALYSIS_CHARS);\n  analysisScope = { type: 'hybrid_rag_current_document', page_count: pageCount, pages: [...new Set(chunks.flatMap((chunk) => [chunk.page_start, chunk.page_end]))].sort((a, b) => a - b), chunks: chunks.map((chunk) => ({ chunk_id: chunk.chunk_id, page_start: chunk.page_start, score: chunk.combined_score })), max_chars: MAX_ANALYSIS_CHARS };\n} else {\n  warnings.push('RAG não retornou contexto; o relatório seguirá com limitação explícita');\n  if (analysisMarkdown.length > MAX_ANALYSIS_CHARS) { analysisMarkdown = excerpt(analysisMarkdown, MAX_ANALYSIS_CHARS); analysisScope = { type: 'full_document_excerpt', page_count: pageCount, max_chars: MAX_ANALYSIS_CHARS }; }\n}\nwarnings.push('As citações devem ser copiadas literalmente do contexto recuperado e informar a página');\nconst expertInstructions = [\n  'Você é um analista regulatório sênior. Produza um relatório técnico automatizado, claro e objetivo para operação, compliance e acompanhamento comercial.',\n  'Retorne somente JSON válido conforme o contrato estrutural v2. Não escreva texto fora do JSON.',\n  'Use exclusivamente o RAG_CONTEXT deste documento. Não use conhecimento externo, não invente dados e não misture documentos.',\n  'Separe fatos documentados de interpretação técnica. Todo fundamento e apontamento deve conter paginas_origem e evidencia literal curta.',\n  'Preserve deferido, indeferido, cancelado e outro. Não classifique dispositivo como medicamento ou suplemento.',\n  'Gere parecer_tecnico com conclusão técnica, classificação geral, nível de risco prudente, fundamentos, apontamentos técnicos e recomendações ligadas por base_ids.',\n  'Não declare autoridade regulatória, conformidade legal absoluta ou decisão definitiva. Se houver lacuna, contradição, contexto truncado ou risco relevante, descreva a limitação e as alternativas documentadas.',\n  'Não solicite nem exija revisão humana. Retorne revisao_humana.necessaria=false; quando for útil, registre conferência opcional em avisos ou limites.',\n  'Não invente páginas, prazos, responsáveis, normas ou consequências jurídicas. Falhas técnicas devem permanecer como erro do workflow.',\n  'Limite a resposta a 12 itens por categoria, 6 fundamentos, 8 apontamentos e 6 recomendações; registre excesso em avisos.'\n].join('\\n');\nconst aiPrompt = expertInstructions + '\\n\\nDOCUMENTO/PROTOCOLO:\\n' + source.submission_id + '\\n\\nRAG_CONTEXT:\\n' + analysisMarkdown;\nreturn [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: analysisScope, retrieval_chunks: chunks, warnings, ai_prompt: aiPrompt, prompt_version: 'regulatory-extraction-v3' } }];"
       },
-      "id": "prepare-ai-context",
-      "name": "Prepare AI context",
+      "id": "prepare-ai-context-legacy",
+      "name": "Prepare AI context legacy",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -206,7 +206,7 @@
         "url": "http://ollama:11434/api/generate",
         "sendBody": true,
         "specifyBody": "json",
-         "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0, num_predict: 4096 }, prompt: $('Prepare AI context').item.json.ai_prompt }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0, num_ctx: 8192, num_predict: 2048 }, prompt: $('Prepare AI context').item.json.ai_prompt }) }}",
         "options": {
           "timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 3600) * 1000 }}"
         }
@@ -578,6 +578,19 @@
       "typeVersion": 2,
       "position": [
         2000,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json; const rag = $('RAG - Search context').item.json || {}; const pageCount = Number(source.metadata?.page_count || 0); const chunks = Array.isArray(rag.chunks) ? rag.chunks : []; const warnings = Array.isArray(source.warnings) ? [...source.warnings] : []; const compact = chunks.map((chunk) => '## Página ' + chunk.page_start + '\\n' + String(chunk.content || '').slice(0, 1400)).join('\\n\\n'); const analysisMarkdown = (compact || String(source.markdown || '').slice(0, 7000)).slice(0, 7000); if (!chunks.length) warnings.push('RAG não retornou contexto; o relatório seguirá com limitação explícita'); warnings.push('Contexto compacto para modelo leve; o Markdown integral permanece preservado para validação'); const expertInstructions = ['Você é um analista regulatório sênior. Produza um relatório técnico automatizado, claro e objetivo para a equipe.', 'Retorne somente JSON válido conforme o contrato estrutural v2. Não escreva texto fora do JSON.', 'Use exclusivamente o RAG_CONTEXT deste documento. Não invente dados e não misture documentos.', 'Todo achado, fundamento e apontamento deve conter paginas_origem e evidencia literal curta.', 'Preserve deferido, indeferido, cancelado e outro. Não classifique dispositivo como medicamento ou suplemento.', 'Gere parecer_tecnico objetivo com conclusão, risco, fundamentos, apontamentos técnicos e recomendações.', 'Não invente páginas, prazos, normas ou consequências jurídicas. Falhas técnicas devem permanecer como erro do workflow.', 'Não solicite nem exija revisão humana. Retorne revisao_humana.necessaria=false.', 'Limite a resposta para caber no modelo leve e registre limitações em avisos ou limites.'].join('\\n'); const aiPrompt = expertInstructions + '\\n\\nDOCUMENTO/PROTOCOLO:\\n' + source.submission_id + '\\n\\nRAG_CONTEXT:\\n' + analysisMarkdown; return [{ json: { ...source, analysis_markdown: analysisMarkdown, analysis_scope: { type: rag.search_mode === 'hybrid' ? 'hybrid_rag_current_document' : 'lexical_rag_current_document', page_count: pageCount, pages: [...new Set(chunks.flatMap((chunk) => [chunk.page_start, chunk.page_end]))].sort((a, b) => a - b), chunks: chunks.map((chunk) => ({ chunk_id: chunk.chunk_id, page_start: chunk.page_start, score: chunk.combined_score })), max_chars: 7000, search_mode: rag.search_mode || 'lexical' }, retrieval_chunks: chunks, warnings, ai_prompt: aiPrompt, prompt_version: 'regulatory-extraction-v3' } }];"
+      },
+      "id": "prepare-ai-context",
+      "name": "Prepare AI context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
         460
       ]
     }

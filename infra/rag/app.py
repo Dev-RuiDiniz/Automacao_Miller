@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from psycopg.types.json import Json
 
 from infra.rag.chunker import deduplicate_content_chunks, split_markdown_by_page
-from infra.rag.search import hybrid_query
+from infra.rag.search import hybrid_query, lexical_query
 from infra.regulatory_analysis.quality import validate_analysis
 
 try:
@@ -29,6 +29,14 @@ def env_int(name: str, default: int) -> int:
 
 def env_float(name: str, default: float) -> float:
     return float(os.getenv(name, str(default)))
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def semantic_search_enabled() -> bool:
+    return env_bool("RAG_ENABLE_SEMANTIC_SEARCH", False)
 
 
 class IndexRequest(BaseModel):
@@ -124,7 +132,7 @@ def index_markdown(payload: IndexRequest) -> dict[str, Any]:
         # A geracao dos embeddings pode demorar em documentos extensos.
         # Mantemos essa etapa fora de uma transacao para nao segurar locks
         # PostgreSQL enquanto o Ollama processa cada chunk.
-        vectors = embeddings([chunk.content for chunk in chunks])
+        vectors = embeddings([chunk.content for chunk in chunks]) if semantic_search_enabled() else [None] * len(chunks)
 
         with db_connection() as connection:
             ensure_document(connection, payload.submission_id)
@@ -154,22 +162,25 @@ def search(payload: SearchRequest) -> dict[str, Any]:
     top_k = payload.top_k or env_int("RAG_TOP_K", 8)
     lexical_weight = env_float("RAG_HYBRID_LEXICAL_WEIGHT", 0.45)
     semantic_weight = env_float("RAG_HYBRID_SEMANTIC_WEIGHT", 0.55)
+    semantic_enabled = semantic_search_enabled()
     found: dict[int, dict[str, Any]] = {}
     try:
         with db_connection() as connection:
             ensure_document(connection, payload.submission_id)
             for query_text in payload.queries:
-                vector = embedding(query_text)
                 params = {
                     "submission_id": payload.submission_id,
                     "query": query_text,
-                    "embedding": vector,
-                    "candidate_limit": max(top_k * 4, 20),
                     "top_k": top_k,
                     "lexical_weight": lexical_weight,
                     "semantic_weight": semantic_weight,
                 }
-                rows = connection.execute(hybrid_query(), params).fetchall()
+                if semantic_enabled:
+                    params["embedding"] = embedding(query_text)
+                    params["candidate_limit"] = max(top_k * 4, 20)
+                    rows = connection.execute(hybrid_query(), params).fetchall()
+                else:
+                    rows = connection.execute(lexical_query(), params).fetchall()
                 for rank, row in enumerate(rows, start=1):
                     chunk_id, page_start, page_end, content, lexical, semantic = row
                     combined = float(lexical) * lexical_weight + float(semantic) * semantic_weight
@@ -189,7 +200,7 @@ def search(payload: SearchRequest) -> dict[str, Any]:
         raise
     except (httpx.HTTPError, psycopg.Error, RuntimeError) as exc:
         raise HTTPException(status_code=502, detail=f"Falha na busca RAG: {exc}") from exc
-    return {"submission_id": payload.submission_id, "chunks": ranked}
+    return {"submission_id": payload.submission_id, "chunks": ranked, "search_mode": "hybrid" if semantic_enabled else "lexical"}
 
 
 @app.post("/v1/validate")

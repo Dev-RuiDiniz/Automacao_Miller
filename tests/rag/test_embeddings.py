@@ -23,3 +23,11 @@ def test_embeddings_uses_batches_and_preserves_order(monkeypatch) -> None:
 
     assert calls == [["a", "b"], ["c", "d"], ["e"]]
     assert result == [[0.0] * 3, [1.0] * 3, [0.0] * 3, [1.0] * 3, [0.0] * 3]
+
+
+def test_semantic_search_is_opt_in_for_extensive_documents(monkeypatch) -> None:
+    monkeypatch.delenv("RAG_ENABLE_SEMANTIC_SEARCH", raising=False)
+    assert app.semantic_search_enabled() is False
+
+    monkeypatch.setenv("RAG_ENABLE_SEMANTIC_SEARCH", "true")
+    assert app.semantic_search_enabled() is True

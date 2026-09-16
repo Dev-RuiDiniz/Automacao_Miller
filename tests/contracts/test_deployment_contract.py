@@ -143,6 +143,9 @@ def test_reconciliation_returns_protocols_for_dispatch() -> None:
 
     assert query.startswith("WITH reset_deliveries AS")
     assert "SELECT submission_id FROM reset" in query
+    assert "public.execution_entity" in query
+    assert "ee.status IN ('new', 'running', 'waiting')" in query
+    assert "pa.attempt_number = (SELECT d.attempt_count" in query
     assert "submission_id: $json.submission_id" in dispatch["parameters"]["jsonBody"]
 
 

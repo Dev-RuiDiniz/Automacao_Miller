@@ -1731,3 +1731,45 @@ válidos apenas como evidência histórica.
 ambiguidade de interpretação e acelera a confirmação no PDF por meio de
 perguntas e referências padronizadas, sem transformar a análise em decisão
 regulatória definitiva.
+
+## 2026-09-23 — Limpeza controlada da base de homologação na VPS
+
+**Data:** 2026-09-23
+**Tipo:** OPERAÇÃO / HOMOLOGAÇÃO / LIMPEZA CONTROLADA
+**Contexto:** A pedido do usuário, o escopo foi limitado ao Automação Miller.
+Foram preservados configuração, credenciais e workflows ativos; workflows que
+já estavam inativos foram removidos.
+
+**Decisão/Ação:** Antes da limpeza, foi criado e validado um backup PostgreSQL,
+um backup do volume ativo de artefatos e um arquivo separado dos volumes legados
+de submissão. Os backups anteriores foram preservados. Com n8n e gateway do
+Miller temporariamente parados, foram removidos quatro workflows inativos e 47
+execuções com erro, quatro com crash e oito execuções travadas da reconciliação
+(três na primeira varredura e cinco após o reinício). A definição da
+reconciliação foi mantida, mas desativada temporariamente porque criava novas
+execuções `running` a cada minuto mesmo com a base sem documentos. Os outros
+três workflows operacionais permaneceram ativos. Foram zeradas as tabelas de
+documentos, tentativas, análises, artefatos, revisões, erros, entregas, chunks,
+avaliações e submissões; a configuração de destinatários foi preservada.
+Também foram esvaziados os volumes de artefatos e submissões do Miller.
+
+**Arquivos afetados:** Estado operacional da VPS em `/opt/automacao-miller` e
+volumes Docker do Automação Miller; este registro e `ROADMAP.md`. Nenhum código
+ou credencial foi alterado.
+
+**Testes:** Checksums dos backups validados; contagens das tabelas de dados de
+teste e das execuções n8n conferidas como zero; quatro definições restantes
+conferidas (três ativas e a reconciliação pausada); os sete serviços do Miller
+estavam saudáveis após o reinício. Não foi executado processamento funcional de
+documentos nesta operação.
+
+**Pendências:** Investigar e corrigir a reconciliação antes de reativá-la. A
+VPS ainda precisa ser alinhada ao estado versionado do repositório: o checkout
+remoto estava divergente e com alterações locais, e o workflow ativo ainda
+usava o prompt v3. Executar nova homologação com o prompt v4 após revisar essas
+diferenças.
+
+**Impacto:** O ambiente de homologação ficou sem documentos, artefatos ou
+histórico de execução de teste, preservando os backups e as credenciais. O
+workflow de reconciliação permanece disponível para investigação, porém pausado
+para evitar que execuções travadas reapareçam.

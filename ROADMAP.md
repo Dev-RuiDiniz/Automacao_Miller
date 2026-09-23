@@ -12,7 +12,7 @@
 
 ## 2. Status geral
 
-**Estado atual:** homologação ponta a ponta aprovada; repositório interno e painel publicados; workflows internos ativos; produção permanece condicionada à revisão de segurança e ao aceite operacional final
+**Estado atual:** homologação ponta a ponta aprovada historicamente; repositório interno e painel publicados; base de teste zerada em 2026-09-23; nova homologação da versão v4 pendente. O workflow de reconciliação está pausado após execuções recorrentes travadas. Produção permanece condicionada à revisão de segurança e ao aceite operacional final.
 **MVP:** definido  
 **Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
 **Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
@@ -710,3 +710,30 @@ do fluxo simplificado.
 remota registrada anteriormente continua sendo evidência histórica do prompt v3;
 ela não deve ser apresentada como validação da nova redação até que a VPS seja
 atualizada e o fluxo seja executado novamente.
+
+## 35. Reinício limpo da homologação na VPS — 2026-09-23
+
+- [x] Criar e validar backup do PostgreSQL, do volume ativo de artefatos e dos
+      volumes legados de submissão, sem remover backups anteriores.
+- [x] Apagar registros de documentos, tentativas, análises, revisões, erros,
+      entregas, chunks, avaliações de qualidade e demais dados de teste.
+- [x] Limpar arquivos dos volumes de artefatos e submissões do Automação Miller.
+- [x] Remover os quatro workflows que já estavam inativos, sem alterar as
+      credenciais, as configurações restantes ou os dados de outras aplicações.
+- [x] Limpar execuções antigas com erro/crash e execuções travadas de
+      reconciliação.
+- [x] Reiniciar os serviços do Miller; os sete contêineres estavam saudáveis na
+      verificação final.
+- [ ] Diagnosticar e corrigir o workflow de reconciliação, que voltou a acumular
+      execuções `running` a cada minuto mesmo com a base vazia, e reativá-lo após
+      validação controlada.
+- [ ] Alinhar a implantação da VPS ao repositório antes dos novos testes. A
+      cópia remota estava em commit diferente, com alterações locais, e o
+      workflow ativo ainda usava o prompt v3; a homologação v4 permanece pendente.
+- [ ] Executar a nova matriz de testes a partir da base limpa.
+
+**Resultado operacional:** foram preservados os três workflows operacionais
+ativos, as credenciais e as configurações. A definição da reconciliação foi
+preservada e pausada temporariamente para impedir novas execuções travadas. Os
+dados apagados podem ser consultados nos backups validados em
+`/opt/backups/automacao-miller` na VPS.

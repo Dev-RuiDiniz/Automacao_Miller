@@ -14,6 +14,8 @@
 
 **Última observação da VPS (2026-09-23):** a base de homologação foi limpa, a reconciliação estava pausada após execuções travadas, a cópia remota divergia do repositório e o workflow ativo usava o prompt v3; a homologação do v4 estava pendente. A validação ponta a ponta registrada anteriormente foi feita com o v3.
 **Situação remota em 2026-10-02:** a VPS não foi consultada nesta atualização. O estado remoto atual é desconhecido; as informações de 23/09 são um registro histórico, não uma confirmação de que tudo continua igual.
+**Repositório em 2026-10-02:** PR #1 foi integrada à main no merge 9aea58c; PR #2 foi integrada à main no merge 1d95467. A PR #2 foi redirecionada para main depois da integração da PR #1.
+**Stack local em 2026-10-02:** os seis serviços do perfil padrão estavam saudáveis; landing e prontidão do n8n responderam HTTP 200. O roteiro reproduzível está em docs/TESTE_LOCAL.md.
 **Homologação:** aprovada historicamente para a versão então implantada; não representa validação da versão atual do repositório.
 **Produção:** condicionada à revisão de segurança e ao aceite operacional final.
 **MVP:** definido  
@@ -918,3 +920,23 @@ passaram. Os seis serviços padrão ficaram saudáveis no Docker local.
 **Limitação:** os limites são tetos configurados, não medidas de consumo real.
 O perfil RAG continua disponível para uma validação separada, mas não participa
 do fluxo operacional.
+
+## 43. Integração das correções e roteiro de teste local — 2026-10-02
+
+- [x] Integrar a PR #1 à main (merge 9aea58ca8cba2e37e19ca7928fbc98745caa4f9e).
+- [x] Redirecionar a PR #2 para main e integrá-la (merge 1d95467723207dcea6cd2e4ff5ec14ef1e6cecf3).
+- [x] Adicionar override local que publica a landing somente em 127.0.0.1:8085.
+- [x] Documentar preparação, inicialização, saúde, workflow de processamento,
+      upload sintético e confirmação de aguardando_envio, sem Gmail.
+- [x] Vincular o roteiro no README, documentação de implantação e guia dos workflows.
+- [x] Executar a suíte Python e validar Compose e endpoints da stack local.
+
+**Resultado:** 75 testes passaram. O Compose local passou na validação; os seis
+serviços estavam saudáveis e os endpoints do gateway e do n8n retornaram HTTP
+200. O roteiro termina em aguardando_envio; o envio Gmail e a reconciliação
+permanecem desativados durante o teste.
+
+**Limitação:** esta atualização documental não disparou um novo upload ponta a
+ponta. A homologação com PDF sintético já registrada nas seções 36 a 38 continua
+sendo a evidência integrada existente. A VPS não foi consultada e nenhum e-mail
+foi enviado.

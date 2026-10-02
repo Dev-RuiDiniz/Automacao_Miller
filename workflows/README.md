@@ -1,5 +1,9 @@
 # Workflows n8n
 
+Para subir a stack Docker e testar o workflow com um PDF local até
+aguardando_envio, siga o [roteiro de teste local](../docs/TESTE_LOCAL.md).
+O teste deixa envio Gmail e reconciliação inativos.
+
 ## Fluxo ativo
 
 A origem oficial de novos documentos é a landing privada. Importe e mantenha

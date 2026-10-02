@@ -1,0 +1,9 @@
+# Uso apenas em desenvolvimento local. Não aplique esta configuração na VPS.
+services:
+  upload-gateway:
+    ports:
+      - "127.0.0.1:8085:8085"
+    # Normaliza CRLF quando o checkout no Windows alterar o script de entrada.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "tr -d '\\r' < /usr/local/bin/upload-gateway-entrypoint > /tmp/local-entrypoint.sh && exec /bin/sh /tmp/local-entrypoint.sh"

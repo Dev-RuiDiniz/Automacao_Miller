@@ -144,3 +144,39 @@ def test_render_markdown_endpoint_returns_readable_pdf() -> None:
     assert "Technical report" in text
     assert "Technical opinion" in text
     assert "Page 71" in text
+
+
+def test_render_markdown_endpoint_keeps_bullets_readable_without_raw_tables() -> None:
+    response = client.post(
+        "/v1/render-markdown",
+        json={
+            "metadata": {
+                "source_filename": "atos.pdf",
+                "submission_id": "sub-listas",
+                "source_sha256": "b" * 64,
+                "page_count": 2,
+            },
+            "report_markdown": (
+                "# Relatório técnico\n\n"
+                "## Respostas de negócio\n\n"
+                "- Pergunta: o que aconteceu?\n"
+                "- Resposta: o produto foi deferido.\n"
+                "- Página: 1\n"
+                '- Evidência literal: "produto foi deferido"\n\n'
+                "## Plano de ação\n\n"
+                "- Prioridade: alta.\n"
+                "- Ação: conferir o ato original.\n\n"
+                "## Referências de páginas\n\n"
+                "- Página: 1\n"
+                '- Evidência literal: "produto foi deferido"\n'
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    text = pdf_text(response.content)
+    assert "Respostas de negócio" in text
+    assert "Pergunta: o que aconteceu?" in text
+    assert "Evidência literal" in text
+    assert "Prioridade: alta" in text
+    assert not any(line.strip().startswith("|") for line in text.splitlines())

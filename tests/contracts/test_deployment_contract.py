@@ -119,6 +119,7 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "prompt_version: 'regulatory-extraction-v5-full-document-batched'" in merge_code
     assert "impacto" in merge_code.lower()
     assert "prioridade executiva" in merge_code.lower()
+    assert "sem tabelas Markdown" in merge_code
 
     ollama = next(node for node in workflow["nodes"] if node["name"] == "Ollama - Generate report Markdown")
     ollama_body = ollama["parameters"]["jsonBody"]
@@ -163,6 +164,8 @@ def test_market_prompt_file_matches_active_contract() -> None:
     assert "- Página: N" in prompt
     assert "- Evidência literal:" in prompt
     assert "marcados como pendentes" in prompt
+    assert "listas com marcadores" in prompt
+    assert "Não use tabelas" in prompt
     for marker in (
         "o que aconteceu",
         "qual é o status\nregulatório",

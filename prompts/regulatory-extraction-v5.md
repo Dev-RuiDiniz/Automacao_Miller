@@ -73,4 +73,8 @@ Use exatamente estas seções:
 8. Limitações e informações não comprovadas
 9. Referências de páginas
 
+Apresente respostas e ações em listas com marcadores. Não use tabelas
+Markdown: o PDF converte cada linha em parágrafo e não renderiza tabelas como
+grade.
+
 O relatório é apoio documental, não parecer regulatório definitivo.

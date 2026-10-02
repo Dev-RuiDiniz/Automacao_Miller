@@ -1852,3 +1852,52 @@ Impacto:
 O leitor recebe um aviso verificável para citações pendentes. A entrega segue
 disponível para conferência e nenhum relatório é produzido se páginas não
 tiverem sido analisadas.
+
+## 2026-10-01 — Relatório PDF com listas
+
+Tipo: Melhoria de legibilidade
+Status: Implementado; testes e inspeção do PDF de exemplo aprovados
+
+Contexto:
+O modelo era orientado a produzir tabelas Markdown. O renderizador atual
+apresenta linhas como parágrafos e não cria uma grade de tabela, deixando os
+separadores visíveis e o conteúdo confuso.
+
+Decisão/Ação:
+As instruções do prompt e do workflow foram simplificadas para usar listas com
+marcadores nas respostas, plano de ação e referências. O Markdown continua sendo
+a origem comum do relatório e do PDF; não foi adicionada lógica de tabela ao
+renderizador.
+
+Arquivos afetados:
+`prompts/regulatory-extraction-v5.md`,
+`workflows/automacao-regulatoria-internal-v1.json`, `workflows/README.md`,
+`tests/report_renderer/test_renderer.py` e
+`tests/contracts/test_deployment_contract.py`.
+
+Testes:
+`python -m pytest tests/report_renderer/test_renderer.py
+tests/contracts/test_deployment_contract.py -q`; 16 testes direcionados e 73
+testes da suíte completa passaram. `docker compose config --quiet` passou e os
+sete serviços estavam saudáveis. Foi gerado PDF de exemplo, conferido por
+extração de texto e renderização da página em imagem; listas e evidências
+estavam legíveis e não havia linhas de tabela Markdown.
+
+Pendências:
+O PDF sintético foi processado em três lotes com cobertura 3/3; Markdown, PDF
+e estado `aguardando_envio` foram persistidos e não houve e-mail. Essa execução
+começou com o prompt anterior, que ainda pedia tabelas: as seis referências
+foram sinalizadas como pendentes e não bloquearam a entrega. O workflow local
+foi atualizado depois para instruir listas e a nova redação passou pelos testes
+de contrato e renderização, sem uma segunda inferência lenta.
+
+Limitação operacional:
+O último nó da execução integrada foi `State - Report persisted`, sem erro no
+resultado do workflow, mas o registro n8n permaneceu `running`. O log local
+mostrou `r.firstEvent.getTime is not a function` no serviço de consolidação de
+estatísticas. O gateway, PostgreSQL e demais serviços estavam saudáveis, e o
+estado final e os dois relatórios ficaram persistidos. A exceção do rollup de
+estatísticas está fora desta correção e deve ser investigada separadamente.
+
+Impacto:
+As listas melhoram a leitura do PDF e deixam o relatório Markdown mais simples.

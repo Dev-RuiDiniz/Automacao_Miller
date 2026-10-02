@@ -135,8 +135,9 @@ o que aconteceu; quem é afetado; qual é o status regulatório; qual é o impac
 direto no negócio; qual é o impacto potencial de mercado; se existe urgência ou
 prazo; o que a empresa deve fazer agora; o que ainda não foi comprovado; e qual
 é a prioridade executiva. O Ollama retorna Markdown com seções obrigatórias,
-plano de ação e referências de páginas. A análise não é parecer regulatório
-definitivo e a conferência humana é opcional.
+plano de ação e referências de páginas. Respostas e ações usam listas com
+marcadores para manter a leitura do PDF clara. A análise não é parecer
+regulatório definitivo e a conferência humana é opcional.
 
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.

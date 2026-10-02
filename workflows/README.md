@@ -82,9 +82,13 @@ snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
 
 ## Documentos extensos
 
-Para documentos com mais de 20 páginas, a análise usa o recorte configurado no
-workflow e registra o recorte e suas limitações. O Markdown integral
-continua preservado no volume e relacionado ao documento no PostgreSQL.
+O workflow analisa todas as páginas do Markdown convertido em lotes de até
+6.000 caracteres. Cada lote preserva os números das páginas; páginas muito
+longas são divididas por parágrafo e, se necessário, por trechos menores. Os
+resultados dos lotes são combinados e duplicatas são removidas. Se qualquer
+lote falhar ou a contagem de páginas não corresponder ao PDF, o processamento
+falha e não cria um relatório parcial. O Markdown integral permanece guardado
+no volume e relacionado ao documento no PostgreSQL.
 
 ## Operação
 
@@ -100,10 +104,10 @@ controlada futuro.
 
 ## RAG e validação de citações — capacidade opcional, fora do fluxo ativo
 
-**Nota de vigência:** os parágrafos abaixo descrevem a capacidade legada de RAG
-e não o caminho operacional atual. O workflow ativo não chama esse serviço, não
-gera JSON estruturado e não cria `quality_checks`; ele usa o fluxo linear descrito
-acima.
+**Nota de vigência:** a seção abaixo descreve a capacidade legada de RAG,
+que não é chamada pelo caminho atual. O workflow usa JSON temporário em cada
+lote para organizar os achados, mas não persiste esse JSON nem cria
+`quality_checks`.
 
 Depois de persistir o Markdown, o workflow chama o serviço interno
 `RAG_SERVICE_BASE_URL` para indexar chunks por página, executar busca híbrida e
@@ -129,20 +133,17 @@ definitivo e a conferência humana é opcional.
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
 
-## Fluxo simplificado vigente
+## Fluxo de análise integral vigente
 
-O workflow interno ativo segue uma cadeia linear para reduzir latência e
-instabilidades em documentos extensos:
+O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 
 ```text
-PDF -> Markdown com marcadores de página -> prompt do especialista sênior
-    -> relatório Markdown -> PDF comercial -> aguardando_envio
+PDF -> Markdown paginado -> lotes de até 6.000 caracteres
+    -> achados JSON temporários consolidados -> relatório Markdown -> PDF -> aguardando_envio
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
-`regulatory-extraction-v4` recebe um recorte compacto e rastreável do Markdown,
-responde perguntas de negócio estabelecidas, produz somente Markdown e é
-instruído a não inventar páginas ou fatos. JSON,
-RAG, embeddings e `quality_checks` não são executados no caminho ativo; ficam
-como capacidade legada/opcional. O envio, a reconciliação, o tratamento de erros
-e o download oficial continuam operacionais.
+`regulatory-extraction-v5.md` define a extração estruturada e a consolidação.
+O JSON de cada lote é temporário e não é persistido como análise do documento.
+RAG, embeddings e `quality_checks` continuam fora do caminho ativo. O envio, a
+reconciliação, o tratamento de erros e o download oficial seguem sem alterações.

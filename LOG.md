@@ -1773,3 +1773,42 @@ diferenças.
 histórico de execução de teste, preservando os backups e as credenciais. O
 workflow de reconciliação permanece disponível para investigação, porém pausado
 para evitar que execuções travadas reapareçam.
+
+## 2026-10-01 — Análise integral em lotes
+
+Tipo: Correção funcional e melhoria de cobertura
+Status: Implementado localmente; homologação ponta a ponta pendente
+
+Contexto:
+O workflow anterior selecionava páginas por palavras-chave e cortava o
+contexto em 7.000 caracteres. Um ato posterior ao corte podia ficar fora da
+análise sem que o sistema interrompesse a geração do relatório.
+
+Decisão/Ação:
+O Markdown paginado agora é dividido em lotes de até 6.000 caracteres. Cada lote
+mantém os marcadores de página; páginas longas são repartidas por parágrafos e
+por trechos quando necessário. O workflow exige a resposta estruturada de cada
+lote, combina os achados e remove duplicatas pela página e evidência. Falha ou
+resposta inválida de qualquer lote, divergência nos marcadores ou cobertura
+incompleta interrompe o processamento antes da geração do relatório.
+
+Arquivos afetados:
+`workflows/automacao-regulatoria-internal-v1.json`,
+`tests/contracts/test_workflow_batching.py`,
+`tests/contracts/test_deployment_contract.py`,
+`prompts/regulatory-extraction-v5.md`, `README.md` e `workflows/README.md`.
+
+Testes:
+Os testes direcionados passaram. O código JavaScript real do nó de divisão foi
+executado com um documento sintético de três páginas: cinco lotes, limite máximo
+de 6.000 caracteres, evidência após os primeiros 7.000 caracteres encontrada e
+página excepcionalmente longa dividida sem perder página ou conteúdo.
+
+Pendências:
+Executar o fluxo completo com um PDF sintético na stack Docker local após
+concluir a validação automática de citações e a legibilidade do PDF. Não houve
+alteração ou teste na VPS nem ativação do workflow de reconciliação.
+
+Impacto:
+A cobertura deixa de depender de um recorte por palavras-chave. O tempo e o
+consumo do modelo podem aumentar porque cada lote gera uma inferência.

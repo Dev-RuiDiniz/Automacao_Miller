@@ -184,8 +184,10 @@ conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
 depois dos mínimos documentados no roadmap.
 
 O prompt versionado está em
-`prompts/regulatory-extraction-v4.md`. O prompt ativo agora usa perguntas
-comerciais estabelecidas, impacto direto e potencial de mercado, prioridade
+`prompts/regulatory-extraction-v5.md`. O workflow divide o documento inteiro em
+lotes de até 6.000 caracteres, preserva as páginas e combina os achados antes
+de gerar o relatório. O prompt ativo usa perguntas comerciais estabelecidas,
+impacto direto e potencial de mercado, prioridade
 executiva, plano de ação e referências de página. O schema estrutural v2 fica
 versionado apenas para compatibilidade e evolução futura; o prompt histórico v3
 também permanece no repositório para compatibilidade e auditoria. O fluxo ativo

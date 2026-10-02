@@ -737,3 +737,18 @@ ativos, as credenciais e as configurações. A definição da reconciliação fo
 preservada e pausada temporariamente para impedir novas execuções travadas. Os
 dados apagados podem ser consultados nos backups validados em
 `/opt/backups/automacao-miller` na VPS.
+
+## 36. Análise integral em lotes — 2026-10-01
+
+- [x] Analisar todas as páginas do Markdown em lotes de até 6.000 caracteres.
+- [x] Preservar marcadores de página ao dividir páginas longas.
+- [x] Consolidar e remover achados duplicados entre lotes.
+- [x] Interromper o processamento se um lote falhar ou a cobertura divergir.
+- [x] Testar evidência após 7.000 caracteres e página longa.
+- [ ] Homologar o processamento completo de PDF na stack Docker local.
+- [ ] Validar citações e legibilidade do PDF em tarefas seguintes.
+
+**Resultado:** workflow local atualizado para analisar o documento inteiro. Os
+testes do divisor de lotes real do n8n passaram; a
+homologação ponta a ponta permanece pendente até a conclusão das duas tarefas
+subsequentes desta correção.

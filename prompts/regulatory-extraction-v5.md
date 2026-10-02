@@ -50,6 +50,17 @@ afirmação factual deve usar a página e o trecho literal fornecidos nos achado
 Não afirme que algo inexiste no documento se não tiver sido localizado nos
 achados.
 
+Para cada citação, use exatamente estas duas linhas, consecutivamente:
+
+```text
+- Página: N
+- Evidência literal: "trecho copiado exatamente"
+```
+
+Não apresente como comprovada uma referência que não esteja nos achados. A
+validação automática compara página e evidência com o Markdown original; os
+itens não localizados serão marcados como pendentes no relatório.
+
 Use exatamente estas seções:
 
 1. Resumo executivo

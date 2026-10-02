@@ -56,8 +56,9 @@ do PostgreSQL. Para autorizar reprocessamento, registre a decisão em
 `human_reviews`, mantenha o PDF no volume e devolva o documento ao estado
 `recebido`; o workflow de reconciliação fará o despacho pelo webhook interno.
 
-Resultados com baixa confiança, contradição ou evidência insuficiente seguem em
-`aguardando_envio` com o alerta preservado no relatório. O download oficial só é
+Resultados com citações pendentes, contradição ou evidência insuficiente
+seguem em `aguardando_envio` com o alerta preservado no relatório, desde que
+a cobertura de páginas esteja completa. O download oficial só é
 liberado quando o PostgreSQL indicar `concluido`. O operador pode visualizar o
 PDF, Markdown e JSON pelo painel autenticado e confirmar as páginas quando
 desejar, mas essa conferência não é obrigatória para solicitar o envio.
@@ -102,14 +103,21 @@ pastas do Drive para representar estados. Arquivos antigos do Drive não são
 apagados automaticamente e só podem entrar por procedimento de importação
 controlada futuro.
 
-## RAG e validação de citações — capacidade opcional, fora do fluxo ativo
+## Validação atual de citações e RAG legado
 
 **Nota de vigência:** a seção abaixo descreve a capacidade legada de RAG,
-que não é chamada pelo caminho atual. O workflow usa JSON temporário em cada
-lote para organizar os achados, mas não persiste esse JSON nem cria
+que não é chamada pelo caminho atual. O workflow atual usa JSON temporário em
+cada lote para organizar os achados, mas não persiste esse JSON nem cria
 `quality_checks`.
 
-Depois de persistir o Markdown, o workflow chama o serviço interno
+A validação usada atualmente é feita pelo gateway na rota interna
+`POST /internal/submissions/{id}/validate-report`. Ela abre o Markdown original e
+compara cada página e evidência literal do relatório. Retorna a cobertura, as
+referências confirmadas e as pendentes. Citações pendentes são marcadas no
+relatório e não bloqueiam a entrega; páginas não cobertas interrompem a
+geração para impedir relatório parcial.
+
+A capacidade legada de RAG funciona assim: depois de persistir o Markdown, o workflow chama o serviço interno
 `RAG_SERVICE_BASE_URL` para indexar chunks por página, executar busca híbrida e
 registrar os chunks recuperados. O contexto enviado ao Ollama contém o marcador
 `## Página N`, o protocolo e a instrução de copiar evidência curta.
@@ -121,8 +129,8 @@ limitações quando houver falha de qualidade, sem bloquear a disponibilização
 relatório quando não houver falha técnica.
 
 O contrato histórico de análise estruturada é o `regulatory-extraction-v3`. O
-contrato ativo é o `regulatory-extraction-v4`, orientado a inteligência
-regulatória e impacto de mercado. Ele responde, em ordem, a nove perguntas:
+contrato ativo é o `regulatory-extraction-v5-full-document-batched`, orientado
+a inteligência regulatória e impacto de mercado. O relatório responde a nove perguntas:
 o que aconteceu; quem é afetado; qual é o status regulatório; qual é o impacto
 direto no negócio; qual é o impacto potencial de mercado; se existe urgência ou
 prazo; o que a empresa deve fazer agora; o que ainda não foi comprovado; e qual
@@ -139,7 +147,8 @@ O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 
 ```text
 PDF -> Markdown paginado -> lotes de até 6.000 caracteres
-    -> achados JSON temporários consolidados -> relatório Markdown -> PDF -> aguardando_envio
+    -> achados JSON temporários consolidados -> relatório Markdown
+    -> conferência de citações e sinal -> PDF -> aguardando_envio
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt

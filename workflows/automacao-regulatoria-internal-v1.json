@@ -157,7 +157,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const responses = $input.all();\nconst batches = $('Prepare analysis batches').all();\nif (!responses.length || responses.length !== batches.length) throw new Error('IA: resultado ausente em um ou mais lotes; relatório parcial não será gerado');\nconst merged = new Map();\nconst pagesProcessed = new Set();\nfunction normalize(value) { return String(value || '').normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim().toLocaleLowerCase('pt-BR'); }\nfor (let index = 0; index < responses.length; index++) {\n  const batch = batches[index].json;\n  for (const page of batch.batch_pages || []) pagesProcessed.add(Number(page));\n  let raw = String(responses[index].json.response || '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/i, '');\n  let parsed;\n  try { parsed = JSON.parse(raw); } catch (error) { throw new Error('VALIDACAO: JSON inválido no lote ' + batch.batch_number + ': ' + error.message); }\n  if (!parsed || !Array.isArray(parsed.achados)) throw new Error('VALIDACAO: o lote ' + batch.batch_number + ' não retornou a lista obrigatória de achados');\n  for (const finding of parsed.achados) {\n    if (!finding || typeof finding !== 'object' || !String(finding.titulo || finding.fato || '').trim() || !Number.isInteger(Number(finding.pagina)) || !String(finding.evidencia || '').trim()) throw new Error('VALIDACAO: achado incompleto no lote ' + batch.batch_number);\n    const item = { titulo: String(finding.titulo || '').trim(), fato: String(finding.fato || '').trim(), status: String(finding.status || 'não localizado'), impacto: String(finding.impacto || 'não comprovado'), risco: String(finding.risco || 'não classificado'), acao_recomendada: String(finding.acao_recomendada || 'Conferir o documento original.'), prioridade: String(finding.prioridade || 'informativa'), pagina: Number(finding.pagina), evidencia: String(finding.evidencia).trim() };\n    const key = item.pagina + '|' + normalize(item.evidencia);\n    if (!merged.has(key)) merged.set(key, item);\n  }\n}\nconst source = batches[0].json;\nconst pages = [...pagesProcessed].sort((a, b) => a - b);\nconst expectedPages = Number(source.metadata && source.metadata.page_count || 0);\nif (pages.length !== expectedPages || pages.some((page, index) => page !== index + 1)) throw new Error('EXTRACAO: nem todas as páginas foram analisadas; relatório parcial não será gerado');\nconst findings = [...merged.values()];\nconst reportContext = { type: 'full_document_batched', page_count: expectedPages, pages_processed: pages, batch_count: batches.length, findings_count: findings.length };\nconst prompt = [\n  'Você atua como analista sênior de inteligência regulatória, operações e impacto de mercado. Produza o relatório solicitado somente com base nos achados estruturados de todos os lotes do documento completo.',\n  'Não invente fatos, prazos, normas, responsáveis, impacto financeiro, tamanho de mercado ou reação de concorrentes. Diferencie fato documentado, inferência e informação não comprovada. Preserve status deferido, indeferido, cancelado e outros sem reclassificar. Inclua todos os achados fornecidos, sem descartar itens repetidos que tenham evidências diferentes.',\n  'Toda afirmação factual e cada achado devem incluir uma referência padronizada em duas linhas: “- Página: N” seguida de “- Evidência literal: \\\"trecho exato\\\"”. Copie a evidência exatamente como fornecida. Não crie referências próprias. Se uma informação não aparecer nos achados, escreva “não localizado nos achados analisados” sem afirmar que inexiste no documento.',\n  'Retorne somente Markdown em português do Brasil, sem cercas de código ou texto antes do título. Use exatamente as seções: # Relatório Técnico de Inteligência Regulatória; ## 1. Resumo executivo; ## 2. Respostas às perguntas de negócio; ## 3. Escopo e identificação do documento; ## 4. Achados regulatórios; ## 5. Impacto de mercado e comercial; ## 6. Plano de ação recomendado; ## 7. Riscos, contradições e pontos de atenção; ## 8. Limitações e informações não comprovadas; ## 9. Referências de páginas.',\n  'Na seção 2 use tabela com pergunta, resposta e evidência/página; nas seções 6 e 9 use tabelas com prioridade, ação, justificativa, prazo, responsável e referência. Responda: o que aconteceu, quem é afetado, qual status regulatório, impacto direto, impacto potencial, urgência/prazo, o que fazer e prioridade executiva. Em cada achado inclua fato, status, impacto, risco, prioridade, ação recomendada, página e evidência. Na seção 9 repita as referências padronizadas.',\n  'Documento com ' + expectedPages + ' páginas analisadas em ' + batches.length + ' lotes. Protocolo: ' + source.submission_id,\n  'ACHADOS CONSOLIDADOS DE TODOS OS LOTES:', JSON.stringify(findings),\n  'A leitura e análise cobriram todas as páginas. Não faça afirmações sobre conteúdo que não esteja representado nos achados acima.'\n].join('\\n');\nreturn [{ json: { ...source, report_prompt: prompt, prompt_version: 'regulatory-extraction-v5-full-document-batched', report_context: reportContext, pages_processed: pages, batch_count: batches.length, findings_count: findings.length } }];"
+        "jsCode": "const responses = $input.all();\nconst batches = $('Prepare analysis batches').all();\nif (!responses.length || responses.length !== batches.length) throw new Error('IA: resultado ausente em um ou mais lotes; relatório parcial não será gerado');\nconst merged = new Map();\nconst pagesProcessed = new Set();\nfunction normalize(value) { return String(value || '').normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim().toLocaleLowerCase('pt-BR'); }\nfor (let index = 0; index < responses.length; index++) {\n  const batch = batches[index].json;\n  for (const page of batch.batch_pages || []) pagesProcessed.add(Number(page));\n  let raw = String(responses[index].json.response || '').trim();\n  raw = raw.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/i, '');\n  let parsed;\n  try { parsed = JSON.parse(raw); } catch (error) { throw new Error('VALIDACAO: JSON inválido no lote ' + batch.batch_number + ': ' + error.message); }\n  if (!parsed || !Array.isArray(parsed.achados)) throw new Error('VALIDACAO: o lote ' + batch.batch_number + ' não retornou a lista obrigatória de achados');\n  for (const finding of parsed.achados) {\n    if (!finding || typeof finding !== 'object' || !String(finding.titulo || finding.fato || '').trim() || !Number.isInteger(Number(finding.pagina)) || !String(finding.evidencia || '').trim()) throw new Error('VALIDACAO: achado incompleto no lote ' + batch.batch_number);\n    const item = { titulo: String(finding.titulo || '').trim(), fato: String(finding.fato || '').trim(), status: String(finding.status || 'não localizado'), impacto: String(finding.impacto || 'não comprovado'), risco: String(finding.risco || 'não classificado'), acao_recomendada: String(finding.acao_recomendada || 'Conferir o documento original.'), prioridade: String(finding.prioridade || 'informativa'), pagina: Number(finding.pagina), evidencia: String(finding.evidencia).trim() };\n    const key = item.pagina + '|' + normalize(item.evidencia);\n    if (!merged.has(key)) merged.set(key, item);\n  }\n}\nconst source = batches[0].json;\nconst pages = [...pagesProcessed].sort((a, b) => a - b);\nconst expectedPages = Number(source.metadata && source.metadata.page_count || 0);\nif (pages.length !== expectedPages || pages.some((page, index) => page !== index + 1)) throw new Error('EXTRACAO: nem todas as páginas foram analisadas; relatório parcial não será gerado');\nconst findings = [...merged.values()];\nconst reportContext = { type: 'full_document_batched', page_count: expectedPages, pages_processed: pages, batch_count: batches.length, findings_count: findings.length };\nconst prompt = [\n  'Você atua como analista sênior de inteligência regulatória, operações e impacto de mercado. Produza o relatório solicitado somente com base nos achados estruturados de todos os lotes do documento completo.',\n  'Não invente fatos, prazos, normas, responsáveis, impacto financeiro, tamanho de mercado ou reação de concorrentes. Diferencie fato documentado, inferência e informação não comprovada. Preserve status deferido, indeferido, cancelado e outros sem reclassificar. Inclua todos os achados fornecidos, sem descartar itens repetidos que tenham evidências diferentes.',\n  'Toda afirmação factual e cada achado devem incluir uma referência padronizada em duas linhas: “- Página: N” seguida de “- Evidência literal: \\\"trecho exato\\\"”. Copie a evidência exatamente como fornecida. Não crie referências próprias. Se uma informação não aparecer nos achados, escreva “não localizado nos achados analisados” sem afirmar que inexiste no documento.',\n  'Retorne somente Markdown em português do Brasil, sem cercas de código ou texto antes do título. Use exatamente as seções: # Relatório Técnico de Inteligência Regulatória; ## 1. Resumo executivo; ## 2. Respostas às perguntas de negócio; ## 3. Escopo e identificação do documento; ## 4. Achados regulatórios; ## 5. Impacto de mercado e comercial; ## 6. Plano de ação recomendado; ## 7. Riscos, contradições e pontos de atenção; ## 8. Limitações e informações não comprovadas; ## 9. Referências de páginas.',\n  'Na seção 2 use tabela com pergunta, resposta e evidência/página; na seção 6 use tabela com prioridade, ação, justificativa, prazo e responsável; na seção 9 use tabela com as colunas Página, Evidência curta e Achado relacionado. Responda: o que aconteceu, quem é afetado, qual status regulatório, impacto direto, impacto potencial, urgência/prazo, o que fazer e prioridade executiva. Em cada achado inclua fato, status, impacto, risco, prioridade, ação recomendada, página e evidência. Na seção 9 repita as referências padronizadas.',\n  'Documento com ' + expectedPages + ' páginas analisadas em ' + batches.length + ' lotes. Protocolo: ' + source.submission_id,\n  'ACHADOS CONSOLIDADOS DE TODOS OS LOTES:', JSON.stringify(findings),\n  'A leitura e análise cobriram todas as páginas. Não faça afirmações sobre conteúdo que não esteja representado nos achados acima.'\n].join('\\n');\nreturn [{ json: { ...source, report_prompt: prompt, prompt_version: 'regulatory-extraction-v5-full-document-batched', report_context: reportContext, pages_processed: pages, batch_count: batches.length, findings_count: findings.length } }];"
       },
       "id": "merge-analysis-batches",
       "name": "Merge batch findings and prepare report",
@@ -205,6 +205,48 @@
       ]
     },
     {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.UPLOAD_GATEWAY_BASE_URL || 'http://upload-gateway:8085') + '/internal/submissions/' + encodeURIComponent($('Validate report Markdown').item.json.submission_id) + '/validate-report' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Token",
+              "value": "={{ $env.INTERNAL_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ report_markdown: $('Validate report Markdown').item.json.report_markdown, pages_processed: $('Validate report Markdown').item.json.pages_processed }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "validate-report-evidence",
+      "name": "Gateway - Validate report evidence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Validate report Markdown').item.json; const validation = $json; if (!validation.coverage || !validation.coverage.complete) throw new Error('VALIDACAO: cobertura documental incompleta; relatório parcial não será persistido'); const report = String(validation.validated_report_markdown || ''); if (!report) throw new Error('VALIDACAO: gateway não retornou o relatório conferido'); const confirmed = Number(validation.references && validation.references.confirmed || 0); const total = Number(validation.references && validation.references.total || 0); const pending = Array.isArray(validation.references && validation.references.pending) ? validation.references.pending : []; const coverage = validation.coverage; const lines = ['## 10. Cobertura e referências', '- Páginas analisadas: ' + coverage.processed_pages + '/' + coverage.source_pages + ' (' + Math.round(coverage.ratio * 100) + '%).', '- Referências comprovadas no Markdown original: ' + confirmed + '/' + total + '.']; if (pending.length) { lines.push('- Referências pendentes (não comprovadas; não bloqueiam o envio):'); for (const item of pending) lines.push('  - Página ' + (item.page ?? 'não informada') + ': ' + String(item.reason || 'referência não confirmada') + (item.evidence ? ' — trecho alegado: “' + item.evidence + '”' : '')); } else if (!total) lines.push('- Nenhuma referência literal foi apresentada para conferência.'); const reportWithSignal = report + '\\n\\n' + lines.join('\\n'); return [{ json: { ...source, report_markdown: reportWithSignal, report_context: { ...source.report_context, evidence_quality: validation.evidence_quality }, citation_validation: { coverage: validation.coverage, references: validation.references, evidence_quality: validation.evidence_quality }, report_markdown_size_bytes: Buffer.byteLength(reportWithSignal, 'utf8') } }];"
+      },
+      "id": "accept-report-evidence",
+      "name": "Accept evidence validation and add signal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        0
+      ]
+    },
+    {
       "parameters": {"jsCode": "const content = Buffer.from($json.report_markdown, 'utf8'); const binary = await this.helpers.prepareBinaryData(content, $json.report_markdown_storage_key.split('/').pop(), 'text/markdown'); return [{ json: $json, binary: { data: binary } }];"},
       "id": "report-markdown-binary",
       "name": "Prepare report Markdown file",
@@ -233,7 +275,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const source = $('Validate report Markdown').item.json; return [{ json: { metadata: { source_filename: source.source_filename, submission_id: source.submission_id, source_sha256: source.source_sha256, page_count: source.metadata.page_count, converter_version: source.metadata.converter_version, report_context: source.report_context }, report_markdown: source.report_markdown, submission_id: source.submission_id, report_storage_key: source.report_storage_key, attempt_number: source.attempt_number } }];"
+        "jsCode": "const source = $('Accept evidence validation and add signal').item.json; return [{ json: { metadata: { source_filename: source.source_filename, submission_id: source.submission_id, source_sha256: source.source_sha256, page_count: source.metadata.page_count, converter_version: source.metadata.converter_version, report_context: source.report_context }, report_markdown: source.report_markdown, submission_id: source.submission_id, report_storage_key: source.report_storage_key, attempt_number: source.attempt_number } }];"
       },
       "id": "report-payload",
       "name": "Prepare report PDF payload",
@@ -299,7 +341,7 @@
     "Ollama - Analyze each batch": {"main":[[{"node":"Merge batch findings and prepare report","type":"main","index":0}]]},
     "Merge batch findings and prepare report": {"main":[[{"node":"Ollama - Generate report Markdown","type":"main","index":0}]]},
     "Ollama - Generate report Markdown": {"main":[[{"node":"Validate report Markdown","type":"main","index":0}]]},
-    "Validate report Markdown": {"main":[[{"node":"Prepare report Markdown file","type":"main","index":0}]]},
+    "Validate report Markdown": {"main":[[{"node":"Gateway - Validate report evidence","type":"main","index":0}]]},
     "Prepare report Markdown file": {"main":[[{"node":"Internal Storage - Write report Markdown","type":"main","index":0}]]},
     "Internal Storage - Write report Markdown": {"main":[[{"node":"State - Report Markdown persisted","type":"main","index":0}]]},
     "State - Report Markdown persisted": {"main":[[{"node":"Prepare report PDF payload","type":"main","index":0}]]},
@@ -307,7 +349,9 @@
     "Report Renderer": {"main":[[{"node":"Prepare report PDF file","type":"main","index":0}]]},
     "Prepare report PDF file": {"main":[[{"node":"Internal Storage - Write report PDF","type":"main","index":0}]]},
     "Internal Storage - Write report PDF": {"main":[[{"node":"State - Report persisted","type":"main","index":0}]]},
-    "State - Report persisted": {"main":[]}
+    "State - Report persisted": {"main":[]},
+    "Gateway - Validate report evidence": {"main":[[{"node":"Accept evidence validation and add signal","type":"main","index":0}]]},
+    "Accept evidence validation and add signal": {"main":[[{"node":"Prepare report Markdown file","type":"main","index":0}]]}
   },
-  "versionId": "automacao-regulatoria-internal-v2-full-document-batched"
+  "versionId": "automacao-regulatoria-internal-v3-evidence-validation"
 }

@@ -1812,3 +1812,43 @@ alteração ou teste na VPS nem ativação do workflow de reconciliação.
 Impacto:
 A cobertura deixa de depender de um recorte por palavras-chave. O tempo e o
 consumo do modelo podem aumentar porque cada lote gera uma inferência.
+
+## 2026-10-01 — Validação de evidências e sinalização de pendências
+
+Tipo: Correção de rastreabilidade
+Status: Implementado; testes direcionados aprovados; homologação ponta a ponta pendente
+
+Contexto:
+O relatório citava páginas e trechos, mas o sistema não os comparava com o
+Markdown de origem. Uma citação incorreta podia parecer comprovada ao leitor.
+
+Decisão/Ação:
+Foi adicionada uma rota interna autenticada que lê o Markdown persistido e
+confere cada referência. Página inexistente, evidência ausente ou localizada
+em outra página agora vira referência pendente explícita. A cobertura mede
+páginas processadas e não é apresentada como confiança da IA. A cobertura
+incompleta ou falha técnica interrompe a geração; referência pendente não
+bloqueia o relatório nem o envio manual.
+
+Arquivos afetados:
+`infra/regulatory_analysis/report_validation.py`,
+`infra/upload_gateway/app.py`, `tests/regulatory_analysis/test_report_validation.py`,
+`tests/upload_gateway/test_api.py`, `tests/contracts/test_deployment_contract.py`,
+`workflows/automacao-regulatoria-internal-v1.json`, `prompts/regulatory-extraction-v5.md`,
+`PRD.md`, `ROADMAP.md`, `README.md` e `workflows/README.md`.
+
+Testes:
+`python -m pytest tests/regulatory_analysis/test_report_validation.py
+tests/upload_gateway/test_api.py tests/contracts/test_deployment_contract.py -q`;
+35 testes passaram. Inclui citações confirmadas e pendentes, página inexistente,
+trecho fora da página citada, cobertura incompleta, rota autenticada e formato
+de tabela legado durante a transição.
+
+Pendências:
+Completar a homologação Docker com PDF sintético e confirmar a persistência do
+relatório, a saída PDF, a cobertura e o estado `aguardando_envio`.
+
+Impacto:
+O leitor recebe um aviso verificável para citações pendentes. A entrega segue
+disponível para conferência e nenhum relatório é produzido se páginas não
+tiverem sido analisadas.

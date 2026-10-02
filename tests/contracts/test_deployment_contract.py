@@ -81,6 +81,8 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
         "Merge batch findings and prepare report",
         "Ollama - Generate report Markdown",
         "Validate report Markdown",
+        "Gateway - Validate report evidence",
+        "Accept evidence validation and add signal",
         "Internal Storage - Write report Markdown",
         "Report Renderer",
         "Internal Storage - Write report PDF",
@@ -137,6 +139,14 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "aguardando_revisao" not in report_state["parameters"]["query"]
     report_payload = next(node for node in workflow["nodes"] if node["name"] == "Prepare report PDF payload")
     assert "report_markdown" in report_payload["parameters"]["jsCode"]
+    validate_evidence = next(node for node in workflow["nodes"] if node["name"] == "Gateway - Validate report evidence")
+    assert "/validate-report" in validate_evidence["parameters"]["url"]
+    assert "X-Internal-Token" in json.dumps(validate_evidence["parameters"])
+    accept_evidence = next(node for node in workflow["nodes"] if node["name"] == "Accept evidence validation and add signal")
+    assert "coverage.complete" in accept_evidence["parameters"]["jsCode"]
+    assert "if (pending.length)" in accept_evidence["parameters"]["jsCode"]
+    assert "references_pending" not in accept_evidence["parameters"]["jsCode"]
+    assert workflow["connections"]["Validate report Markdown"]["main"][0][0]["node"] == "Gateway - Validate report evidence"
     report_file = next(node for node in workflow["nodes"] if node["name"] == "Prepare report PDF file")
     assert "getBinaryDataBuffer" in report_file["parameters"]["jsCode"]
     renderer = next(node for node in workflow["nodes"] if node["name"] == "Report Renderer")
@@ -150,6 +160,9 @@ def test_market_prompt_file_matches_active_contract() -> None:
     assert "6.000 caracteres" in prompt
     assert "Todos os\nlotes são analisados" in prompt
     assert "duplicatas" in prompt
+    assert "- Página: N" in prompt
+    assert "- Evidência literal:" in prompt
+    assert "marcados como pendentes" in prompt
     for marker in (
         "o que aconteceu",
         "qual é o status\nregulatório",

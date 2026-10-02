@@ -17,7 +17,7 @@ Na homologação anterior, a entrada e os artefatos ainda passavam pelo Google D
 Esta é a arquitetura aprovada para a próxima implementação; a migração deve
 ser concluída antes de considerar o repositório interno como operacional.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter obrigatoriamente cada documento para Markdown, extrair e organizar seu conteúdo a partir desse artefato intermediário, analisar as informações utilizando um modelo de IA local executado pelo Ollama, estruturar os dados encontrados, produzir um relatório técnico padronizado com padrão de análise sênior e gerar um PDF final. O PostgreSQL será a fonte de verdade dos metadados, estados, tentativas, erros, vínculos, destinatários e entregas; o volume privado do Docker armazenará os arquivos. O envio por Gmail será solicitado manualmente pelo operador após a geração do relatório; a conferência das páginas e evidências será opcional e não bloqueará o fluxo.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
 
 A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
 
@@ -48,10 +48,9 @@ Responsável por enviar documentos pela landing privada e consultar os resultado
 
 Pode conferir o relatório, as páginas e as evidências quando a equipe desejar:
 
-- baixa confiança;
-- conteúdo ambíguo;
-- informações contraditórias;
-- ausência de evidência suficiente;
+- ambiguidade ou contradição;
+- informação não comprovada;
+- referências de página ou evidência pendentes;
 - falha parcial de extração ou análise.
 
 Essa conferência é um recurso operacional e não é pré-requisito para gerar,
@@ -186,19 +185,31 @@ Para o relatório regulatório, deve organizar, quando presentes:
 
 A saída da análise deve ser transformada em dados estruturados antes da geração do relatório. Os registros devem preservar empresa, CNPJ quando disponível, detalhes do produto, processo, registro, validade, apresentação, assunto, produto relacionado e páginas de origem conforme a categoria.
 
-### RF-07 — Controle de confiança
+### RF-07 — Cobertura documental e qualidade das evidências
 
-O sistema deve possuir mecanismo de classificação ou sinalização de confiança da
-resposta. Esse indicador deve aparecer no relatório para orientar a leitura, mas
-não deve bloquear a geração, o envio ou o download oficial quando as etapas
-técnicas forem concluídas.
+O sistema deve exibir no relatório um sinal objetivo que informe quantas páginas
+foram analisadas e quantas referências a páginas e evidências literais foram
+confirmadas no Markdown original. Esse sinal mede cobertura e localização de
+evidências; não representa confiança semântica ou nota de certeza da IA.
+
+Referências não localizadas, com página inexistente ou citação diferente da
+fonte devem ser marcadas como pendentes e claramente distinguidas das
+comprovadas. Pendências de citação não bloqueiam a geração do PDF, o estado
+`aguardando_envio` nem a solicitação manual de envio. Cobertura incompleta por
+falha técnica de lote, leitura ou página deve interromper a geração do relatório.
+
+A validação é oferecida pela rota interna autenticada
+`POST /internal/submissions/{id}/validate-report`. O gateway carrega o Markdown original
+do armazenamento, confere as páginas analisadas e cada par página/evidência,
+e devolve as referências confirmadas e pendentes. A origem não pode ser enviada
+pelo cliente como substituta do artefato guardado.
 
 ### RF-08 — Conferência humana opcional
 
-Casos com baixa confiança, ambiguidade, informações contraditórias ou evidência
-insuficiente devem ser sinalizados no relatório com linguagem clara, páginas
-disponíveis e limitações. A equipe pode conferir esses pontos pelo painel, mas a
-revisão humana não é obrigatória para concluir o processamento.
+Ambiguidade, contradição, informação não comprovada ou referência pendente
+devem ser sinalizadas no relatório, com as páginas disponíveis e suas
+limitações. A equipe pode conferir esses pontos pelo painel, mas a revisão
+humana não é obrigatória para concluir o processamento.
 
 ### RF-09 — Geração de relatório
 
@@ -218,7 +229,8 @@ vínculo de cada artefato.
 ### RF-12 — Envio manual por e-mail
 
 Depois de gerar e persistir o PDF final, o workflow deve colocar o documento em
-`aguardando_envio`, independentemente do indicador de confiança. O operador
+`aguardando_envio` quando a cobertura do processamento estiver completa,
+independentemente de haver referências pendentes. O operador
 autenticado pode visualizar os artefatos, conferir páginas e evidências quando
 desejar, selecionar os destinatários padrão ou substituí-los para aquele
 documento e solicitar o envio pelo Gmail. O status só pode mudar para
@@ -227,7 +239,8 @@ documento e solicitar o envio pelo Gmail. O status só pode mudar para
 
 ### RF-13 — Tratamento de erros
 
-O workflow deve possuir tratamento básico de erros para evitar que falhas silenciosas sejam consideradas processamento concluído. Falha na conversão PDF → Markdown deve interromper a extração e encaminhar o documento para erro. Alertas de qualidade, baixa confiança ou ausência de evidência devem ser registrados no relatório técnico e não podem ser confundidos com falha técnica.
+O workflow deve possuir tratamento básico de erros para evitar que falhas silenciosas sejam consideradas processamento concluído. Falha na conversão PDF → Markdown deve interromper a extração e encaminhar o documento para erro. Alertas de qualidade, citações pendentes ou ausência de evidência devem ser
+registrados no relatório técnico e não podem ser confundidos com falha técnica.
 
 ### RF-14 — Rastreabilidade
 
@@ -293,10 +306,10 @@ apresentar as páginas disponíveis para conferência opcional.
 
 ### RN-03 — Ambiguidade deve ser explicitada
 
-Quando a saída possuir baixa confiança ou conteúdo contraditório, o fluxo deve
-preservar as versões conflitantes, sinalizar o nível de confiança e manter o
-relatório disponível. A conferência humana pode ocorrer depois, mas não é um
-gate obrigatório.
+Quando houver ambiguidade ou conteúdo contraditório, o fluxo deve preservar
+as versões conflitantes e suas referências. O sinal de cobertura e evidência
+não mede a certeza semântica da IA. A conferência humana pode ocorrer depois,
+mas não é um gate obrigatório.
 
 ### RN-04 — Fonte primária é o documento processado
 
@@ -410,7 +423,7 @@ achados traduzidos em implicações práticas de acompanhamento e indicar próxi
 passos. A redação pode explicar possíveis impactos em cadastro, registros,
 processos, prazos e comunicação interna, mas não deve criar impacto financeiro,
 jurídico ou regulatório que não esteja evidenciado no documento. O resumo deve
-preservar o status de confiança, os alertas e as limitações encontradas.
+preservar o sinal de cobertura/evidência, os alertas e as limitações encontradas.
 Cada achado exibido deve informar as páginas de origem. Quando a página não
 puder ser comprovada, o relatório deve indicar explicitamente que a referência
 está pendente, sem preencher a página por inferência, e permitir conferência
@@ -511,12 +524,14 @@ O MVP poderá ser considerado entregue quando:
 12. o relatório puder ser visualizado internamente antes do envio;
 13. o envio manual for confirmado pelo Gmail e registrado no PostgreSQL;
 14. um caso de falha de conversão impedir a extração e ser identificado;
-15. um caso de baixa confiança for identificado no relatório e puder ser conferido opcionalmente;
+15. uma referência pendente for identificada no relatório, sem bloquear o fluxo, e puder ser conferida opcionalmente;
 16. a fila, o detalhe, os destinatários e a conferência opcional forem operáveis pela sessão autenticada;
 17. houver documentação mínima de operação;
 18. os testes de funcionamento definidos no repositório estiverem aprovados;
 19. a landing protegida aceitar um PDF, gerar protocolo e mostrar seu status;
-20. o relatório final puder ser baixado somente após conclusão válida.
+20. o workflow analisar todas as páginas em lotes limitados e interromper o relatório se um lote falhar;
+21. páginas e evidências literais forem conferidas automaticamente e citações inválidas forem marcadas como pendentes, sem bloquear o estado `aguardando_envio`;
+22. o relatório final puder ser baixado somente após conclusão válida.
 
 ---
 
@@ -555,28 +570,29 @@ como referência RAG e fila de candidatos; nenhum documento bruto entra
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
 
-## Decisão vigente sobre o fluxo operacional — 2026-09-16
+## Decisão vigente sobre o fluxo operacional — 2026-10-01
 
-Para reduzir tempo, custo de processamento e pontos de falha, o caminho ativo do
-produto é deliberadamente linear:
+O processamento percorre uma cadeia linear, mas analisa o documento completo em
+lotes para manter cada chamada ao modelo dentro de um limite controlado:
 
 ```text
-PDF recebido -> Markdown paginado -> prompt do especialista regulatório
-             -> relatório técnico Markdown -> PDF final -> envio/download
+PDF -> Markdown paginado -> análise de todas as páginas em lotes de até 6.000 caracteres
+    -> achados temporários consolidados -> relatório Markdown
+    -> validação de cobertura e referências -> PDF -> aguardando_envio
 ```
 
 O relatório Markdown é o resultado técnico principal; o PDF é a apresentação
-final para distribuição. O prompt ativo é `regulatory-extraction-v4` e produz
-somente Markdown, com nove perguntas de negócio estabelecidas, foco em impacto
-direto e potencial de mercado, prioridade executiva, plano de ação, limitações
-e referências de página. O modelo usa apenas o Markdown persistido e deve
-declarar quando a evidência for insuficiente.
+final. O contrato ativo `regulatory-extraction-v5-full-document-batched`
+analisa todas as páginas, preserva as referências e usa as nove perguntas de
+negócio, com foco em impacto, prioridade, plano de ação, limitações e
+referências de página. A saída JSON dos lotes é temporária; ela é consolidada e
+não substitui o Markdown nem é salva como análise estruturada do documento.
 
-JSON estruturado, RAG, embeddings e `quality_checks` permanecem versionados para
-compatibilidade, auditoria e evolução futura, mas não fazem parte do caminho
-crítico vigente nem bloqueiam a entrega. Os itens de aceite que exigem JSON,
-RAG ou revisão humana como etapa operacional ficam substituídos por este fluxo
-linear. A revisão humana continua disponível como conferência opcional.
+O gateway confere a cobertura e cada citação do relatório contra o Markdown
+original. Citações não confirmadas ficam pendentes e não bloqueiam a entrega.
+Lote com falha técnica ou cobertura incompleta interrompe a geração do
+relatório. RAG, embeddings e `quality_checks` continuam fora do caminho ativo.
+A revisão humana continua disponível como conferência opcional.
 
 Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros, envio autenticado e download somente após

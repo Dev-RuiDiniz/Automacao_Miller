@@ -752,3 +752,36 @@ dados apagados podem ser consultados nos backups validados em
 testes do divisor de lotes real do n8n passaram; a
 homologação ponta a ponta permanece pendente até a conclusão das duas tarefas
 subsequentes desta correção.
+
+## 37. Validação de evidências e sinalização de pendências — 2026-10-01
+
+- [x] Comparar citações do relatório com a página indicada no Markdown original.
+- [x] Sinalizar páginas não existentes e evidências ausentes ou localizadas em
+      outra página como referências pendentes.
+- [x] Expor validação pela rota interna autenticada do gateway.
+- [x] Interromper geração apenas para falha técnica ou cobertura incompleta;
+      pendências de referência não bloqueiam o envio.
+- [x] Não apresentar a medida de cobertura como confiança da IA.
+- [ ] Homologar o fluxo completo na stack Docker local.
+
+**Resultado:** o gateway confere automaticamente referências literais e páginas
+e devolve cobertura e pendências. O workflow acrescenta esse resumo ao relatório;
+referências não confirmadas ficam explicitamente marcadas, enquanto cobertura
+incompleta continua impedindo a geração de um relatório parcial.
+
+**Arquivos afetados:** `infra/regulatory_analysis/report_validation.py`,
+`infra/upload_gateway/app.py`, testes do validador, API e contrato do workflow,
+`workflows/automacao-regulatoria-internal-v1.json`, `PRD.md`, `README.md` e
+`workflows/README.md`.
+
+**Testes:** 35 testes direcionados passaram, incluindo citação válida, página
+inexistente, trecho ausente, trecho encontrado em outra página, cobertura
+incompleta e rota interna autenticada.
+
+**Pendências:** confirmar Markdown, PDF e estado `aguardando_envio` com o PDF
+sintético na stack local. Nenhum envio real nem workflow de reconciliação foi
+executado.
+
+**Impacto:** o leitor consegue distinguir cobertura documental de localização
+de evidências. Referências pendentes são avisos verificáveis, sem nota de
+confiança semântica da IA.

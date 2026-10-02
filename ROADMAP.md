@@ -12,9 +12,12 @@
 
 ## 2. Status geral
 
-**Estado atual:** homologação ponta a ponta aprovada historicamente; repositório interno e painel publicados; base de teste zerada em 2026-09-23; nova homologação da versão v4 pendente. O workflow de reconciliação está pausado após execuções recorrentes travadas. Produção permanece condicionada à revisão de segurança e ao aceite operacional final.
+**Última observação da VPS (2026-09-23):** a base de homologação foi limpa, a reconciliação estava pausada após execuções travadas, a cópia remota divergia do repositório e o workflow ativo usava o prompt v3; a homologação do v4 estava pendente. A validação ponta a ponta registrada anteriormente foi feita com o v3.
+**Situação remota em 2026-10-02:** a VPS não foi consultada nesta atualização. O estado remoto atual é desconhecido; as informações de 23/09 são um registro histórico, não uma confirmação de que tudo continua igual.
+**Homologação:** aprovada historicamente para a versão então implantada; não representa validação da versão atual do repositório.
+**Produção:** condicionada à revisão de segurança e ao aceite operacional final.
 **MVP:** definido  
-**Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
+**Último registro de infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller` (sem verificação atual).
 **Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
@@ -711,7 +714,10 @@ remota registrada anteriormente continua sendo evidência histórica do prompt v
 ela não deve ser apresentada como validação da nova redação até que a VPS seja
 atualizada e o fluxo seja executado novamente.
 
-## 35. Reinício limpo da homologação na VPS — 2026-09-23
+## 35. Reinício limpo da homologação na VPS — observação de 2026-09-23
+
+> Registro histórico. Os estados descritos abaixo foram observados em 23/09 e
+> não foram verificados novamente em 2026-10-02.
 
 - [x] Criar e validar backup do PostgreSQL, do volume ativo de artefatos e dos
       volumes legados de submissão, sem remover backups anteriores.
@@ -727,16 +733,18 @@ atualizada e o fluxo seja executado novamente.
 - [ ] Diagnosticar e corrigir o workflow de reconciliação, que voltou a acumular
       execuções `running` a cada minuto mesmo com a base vazia, e reativá-lo após
       validação controlada.
-- [ ] Alinhar a implantação da VPS ao repositório antes dos novos testes. A
-      cópia remota estava em commit diferente, com alterações locais, e o
-      workflow ativo ainda usava o prompt v3; a homologação v4 permanece pendente.
+- [ ] Alinhar a implantação da VPS ao repositório antes dos novos testes. Na
+      observação de 23/09, a cópia remota estava em commit diferente, com
+      alterações locais, e o workflow ativo usava o prompt v3; a homologação v4
+      estava pendente naquela data.
 - [ ] Executar a nova matriz de testes a partir da base limpa.
 
-**Resultado operacional:** foram preservados os três workflows operacionais
-ativos, as credenciais e as configurações. A definição da reconciliação foi
-preservada e pausada temporariamente para impedir novas execuções travadas. Os
-dados apagados podem ser consultados nos backups validados em
-`/opt/backups/automacao-miller` na VPS.
+**Resultado observado em 23/09:** foram preservados os três workflows
+operacionais ativos, as credenciais e as configurações. A definição da
+reconciliação foi preservada e pausada temporariamente para impedir novas
+execuções travadas. O registro da operação informa que os dados apagados estavam
+nos backups então validados em `/opt/backups/automacao-miller` na VPS; a
+disponibilidade atual desses backups não foi verificada.
 
 ## 36. Análise integral em lotes — 2026-10-01
 
@@ -850,3 +858,21 @@ resultado da consulta; nenhum e-mail foi enviado.
 **Limitação:** o workflow exportado não foi ativado nem validado na VPS. A
 consulta foi executada no PostgreSQL Docker local e a rota foi verificada pelo
 contrato dos exports.
+
+## 40. Delimitação do estado histórico da VPS — 2026-10-02
+
+- [x] Identificar a observação remota mais recente registrada, de 2026-09-23.
+- [x] Marcar como históricos o estado da base, da reconciliação e do prompt v3.
+- [x] Informar que a VPS não foi consultada em 2026-10-02 e que o estado atual
+      é desconhecido.
+- [x] Atualizar o log sem apagar o registro operacional original.
+- [x] Adicionar teste de contrato para impedir que o estado remoto histórico
+      seja apresentado como confirmação atual.
+
+**Resultado:** o roadmap separa estado conhecido do repositório e última
+observação remota. O log mantém os fatos de 23/09 com data explícita; não houve
+acesso à VPS nesta correção.
+
+**Testes:** 11 testes dos contratos passaram, incluindo a verificação de que o
+roadmap e o log deixam a data da observação e a ausência de consulta atual
+explícitas.

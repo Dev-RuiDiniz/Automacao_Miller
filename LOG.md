@@ -1732,7 +1732,11 @@ ambiguidade de interpretação e acelera a confirmação no PDF por meio de
 perguntas e referências padronizadas, sem transformar a análise em decisão
 regulatória definitiva.
 
-## 2026-09-23 — Limpeza controlada da base de homologação na VPS
+## 2026-09-23 — Limpeza controlada da base de homologação na VPS (registro histórico)
+
+> Os fatos abaixo descrevem a observação feita em 23/09. A VPS não foi
+> consultada novamente em 2026-10-02; não se afirma que o estado remoto atual
+> permaneça igual.
 
 **Data:** 2026-09-23
 **Tipo:** OPERAÇÃO / HOMOLOGAÇÃO / LIMPEZA CONTROLADA
@@ -1763,16 +1767,15 @@ conferidas (três ativas e a reconciliação pausada); os sete serviços do Mill
 estavam saudáveis após o reinício. Não foi executado processamento funcional de
 documentos nesta operação.
 
-**Pendências:** Investigar e corrigir a reconciliação antes de reativá-la. A
-VPS ainda precisa ser alinhada ao estado versionado do repositório: o checkout
-remoto estava divergente e com alterações locais, e o workflow ativo ainda
-usava o prompt v3. Executar nova homologação com o prompt v4 após revisar essas
-diferenças.
+**Pendências registradas em 23/09:** Investigar e corrigir a reconciliação antes
+de reativá-la. Naquela observação, o checkout remoto estava divergente e com
+alterações locais, e o workflow ativo usava o prompt v3. A nova homologação com
+o prompt v4 estava pendente. Esses estados não foram verificados em 2026-10-02.
 
-**Impacto:** O ambiente de homologação ficou sem documentos, artefatos ou
-histórico de execução de teste, preservando os backups e as credenciais. O
-workflow de reconciliação permanece disponível para investigação, porém pausado
-para evitar que execuções travadas reapareçam.
+**Impacto observado em 23/09:** O ambiente de homologação ficou sem documentos,
+artefatos ou histórico de execução de teste, preservando os backups e as
+credenciais. Naquela data, o workflow de reconciliação estava pausado para
+evitar que execuções travadas reaparecessem.
 
 ## 2026-10-01 — Análise integral em lotes
 
@@ -1942,3 +1945,37 @@ autorizada, sem envio real.
 Impacto:
 O recuperador retoma o envio pendente no workflow adequado, sem reprocessar o
 PDF nem perder o identificador da entrega.
+
+## 2026-10-02 — Delimitação do último estado remoto observado
+
+Tipo:
+Correção de documentação operacional
+
+Status:
+Concluído; teste de contrato aprovado
+
+Contexto:
+O topo do roadmap apresentava como atuais os estados anotados na operação de
+limpeza da VPS em 2026-09-23. Essa VPS não foi consultada nesta atualização, e a
+última homologação ponta a ponta registrada usou o prompt v3.
+
+Decisão/Ação:
+O status geral agora distingue a observação de 23/09 do estado remoto atual,
+que permanece desconhecido. A seção operacional e o registro de 23/09 foram
+marcados como históricos, preservando os fatos e a trilha da operação.
+
+Arquivos afetados:
+`ROADMAP.md`, `LOG.md` e `tests/contracts/test_deployment_contract.py`.
+
+Testes:
+`python -m pytest tests/contracts/test_deployment_contract.py -q`: 11 passaram.
+O teste exige datas explícitas e a declaração de que não houve consulta atual à
+VPS.
+
+Pendências:
+Consultar e homologar a VPS fica para uma atividade autorizada separada; não
+houve conexão remota nem alteração nesta tarefa.
+
+Impacto:
+Quem lê o roadmap sabe quando o estado foi observado e não confunde um registro
+histórico com uma checagem da situação da VPS hoje.

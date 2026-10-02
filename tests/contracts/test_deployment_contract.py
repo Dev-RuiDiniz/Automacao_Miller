@@ -5,6 +5,19 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 
 
+def test_remote_vps_status_is_explicitly_historical() -> None:
+    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    log = (ROOT / "LOG.md").read_text(encoding="utf-8")
+
+    assert "Última observação da VPS (2026-09-23)" in roadmap
+    assert "a VPS não foi consultada nesta atualização" in roadmap
+    assert "O estado remoto atual é desconhecido" in roadmap
+    assert "não foram verificados novamente em 2026-10-02" in roadmap
+    assert "(registro histórico)" in log
+    assert "Esses estados não foram verificados em 2026-10-02" in log
+    assert "VPS ainda precisa ser alinhada" not in log
+
+
 def test_compose_declares_isolated_required_services() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     for service in ("postgres:", "ollama:", "rag-service:", "pdf-converter:", "report-renderer:", "n8n:"):

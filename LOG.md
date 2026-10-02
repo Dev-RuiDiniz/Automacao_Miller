@@ -2066,3 +2066,57 @@ Impacto:
 A inicialização padrão perdeu a dependência do serviço RAG e reserva mais
 memória para o sistema na VPS de referência. A reconciliação também recebe no
 n8n a configuração do webhook de envio.
+
+## 2026-10-02 — Estabilização do processamento de PDFs longos no Ollama
+
+Tipo:
+Correção de workflow e infraestrutura local
+
+Status:
+Correção aplicada e testada; reprocessamento completo interrompido pelo usuário
+devido à lentidão do modelo local
+
+Contexto:
+O PDF enviado pelo operador tem 26,6 MiB, 142 páginas e gerou 1,63 MB de
+Markdown. Tentativas anteriores apontaram timeout do conversor configurado em
+milissegundos como se fossem segundos, cópia do Markdown completo para cada lote
+e 334 chamadas Ollama iniciadas em paralelo pelo nó HTTP do n8n. A concorrência
+derrubava o contêiner por falta de memória.
+
+Decisão/Ação:
+O timeout do conversor agora é convertido de segundos para milissegundos e usa
+300 segundos por padrão, sem retry automático. O preparo dos lotes deixou de
+replicar o Markdown integral em cada item. O workflow usa `Loop Over Items` com
+`batchSize=1` para aguardar a resposta antes do próximo lote e limita o contexto
+de cada chamada a 4.096 tokens. O normalizador do workflow de erro usa `Set`, e
+o registro de erro atualiza tentativa, protocolo e entrega em uma única consulta
+atômica. O workflow foi exportado antes da alteração, reimportado e publicado
+no n8n local, preservando a credencial PostgreSQL local. O gateway, banco e
+Ollama continuaram locais; nenhum e-mail foi disparado.
+
+Arquivos/Componentes afetados:
+`docker-compose.yml`, `tests/contracts/test_deployment_contract.py`,
+`workflows/README.md`, `workflows/automacao-regulatoria-internal-error-v1.json`,
+`workflows/automacao-regulatoria-internal-v1.json`, n8n/PostgreSQL/Ollama locais.
+
+Testes:
+`python -m pytest tests/contracts/test_deployment_contract.py -q`: 13 passaram.
+`python -m pytest -q`: 76 passaram; dois avisos existentes de depreciação do
+FastAPI. `docker compose -p codex-miller-local config --quiet` passou. A
+tentativa 8 converteu o PDF e alcançou a chamada sequencial ao Ollama sem OOM.
+O uso chegou a cerca de 2,3 GiB, sem reinicialização durante essa execução.
+O modelo produziu aproximadamente 1,6 token/s; o usuário escolheu interromper
+antes do término dos 334 lotes. O protocolo e a tentativa foram marcados como
+`erro`, sem relatório final. Ollama foi descarregado e o n8n ficou saudável.
+
+Pendências:
+A conclusão ponta a ponta de um documento longo não foi comprovada porque a
+análise foi interrompida por lentidão. O protocolo precisa de novo
+reprocessamento em um ambiente com capacidade adequada quando o usuário quiser.
+Não houve consulta à VPS, validação do relatório final nem envio real de e-mail.
+
+Impacto:
+O caminho deixou de disparar centenas de inferências ao mesmo tempo, reduzindo
+o risco de OOM. A execução integral preserva a cobertura, mas o modelo local em
+CPU torna o processamento muito demorado; estabilidade e tempo são limitações
+distintas e ambas ficam explícitas no estado e na documentação.

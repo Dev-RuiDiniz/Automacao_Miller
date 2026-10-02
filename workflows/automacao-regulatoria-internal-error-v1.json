@@ -2,7 +2,12 @@
   "name": "Automacao Regulatoria - Erros Internos",
   "id": "automacao-reg-error-handler",
   "active": false,
-  "settings": {"executionOrder": "v1", "saveManualExecutions": true, "saveDataErrorExecution": "all", "saveDataSuccessExecution": "none"},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none"
+  },
   "nodes": [
     {
       "parameters": {},
@@ -10,32 +15,104 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const execution = $json.execution || {}; const lastNode = execution.lastNodeExecuted || 'desconhecida'; const error = execution.error || {}; const workflowData = $json.workflowData || {}; return [{ json: { submission_id: workflowData.submission_id || workflowData.body?.submission_id || null, delivery_id: workflowData.delivery_id || workflowData.body?.delivery_id || null, current_stage: lastNode, error_category: String(error.message || '').startsWith('IA:') ? 'ia' : String(error.message || '').startsWith('EXTRACTION:') ? 'extração' : 'infraestrutura', error_message: String(error.message || 'falha nao detalhada'), execution_id: execution.id || null } }];"
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "error-submission-id",
+              "name": "submission_id",
+              "value": "={{ $json.workflowData?.submission_id || $json.workflowData?.body?.submission_id || null }}",
+              "type": "string"
+            },
+            {
+              "id": "error-delivery-id",
+              "name": "delivery_id",
+              "value": "={{ Number($json.workflowData?.delivery_id || $json.workflowData?.body?.delivery_id || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "error-current-stage",
+              "name": "current_stage",
+              "value": "={{ $json.execution?.lastNodeExecuted || 'desconhecida' }}",
+              "type": "string"
+            },
+            {
+              "id": "error-category",
+              "name": "error_category",
+              "value": "={{ String($json.execution?.error?.message || '').startsWith('IA:') ? 'ia' : (String($json.execution?.error?.message || '').startsWith('EXTRACTION:') || String($json.execution?.error?.message || '').startsWith('EXTRAÇÃO:')) ? 'extração' : 'infraestrutura' }}",
+              "type": "string"
+            },
+            {
+              "id": "error-message",
+              "name": "error_message",
+              "value": "={{ $json.execution?.error?.message || 'falha nao detalhada' }}",
+              "type": "string"
+            },
+            {
+              "id": "error-execution-id",
+              "name": "execution_id",
+              "value": "={{ $json.execution?.id || null }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
       },
       "id": "normalize-error",
       "name": "Normalize internal error",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [240, 0]
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH latest_attempt AS (SELECT attempt_id FROM automacao_miller.processing_attempts WHERE submission_id = {{ $json.submission_id ? String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }} ORDER BY started_at DESC LIMIT 1) INSERT INTO automacao_miller.workflow_errors (submission_id, attempt_id, status, current_stage, error_category, error_message, execution_id) VALUES ({{ $json.submission_id ? String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }}, (SELECT attempt_id FROM latest_attempt), 'erro', {{ String.fromCharCode(39) + String($json.current_stage).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String($json.error_category).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ String.fromCharCode(39) + String($json.error_message).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, {{ $json.execution_id ? String.fromCharCode(39) + String($json.execution_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }}); UPDATE automacao_miller.processing_attempts SET status = 'erro', current_stage = {{ String.fromCharCode(39) + String($json.current_stage).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, error_category = {{ String.fromCharCode(39) + String($json.error_category).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, error_message = {{ String.fromCharCode(39) + String($json.error_message).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, finished_at = NOW() WHERE attempt_id = (SELECT attempt_id FROM automacao_miller.processing_attempts WHERE submission_id = {{ $json.submission_id ? String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }} ORDER BY started_at DESC LIMIT 1); UPDATE automacao_miller.documents SET status = 'erro', current_stage = {{ String.fromCharCode(39) + String($json.current_stage).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, message = {{ String.fromCharCode(39) + String($json.error_message).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }}, updated_at = NOW() WHERE submission_id = {{ $json.submission_id ? String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }}; UPDATE automacao_miller.email_deliveries SET status = 'falhou', error_message = {{ String.fromCharCode(39) + String($json.error_message).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} WHERE delivery_id = {{ Number($json.delivery_id || 0) }};"
+        "query": "WITH error_context AS (\n  SELECT\n    {{ $json.submission_id ? String.fromCharCode(39) + String($json.submission_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }} AS submission_id,\n    {{ Number($json.delivery_id || 0) }} AS delivery_id,\n    {{ String.fromCharCode(39) + String($json.current_stage || 'desconhecida').replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AS current_stage,\n    {{ String.fromCharCode(39) + String($json.error_category || 'infraestrutura').replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AS error_category,\n    {{ String.fromCharCode(39) + String($json.error_message || 'falha nao detalhada').replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AS error_message,\n    {{ $json.execution_id ? String.fromCharCode(39) + String($json.execution_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) : 'NULL' }} AS execution_id\n), latest_attempt AS (\n  SELECT pa.attempt_id, pa.submission_id\n  FROM automacao_miller.processing_attempts pa\n  JOIN error_context ctx ON ctx.submission_id = pa.submission_id\n  ORDER BY pa.started_at DESC\n  LIMIT 1\n), logged_error AS (\n  INSERT INTO automacao_miller.workflow_errors\n    (submission_id, attempt_id, status, current_stage, error_category, error_message, execution_id)\n  SELECT ctx.submission_id, attempt.attempt_id, 'erro', ctx.current_stage,\n         ctx.error_category, ctx.error_message, ctx.execution_id\n  FROM error_context ctx\n  LEFT JOIN latest_attempt attempt ON TRUE\n  RETURNING submission_id, attempt_id, current_stage, error_category, error_message\n), closed_attempt AS (\n  UPDATE automacao_miller.processing_attempts pa\n  SET status = 'erro', current_stage = logged.current_stage,\n      error_category = logged.error_category, error_message = logged.error_message,\n      finished_at = NOW()\n  FROM logged_error logged\n  WHERE pa.attempt_id = logged.attempt_id\n  RETURNING pa.submission_id\n), closed_document AS (\n  UPDATE automacao_miller.documents d\n  SET status = 'erro', current_stage = logged.current_stage,\n      message = logged.error_message, updated_at = NOW()\n  FROM logged_error logged\n  WHERE d.submission_id = logged.submission_id\n  RETURNING d.submission_id\n), failed_delivery AS (\n  UPDATE automacao_miller.email_deliveries ed\n  SET status = 'falhou', error_message = ctx.error_message\n  FROM error_context ctx\n  WHERE ed.delivery_id = ctx.delivery_id AND ctx.delivery_id > 0\n  RETURNING ed.delivery_id\n)\nSELECT logged.submission_id, logged.attempt_id,\n       (SELECT COUNT(*) FROM closed_attempt) AS attempts_closed,\n       (SELECT COUNT(*) FROM closed_document) AS documents_closed,\n       (SELECT COUNT(*) FROM failed_delivery) AS deliveries_failed\nFROM logged_error logged"
       },
       "id": "record-error",
       "name": "Record internal error",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [460, 0]
+      "position": [
+        460,
+        0
+      ]
     }
   ],
   "connections": {
-    "Error Trigger": {"main": [[{"node": "Normalize internal error", "type": "main", "index": 0}]]},
-    "Normalize internal error": {"main": [[{"node": "Record internal error", "type": "main", "index": 0}]]}
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize internal error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize internal error": {
+      "main": [
+        [
+          {
+            "node": "Record internal error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }

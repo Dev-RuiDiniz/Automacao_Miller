@@ -65,15 +65,13 @@
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {"parameters": [{"parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data"}, {"parameterType": "formData", "name": "source_document_id", "value": "={{ $('Claim guard').item.json.submission_id }}"}]},
-        "options": {"timeout": "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 120000) }}"}
+        "options": {"timeout": "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 300) * 1000 }}"}
       },
       "id": "pdf-converter",
       "name": "PDF Converter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
+      "retryOnFail": false,
       "position": [1120, 0]
     },
     {
@@ -121,7 +119,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json;\nconst markdown = String(source.markdown || '');\nconst matches = [...markdown.matchAll(/^##\\s+Página\\s+(\\d+)\\s*$/gim)];\nif (!matches.length) throw new Error('EXTRACAO: Markdown sem marcadores de página');\nconst pageNumbers = matches.map((match) => Number(match[1]));\nif (new Set(pageNumbers).size !== pageNumbers.length) throw new Error('EXTRACAO: marcadores de página duplicados');\nconst expectedPages = Number(source.metadata && source.metadata.page_count || 0);\nconst sortedPages = [...pageNumbers].sort((a, b) => a - b);\nif (!expectedPages || sortedPages.length !== expectedPages || sortedPages.some((page, index) => page !== index + 1)) throw new Error('EXTRACAO: quantidade ou sequência de páginas divergente dos metadados');\nfunction splitText(text, limit) {\n  const pieces = []; let offset = 0;\n  while (text.length - offset > limit) {\n    const end = offset + limit; const minimum = offset + Math.floor(limit / 2);\n    const paragraph = text.lastIndexOf('\\n\\n', end - 1);\n    const newline = text.lastIndexOf('\\n', end - 1);\n    const space = text.lastIndexOf(' ', end - 1);\n    const boundary = paragraph >= minimum ? paragraph + 2 : newline >= minimum ? newline + 1 : space >= minimum ? space + 1 : end;\n    pieces.push(text.slice(offset, boundary)); offset = boundary;\n  }\n  pieces.push(text.slice(offset)); return pieces;\n}\nconst pageChunks = [];\nfor (let index = 0; index < matches.length; index++) {\n  const match = matches[index]; const page = Number(match[1]);\n  const bodyStart = match.index + match[0].length;\n  const bodyEnd = index + 1 < matches.length ? matches[index + 1].index : markdown.length;\n  const heading = '## Página ' + page + '\\n';\n  for (const piece of splitText(markdown.slice(bodyStart, bodyEnd), 6000 - heading.length)) pageChunks.push({ page, text: heading + piece });\n}\nconst batches = []; let current = []; let currentPages = []; let currentLength = 0;\nfor (const chunk of pageChunks) {\n  const separator = current.length ? 2 : 0;\n  if (current.length && currentLength + separator + chunk.text.length > 6000) {\n    batches.push({ pages: currentPages, markdown: current.join('\\n\\n') });\n    current = []; currentPages = []; currentLength = 0;\n  }\n  current.push(chunk.text); currentLength += (current.length > 1 ? 2 : 0) + chunk.text.length;\n  if (!currentPages.length || currentPages[currentPages.length - 1] !== chunk.page) currentPages.push(chunk.page);\n}\nif (current.length) batches.push({ pages: currentPages, markdown: current.join('\\n\\n') });\nreturn batches.map((batch, index) => {\n  if (batch.markdown.length > 6000) throw new Error('EXTRACAO: lote excede 6000 caracteres');\n  const prompt = [\n    'Analise integralmente este lote de um documento regulatório. O lote contém as páginas: ' + batch.pages.join(', ') + '.',\n    'Use somente este texto. Não invente fatos, páginas, prazos, status ou evidências. Procure todos os atos, produtos, empresas, status regulatórios, exigências, prazos, alterações, riscos e impactos de negócio que estiverem explicitamente documentados.',\n    'Retorne JSON válido com a forma {\"achados\":[{\"titulo\":\"...\",\"fato\":\"...\",\"status\":\"...\",\"impacto\":\"...\",\"risco\":\"...\",\"acao_recomendada\":\"...\",\"prioridade\":\"...\",\"pagina\":1,\"evidencia\":\"trecho literal curto\"}]}. Se não houver achados, use {\"achados\":[]}. Cada evidência deve ser uma cópia literal curta deste lote e cada página deve ser uma página presente neste lote.',\n    'PROTOCOLO: ' + source.submission_id,\n    'LOTE ' + (index + 1) + ' DE ' + batches.length,\n    'CONTEXTO DOCUMENTAL:', batch.markdown, 'FIM DO CONTEXTO'\n  ].join('\\n');\n  return { json: { ...source, batch_number: index + 1, batch_count: batches.length, batch_pages: batch.pages, batch_markdown: batch.markdown, batch_prompt: prompt } };\n});"
+        "jsCode": "const source = $('Internal Storage - Prepare keys').item.json;\nconst markdown = String(source.markdown || '');\nconst batchSource = { ...source };\ndelete batchSource.markdown;\nconst matches = [...markdown.matchAll(/^##\\s+Página\\s+(\\d+)\\s*$/gim)];\nif (!matches.length) throw new Error('EXTRACAO: Markdown sem marcadores de página');\nconst pageNumbers = matches.map((match) => Number(match[1]));\nif (new Set(pageNumbers).size !== pageNumbers.length) throw new Error('EXTRACAO: marcadores de página duplicados');\nconst expectedPages = Number(source.metadata && source.metadata.page_count || 0);\nconst sortedPages = [...pageNumbers].sort((a, b) => a - b);\nif (!expectedPages || sortedPages.length !== expectedPages || sortedPages.some((page, index) => page !== index + 1)) throw new Error('EXTRACAO: quantidade ou sequência de páginas divergente dos metadados');\nfunction splitText(text, limit) {\n  const pieces = []; let offset = 0;\n  while (text.length - offset > limit) {\n    const end = offset + limit; const minimum = offset + Math.floor(limit / 2);\n    const paragraph = text.lastIndexOf('\\n\\n', end - 1);\n    const newline = text.lastIndexOf('\\n', end - 1);\n    const space = text.lastIndexOf(' ', end - 1);\n    const boundary = paragraph >= minimum ? paragraph + 2 : newline >= minimum ? newline + 1 : space >= minimum ? space + 1 : end;\n    pieces.push(text.slice(offset, boundary)); offset = boundary;\n  }\n  pieces.push(text.slice(offset)); return pieces;\n}\nconst pageChunks = [];\nfor (let index = 0; index < matches.length; index++) {\n  const match = matches[index]; const page = Number(match[1]);\n  const bodyStart = match.index + match[0].length;\n  const bodyEnd = index + 1 < matches.length ? matches[index + 1].index : markdown.length;\n  const heading = '## Página ' + page + '\\n';\n  for (const piece of splitText(markdown.slice(bodyStart, bodyEnd), 6000 - heading.length)) pageChunks.push({ page, text: heading + piece });\n}\nconst batches = []; let current = []; let currentPages = []; let currentLength = 0;\nfor (const chunk of pageChunks) {\n  const separator = current.length ? 2 : 0;\n  if (current.length && currentLength + separator + chunk.text.length > 6000) {\n    batches.push({ pages: currentPages, markdown: current.join('\\n\\n') });\n    current = []; currentPages = []; currentLength = 0;\n  }\n  current.push(chunk.text); currentLength += (current.length > 1 ? 2 : 0) + chunk.text.length;\n  if (!currentPages.length || currentPages[currentPages.length - 1] !== chunk.page) currentPages.push(chunk.page);\n}\nif (current.length) batches.push({ pages: currentPages, markdown: current.join('\\n\\n') });\nreturn batches.map((batch, index) => {\n  if (batch.markdown.length > 6000) throw new Error('EXTRACAO: lote excede 6000 caracteres');\n  const prompt = [\n    'Analise integralmente este lote de um documento regulatório. O lote contém as páginas: ' + batch.pages.join(', ') + '.',\n    'Use somente este texto. Não invente fatos, páginas, prazos, status ou evidências. Procure todos os atos, produtos, empresas, status regulatórios, exigências, prazos, alterações, riscos e impactos de negócio que estiverem explicitamente documentados.',\n    'Retorne JSON válido com a forma {\"achados\":[{\"titulo\":\"...\",\"fato\":\"...\",\"status\":\"...\",\"impacto\":\"...\",\"risco\":\"...\",\"acao_recomendada\":\"...\",\"prioridade\":\"...\",\"pagina\":1,\"evidencia\":\"trecho literal curto\"}]}. Se não houver achados, use {\"achados\":[]}. Cada evidência deve ser uma cópia literal curta deste lote e cada página deve ser uma página presente neste lote.',\n    'PROTOCOLO: ' + source.submission_id,\n    'LOTE ' + (index + 1) + ' DE ' + batches.length,\n    'CONTEXTO DOCUMENTAL:', batch.markdown, 'FIM DO CONTEXTO'\n  ].join('\\n');\n  return { json: { ...batchSource, batch_number: index + 1, batch_count: batches.length, batch_pages: batch.pages, batch_markdown: batch.markdown, batch_prompt: prompt } };\n});"
       },
       "id": "prepare-analysis-batches",
       "name": "Prepare analysis batches",
@@ -133,12 +131,20 @@
       ]
     },
     {
+      "parameters": {"batchSize": 1, "options": {}},
+      "id": "loop-analysis-batches",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1500, 0]
+    },
+    {
       "parameters": {
         "method": "POST",
         "url": "http://ollama:11434/api/generate",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0, num_ctx: 8192, num_predict: 2048 }, prompt: $json.batch_prompt }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL, stream: false, format: 'json', options: { temperature: 0, num_ctx: 4096, num_predict: 2048 }, prompt: $json.batch_prompt }) }}",
         "options": {
           "timeout": "={{ Number($env.WORKFLOW_TIMEOUT_SECONDS || 3600) * 1000 }}"
         }
@@ -337,8 +343,9 @@
     "Prepare Markdown file": {"main":[[{"node":"Internal Storage - Write Markdown","type":"main","index":0}]]},
     "Internal Storage - Write Markdown": {"main":[[{"node":"State - Markdown persisted","type":"main","index":0}]]},
     "State - Markdown persisted": {"main":[[{"node":"Prepare analysis batches","type":"main","index":0}]]},
-    "Prepare analysis batches": {"main":[[{"node":"Ollama - Analyze each batch","type":"main","index":0}]]},
-    "Ollama - Analyze each batch": {"main":[[{"node":"Merge batch findings and prepare report","type":"main","index":0}]]},
+    "Prepare analysis batches": {"main":[[{"node":"Loop Over Items","type":"main","index":0}]]},
+    "Ollama - Analyze each batch": {"main":[[{"node":"Loop Over Items","type":"main","index":0}]]},
+    "Loop Over Items": {"main":[[{"node":"Merge batch findings and prepare report","type":"main","index":0}],[{"node":"Ollama - Analyze each batch","type":"main","index":0}]]},
     "Merge batch findings and prepare report": {"main":[[{"node":"Ollama - Generate report Markdown","type":"main","index":0}]]},
     "Ollama - Generate report Markdown": {"main":[[{"node":"Validate report Markdown","type":"main","index":0}]]},
     "Validate report Markdown": {"main":[[{"node":"Gateway - Validate report evidence","type":"main","index":0}]]},

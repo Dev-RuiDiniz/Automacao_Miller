@@ -5,13 +5,51 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 
 
+def test_remote_vps_status_is_explicitly_historical() -> None:
+    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    log = (ROOT / "LOG.md").read_text(encoding="utf-8")
+
+    assert "Última observação da VPS (2026-09-23)" in roadmap
+    assert "a VPS não foi consultada nesta atualização" in roadmap
+    assert "O estado remoto atual é desconhecido" in roadmap
+    assert "não foram verificados novamente em 2026-10-02" in roadmap
+    assert "(registro histórico)" in log
+    assert "Esses estados não foram verificados em 2026-10-02" in log
+    assert "VPS ainda precisa ser alinhada" not in log
+
+
+def test_product_docs_match_active_markdown_report_flow() -> None:
+    prd = " ".join((ROOT / "PRD.md").read_text(encoding="utf-8").split())
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
+    workflows = " ".join((ROOT / "workflows" / "README.md").read_text(encoding="utf-8").split())
+    audit = " ".join((ROOT / "RELATORIO_AUDITORIA_PROJETO.md").read_text(encoding="utf-8").split())
+
+    assert "a saída persistida do MVP é o" in prd
+    assert "RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança" in prd
+    assert "prioridade das ações, não uma medida de confiança" in prd
+    assert "A saída persistida é o relatório" in readme
+    assert "RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo" in readme
+    assert "não confiança" in readme
+    assert "analysis-v1.json" not in workflows
+    assert "o fluxo atual não grava análise estruturada" in workflows
+    assert "Aviso de vigência" in audit
+    assert "não foi consultada em 2026-10-02; seu estado atual é desconhecido" in audit
+
+
 def test_compose_declares_isolated_required_services() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     for service in ("postgres:", "ollama:", "rag-service:", "pdf-converter:", "report-renderer:", "n8n:"):
         assert service in compose
     assert "pgvector/pgvector:pg15" in compose
-    assert "RAG_SERVICE_BASE_URL" in compose
-    assert "RAG_ENABLE_SEMANTIC_SEARCH" in compose
+    rag_service = compose.split("  rag-service:\n", 1)[1].split("\n  pdf-converter:", 1)[0]
+    n8n_service = compose.split("  n8n:\n", 1)[1].split("\nvolumes:", 1)[0]
+    assert 'profiles: ["rag"]' in rag_service
+    assert "RAG_ENABLE_SEMANTIC_SEARCH" in rag_service
+    assert "RAG_SERVICE_BASE_URL" not in n8n_service
+    assert "RAG_TOP_K" not in n8n_service
+    assert "rag-service:" not in n8n_service
+    assert "N8N_INTERNAL_PROCESSING_WEBHOOK_URL" in n8n_service
+    assert "N8N_REPORT_EMAIL_WEBHOOK_URL" in n8n_service
     assert "127.0.0.1:${N8N_HOST_PORT:-25678}:5678" in compose
     assert "automacao_miller_n8n_data" in compose
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
@@ -19,6 +57,12 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
     assert "automacao_miller_submission_data:" in compose
     assert '"${ARTIFACTS_GID:-10002}"' in compose
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "RAG é legado/optativo" in env_example
+    deployment = (ROOT / "deploy" / "README.md").read_text(encoding="utf-8")
+    assert "não inicia `rag-service`" in deployment
+    assert "6.912 MiB (6,75 GiB)" in deployment
+    assert "docker compose --profile rag up -d rag-service" in deployment
     entrypoint = (ROOT / "infra" / "upload_gateway" / "entrypoint.sh").read_text(encoding="utf-8")
     assert "chmod 2770" in entrypoint
 
@@ -197,16 +241,28 @@ def test_rag_and_training_schema_contract() -> None:
     assert "submission_id = %(submission_id)s" in (ROOT / "infra" / "rag" / "search.py").read_text(encoding="utf-8")
 
 
-def test_reconciliation_returns_protocols_for_dispatch() -> None:
+def test_reconciliation_routes_recovered_email_to_send_workflow() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-reconcile-v1.json").read_text(encoding="utf-8"))
     query = next(node for node in workflow["nodes"] if node["name"] == "State - Find pending documents")["parameters"]["query"]
-    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch pending document")
+    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch recovery task")
+    send_workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-send-report-v1.json").read_text(encoding="utf-8"))
+    send_webhook = next(node for node in send_workflow["nodes"] if node["name"] == "Panel - Request report send")
+
     assert query.startswith("WITH reset_deliveries AS")
-    assert "SELECT submission_id FROM reset" in query
+    assert "RETURNING ed.delivery_id, ed.submission_id, ed.requested_at" in query
+    assert "'email_delivery'::text AS recovery_type" in query
+    assert "'document'::text AS recovery_type" in query
+    assert "FROM reset_documents" in query
     assert "public.execution_entity" in query
     assert "ee.status IN ('new', 'running', 'waiting')" in query
-    assert "pa.attempt_number = (SELECT d.attempt_count" in query
+    assert "pa.attempt_number = ( SELECT d.attempt_count" in query
+    assert "$json.recovery_type === 'email_delivery'" in dispatch["parameters"]["url"]
+    assert "automacao-regulatoria-send-report" in dispatch["parameters"]["url"]
+    assert "automacao-regulatoria-internal'" in dispatch["parameters"]["url"]
+    assert "delivery_id: Number($json.delivery_id)" in dispatch["parameters"]["jsonBody"]
     assert "submission_id: $json.submission_id" in dispatch["parameters"]["jsonBody"]
+    assert send_webhook["parameters"]["path"] == "automacao-regulatoria-send-report"
+    assert "delivery_id" in next(node for node in send_workflow["nodes"] if node["name"] == "State - Claim email delivery")["parameters"]["query"]
 
 
 def test_manual_delivery_schema_and_workflow_contract() -> None:

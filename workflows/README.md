@@ -12,8 +12,8 @@ inativos até a validação no n8n:
 2. `automacao-regulatoria-send-report-v1.json` — recebe a solicitação manual do
    painel, reivindica a entrega, lê o relatório do volume, envia pelo Gmail e
    marca `concluido` somente após sucesso;
-3. `automacao-regulatoria-internal-reconcile-v1.json` — recupera documentos
-   presos em processamento e redispara pendências;
+3. `automacao-regulatoria-reconcile-v1.json` — recupera documentos presos em
+   processamento e entregas de e-mail paradas e as despacha ao workflow correto;
 4. `automacao-regulatoria-internal-error-v1.json` — registra categoria, etapa,
    execução, tentativa e mensagem no PostgreSQL.
 
@@ -32,15 +32,19 @@ O gateway e o n8n compartilham `/data/artifacts`, proveniente do volume Docker
 /data/artifacts/objects/ab/cd/<sha256>/
   original.pdf
   markdown-v1.md
-  analysis-v1.json
+  report-v1.md
   report-v1.pdf
 ```
 
-O PostgreSQL é a fonte de verdade. As tabelas principais são
-`documents`, `artifacts`, `processing_attempts`, `analysis_results`,
-`human_reviews`, `workflow_errors`, `report_recipients`, `document_recipients` e
-`email_deliveries`. Os workflows devem gravar somente chaves
-relativas, nunca caminhos absolutos.
+O sufixo `v1` no exemplo representa a primeira tentativa; novas tentativas
+recebem sua própria versão. O workflow atual não grava `analysis-vN.json`.
+
+O PostgreSQL é a fonte de verdade. As tabelas operacionais incluem
+`documents`, `artifacts`, `processing_attempts`, `human_reviews`,
+`workflow_errors`, `report_recipients`, `document_recipients` e
+`email_deliveries`. `analysis_results` e `analysis_json` são compatibilidade
+legada; o fluxo atual não grava análise estruturada. Os workflows devem gravar
+somente chaves relativas, nunca caminhos absolutos.
 
 Associe no n8n apenas as credenciais PostgreSQL e Gmail. Nenhum ID de credencial
 é versionado neste repositório. A variável `ARTIFACTS_GID` deve representar o
@@ -60,8 +64,10 @@ Resultados com citações pendentes, contradição ou evidência insuficiente
 seguem em `aguardando_envio` com o alerta preservado no relatório, desde que
 a cobertura de páginas esteja completa. O download oficial só é
 liberado quando o PostgreSQL indicar `concluido`. O operador pode visualizar o
-PDF, Markdown e JSON pelo painel autenticado e confirmar as páginas quando
-desejar, mas essa conferência não é obrigatória para solicitar o envio.
+PDF e o Markdown pelo painel autenticado e confirmar as páginas quando desejar,
+mas essa conferência não é obrigatória para solicitar o envio. O fluxo atual não
+grava um JSON de análise; a rota para artefato `analysis_json` permanece para
+compatibilidade com documentos antigos.
 
 O PDF é apresentado como relatório executivo: começa com resumo dos achados,
 leitura prática para acompanhamento operacional e comercial, pontos de atenção
@@ -71,6 +77,14 @@ conferência opcional do documento original.
 Cada achado exibe suas páginas de origem. Se a IA não conseguir comprovar a
 referência, o relatório mostra essa pendência de forma explícita e mantém o caso
 disponível para conferência, sem inventar a numeração da página.
+
+O workflow de reconciliação diferencia tarefas de documentos e entregas de
+e-mail. Quando uma entrega fica em `enviando` por mais de 15 minutos e não há
+uma execução n8n ativa, a reconciliação volta seu estado para `solicitado`,
+carrega `delivery_id` e `submission_id` e chama o workflow
+`automacao-regulatoria-send-report`. Documentos recebidos ou recuperados de uma
+execução parada continuam sendo enviados ao workflow interno de processamento.
+Assim, a retomada do e-mail não inicia novamente a análise do PDF.
 
 ## Painel e envio manual
 

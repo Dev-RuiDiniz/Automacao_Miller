@@ -33,7 +33,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH reset_deliveries AS (UPDATE automacao_miller.email_deliveries ed SET status = 'solicitado', error_message = 'Entrega recuperada apos timeout.', execution_id = NULL WHERE ed.status = 'enviando' AND ed.requested_at < NOW() - INTERVAL '15 minutes' AND NOT EXISTS (SELECT 1 FROM public.execution_entity ee WHERE ee.id = CASE WHEN ed.execution_id ~ '^[0-9]+$' THEN ed.execution_id::integer END AND ee.status IN ('new', 'running', 'waiting')) RETURNING ed.submission_id), stale AS (SELECT d.submission_id FROM automacao_miller.documents d LEFT JOIN automacao_miller.processing_attempts pa ON pa.submission_id = d.submission_id AND pa.attempt_number = d.attempt_count LEFT JOIN public.execution_entity ee ON ee.id = CASE WHEN pa.execution_id ~ '^[0-9]+$' THEN pa.execution_id::integer END WHERE d.status = 'em_processamento' AND d.updated_at < NOW() - INTERVAL '120 minutes' AND (pa.execution_id IS NULL OR ee.id IS NULL OR ee.status NOT IN ('new', 'running', 'waiting'))), closed_attempts AS (UPDATE automacao_miller.processing_attempts pa SET status = 'erro', current_stage = 'reconciliacao', error_category = 'infraestrutura', error_message = 'Tentativa recuperada apos timeout.', finished_at = NOW() FROM stale WHERE pa.submission_id = stale.submission_id AND pa.attempt_number = (SELECT d.attempt_count FROM automacao_miller.documents d WHERE d.submission_id = stale.submission_id) AND pa.status = 'em_processamento' RETURNING pa.submission_id), reset AS (UPDATE automacao_miller.documents d SET status = 'recebido', current_stage = 'reconciliacao', updated_at = NOW(), message = 'Retomada automatica apos timeout.' FROM stale WHERE d.submission_id = stale.submission_id RETURNING d.submission_id) SELECT submission_id FROM reset UNION SELECT submission_id FROM automacao_miller.documents WHERE status = 'recebido' ORDER BY submission_id LIMIT 20;"
+        "query": "WITH reset_deliveries AS ( UPDATE automacao_miller.email_deliveries ed SET status = 'solicitado', error_message = 'Entrega recuperada apos timeout.', execution_id = NULL WHERE ed.status = 'enviando' AND ed.requested_at < NOW() - INTERVAL '15 minutes' AND NOT EXISTS ( SELECT 1 FROM public.execution_entity ee WHERE ee.id = CASE WHEN ed.execution_id ~ '^[0-9]+$' THEN ed.execution_id::integer END AND ee.status IN ('new', 'running', 'waiting') ) RETURNING ed.delivery_id, ed.submission_id, ed.requested_at ), stale AS ( SELECT d.submission_id FROM automacao_miller.documents d LEFT JOIN automacao_miller.processing_attempts pa ON pa.submission_id = d.submission_id AND pa.attempt_number = d.attempt_count LEFT JOIN public.execution_entity ee ON ee.id = CASE WHEN pa.execution_id ~ '^[0-9]+$' THEN pa.execution_id::integer END WHERE d.status = 'em_processamento' AND d.updated_at < NOW() - INTERVAL '120 minutes' AND (pa.execution_id IS NULL OR ee.id IS NULL OR ee.status NOT IN ('new', 'running', 'waiting')) ), closed_attempts AS ( UPDATE automacao_miller.processing_attempts pa SET status = 'erro', current_stage = 'reconciliacao', error_category = 'infraestrutura', error_message = 'Tentativa recuperada apos timeout.', finished_at = NOW() FROM stale WHERE pa.submission_id = stale.submission_id AND pa.attempt_number = ( SELECT d.attempt_count FROM automacao_miller.documents d WHERE d.submission_id = stale.submission_id ) AND pa.status = 'em_processamento' RETURNING pa.submission_id ), reset_documents AS ( UPDATE automacao_miller.documents d SET status = 'recebido', current_stage = 'reconciliacao', updated_at = NOW(), message = 'Retomada automatica apos timeout.' FROM stale WHERE d.submission_id = stale.submission_id RETURNING d.submission_id ), pending_documents AS ( SELECT submission_id FROM reset_documents UNION SELECT submission_id FROM automacao_miller.documents WHERE status = 'recebido' ), recovery_tasks AS ( SELECT 'email_delivery'::text AS recovery_type, rd.submission_id, rd.delivery_id, 0 AS priority, rd.requested_at AS queued_at FROM reset_deliveries rd UNION ALL SELECT 'document'::text AS recovery_type, pd.submission_id, NULL::bigint AS delivery_id, 1 AS priority, d.updated_at AS queued_at FROM pending_documents pd JOIN automacao_miller.documents d USING (submission_id) ) SELECT recovery_type, submission_id, delivery_id FROM recovery_tasks ORDER BY priority, queued_at, submission_id LIMIT 20;"
       },
       "id": "find-pending",
       "name": "State - Find pending documents",
@@ -47,16 +47,16 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.N8N_INTERNAL_PROCESSING_WEBHOOK_URL || 'http://n8n:5678/webhook/automacao-regulatoria-internal' }}",
+        "url": "={{ $json.recovery_type === 'email_delivery' ? ($env.N8N_REPORT_EMAIL_WEBHOOK_URL || 'http://n8n:5678/webhook/automacao-regulatoria-send-report') : ($env.N8N_INTERNAL_PROCESSING_WEBHOOK_URL || 'http://n8n:5678/webhook/automacao-regulatoria-internal') }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ submission_id: $json.submission_id, source: 'reconciliation' }) }}",
+        "jsonBody": "={{ JSON.stringify($json.recovery_type === 'email_delivery' ? { delivery_id: Number($json.delivery_id), submission_id: $json.submission_id, source: 'reconciliation' } : { submission_id: $json.submission_id, source: 'reconciliation' }) }}",
         "options": {
           "timeout": 10000
         }
       },
       "id": "dispatch-pending",
-      "name": "Dispatch pending document",
+      "name": "Dispatch recovery task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "retryOnFail": true,
@@ -84,7 +84,7 @@
       "main": [
         [
           {
-            "node": "Dispatch pending document",
+            "node": "Dispatch recovery task",
             "type": "main",
             "index": 0
           }

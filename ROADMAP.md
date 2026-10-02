@@ -12,9 +12,12 @@
 
 ## 2. Status geral
 
-**Estado atual:** homologação ponta a ponta aprovada historicamente; repositório interno e painel publicados; base de teste zerada em 2026-09-23; nova homologação da versão v4 pendente. O workflow de reconciliação está pausado após execuções recorrentes travadas. Produção permanece condicionada à revisão de segurança e ao aceite operacional final.
+**Última observação da VPS (2026-09-23):** a base de homologação foi limpa, a reconciliação estava pausada após execuções travadas, a cópia remota divergia do repositório e o workflow ativo usava o prompt v3; a homologação do v4 estava pendente. A validação ponta a ponta registrada anteriormente foi feita com o v3.
+**Situação remota em 2026-10-02:** a VPS não foi consultada nesta atualização. O estado remoto atual é desconhecido; as informações de 23/09 são um registro histórico, não uma confirmação de que tudo continua igual.
+**Homologação:** aprovada historicamente para a versão então implantada; não representa validação da versão atual do repositório.
+**Produção:** condicionada à revisão de segurança e ao aceite operacional final.
 **MVP:** definido  
-**Infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller`
+**Último registro de infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller` (sem verificação atual).
 **Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
 **Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
 
@@ -711,7 +714,10 @@ remota registrada anteriormente continua sendo evidência histórica do prompt v
 ela não deve ser apresentada como validação da nova redação até que a VPS seja
 atualizada e o fluxo seja executado novamente.
 
-## 35. Reinício limpo da homologação na VPS — 2026-09-23
+## 35. Reinício limpo da homologação na VPS — observação de 2026-09-23
+
+> Registro histórico. Os estados descritos abaixo foram observados em 23/09 e
+> não foram verificados novamente em 2026-10-02.
 
 - [x] Criar e validar backup do PostgreSQL, do volume ativo de artefatos e dos
       volumes legados de submissão, sem remover backups anteriores.
@@ -727,16 +733,18 @@ atualizada e o fluxo seja executado novamente.
 - [ ] Diagnosticar e corrigir o workflow de reconciliação, que voltou a acumular
       execuções `running` a cada minuto mesmo com a base vazia, e reativá-lo após
       validação controlada.
-- [ ] Alinhar a implantação da VPS ao repositório antes dos novos testes. A
-      cópia remota estava em commit diferente, com alterações locais, e o
-      workflow ativo ainda usava o prompt v3; a homologação v4 permanece pendente.
+- [ ] Alinhar a implantação da VPS ao repositório antes dos novos testes. Na
+      observação de 23/09, a cópia remota estava em commit diferente, com
+      alterações locais, e o workflow ativo usava o prompt v3; a homologação v4
+      estava pendente naquela data.
 - [ ] Executar a nova matriz de testes a partir da base limpa.
 
-**Resultado operacional:** foram preservados os três workflows operacionais
-ativos, as credenciais e as configurações. A definição da reconciliação foi
-preservada e pausada temporariamente para impedir novas execuções travadas. Os
-dados apagados podem ser consultados nos backups validados em
-`/opt/backups/automacao-miller` na VPS.
+**Resultado observado em 23/09:** foram preservados os três workflows
+operacionais ativos, as credenciais e as configurações. A definição da
+reconciliação foi preservada e pausada temporariamente para impedir novas
+execuções travadas. O registro da operação informa que os dados apagados estavam
+nos backups então validados em `/opt/backups/automacao-miller` na VPS; a
+disponibilidade atual desses backups não foi verificada.
 
 ## 36. Análise integral em lotes — 2026-10-01
 
@@ -831,3 +839,82 @@ validada pelo contrato e pelo renderizador, sem uma segunda inferência lenta.
 
 **Impacto:** as seções do relatório usam marcadores simples que o PDF consegue
 renderizar e que continuam legíveis para conferência humana.
+
+## 39. Retomada de entregas de e-mail — 2026-10-02
+
+- [x] Devolver `delivery_id` e `submission_id` das entregas recuperadas.
+- [x] Distinguir tarefas de e-mail de tarefas de processamento de documentos.
+- [x] Despachar entregas recuperadas ao workflow de envio e documentos ao
+      workflow interno de processamento.
+- [x] Testar o contrato dos workflows e executar a consulta no PostgreSQL local
+      com dados sintéticos dentro de uma transação revertida.
+- [x] Documentar o comportamento de recuperação.
+
+**Resultado:** a reconciliação agora envia a entrega parada ao webhook de
+`automacao-regulatoria-send-report`, incluindo seu identificador. Documentos
+continuam seguindo ao workflow de processamento. O teste local confirmou o
+resultado da consulta; nenhum e-mail foi enviado.
+
+**Limitação:** o workflow exportado não foi ativado nem validado na VPS. A
+consulta foi executada no PostgreSQL Docker local e a rota foi verificada pelo
+contrato dos exports.
+
+## 40. Delimitação do estado histórico da VPS — 2026-10-02
+
+- [x] Identificar a observação remota mais recente registrada, de 2026-09-23.
+- [x] Marcar como históricos o estado da base, da reconciliação e do prompt v3.
+- [x] Informar que a VPS não foi consultada em 2026-10-02 e que o estado atual
+      é desconhecido.
+- [x] Atualizar o log sem apagar o registro operacional original.
+- [x] Adicionar teste de contrato para impedir que o estado remoto histórico
+      seja apresentado como confirmação atual.
+
+**Resultado:** o roadmap separa estado conhecido do repositório e última
+observação remota. O log mantém os fatos de 23/09 com data explícita; não houve
+acesso à VPS nesta correção.
+
+**Testes:** 11 testes dos contratos passaram, incluindo a verificação de que o
+roadmap e o log deixam a data da observação e a ausência de consulta atual
+explícitas.
+
+## 41. Alinhamento da documentação ao fluxo ativo — 2026-10-02
+
+- [x] Definir o relatório Markdown/PDF como resultado persistido do MVP.
+- [x] Descrever o JSON dos lotes como temporário, sem artefato JSON final.
+- [x] Marcar RAG, embeddings e `quality_checks` como fora do fluxo ativo.
+- [x] Separar prioridade executiva de qualquer medida de confiança da IA.
+- [x] Atualizar PRD, README e operação dos workflows; marcar a auditoria antiga
+      como histórica.
+- [x] Criar teste de contrato para evitar contradições nas descrições atuais.
+
+**Decisão:** cobertura de páginas e confirmação de citações descrevem a
+localização de evidências. A prioridade executiva organiza ações sugeridas. O
+MVP não exige uma nota de confiança semântica nem análise JSON persistida.
+
+**Testes:** 12 testes dos contratos passaram. Os schemas, serviços e exports de
+RAG/JSON antigos continuam versionados como capacidade legada/opcional; esta
+tarefa não removeu código nem alterou o workflow ativo.
+
+## 42. Simplificação do Compose e perfil RAG optativo — 2026-10-02
+
+- [x] Tornar `rag-service` optativo pelo perfil `rag`.
+- [x] Remover RAG das variáveis e dependências de inicialização do n8n.
+- [x] Passar ao n8n as URLs dos webhooks de processamento e envio.
+- [x] Documentar o uso explícito do perfil e os limites máximos de memória.
+- [x] Validar o Compose padrão e com perfil RAG e atualizar a stack local sem
+      remover volumes.
+
+**Resultado:** o perfil padrão usa seis serviços e soma 6.912 MiB (6,75 GiB)
+em limites máximos; o perfil RAG explícito soma 7.424 MiB (7,25 GiB). A stack
+local foi recriada sem o serviço RAG; PostgreSQL, Ollama, conversor, renderer,
+gateway e n8n continuam usando os volumes existentes. O endpoint de prontidão
+do n8n e o health check do gateway responderam HTTP 200. Nenhum e-mail foi
+enviado.
+
+**Testes:** `docker compose ... config --quiet` passou no perfil padrão e no
+perfil `rag`; os 12 testes dos contratos e os 75 testes da suíte completa
+passaram. Os seis serviços padrão ficaram saudáveis no Docker local.
+
+**Limitação:** os limites são tetos configurados, não medidas de consumo real.
+O perfil RAG continua disponível para uma validação separada, mas não participa
+do fluxo operacional.

@@ -737,3 +737,97 @@ ativos, as credenciais e as configurações. A definição da reconciliação fo
 preservada e pausada temporariamente para impedir novas execuções travadas. Os
 dados apagados podem ser consultados nos backups validados em
 `/opt/backups/automacao-miller` na VPS.
+
+## 36. Análise integral em lotes — 2026-10-01
+
+- [x] Analisar todas as páginas do Markdown em lotes de até 6.000 caracteres.
+- [x] Preservar marcadores de página ao dividir páginas longas.
+- [x] Consolidar e remover achados duplicados entre lotes.
+- [x] Interromper o processamento se um lote falhar ou a cobertura divergir.
+- [x] Testar evidência após 7.000 caracteres e página longa.
+- [x] Homologar o processamento completo de PDF na stack Docker local.
+- [x] Validar automaticamente as referências (detalhes na tarefa 37).
+- [x] Renderizar listas sem expor linhas de tabela Markdown cruas.
+
+**Resultado:** o PDF sintético foi processado em três lotes. O gateway registrou
+cobertura 3/3, Markdown e PDF, e estado `aguardando_envio`. Nenhum e-mail foi
+enviado. O marcador de teste depois de 7.000 caracteres está coberto pelo teste
+direto do divisor; o relatório integrado citou o Produto Alfa, mas não repetiu
+o marcador literal.
+
+## 37. Validação de evidências e sinalização de pendências — 2026-10-01
+
+- [x] Comparar citações do relatório com a página indicada no Markdown original.
+- [x] Sinalizar páginas não existentes e evidências ausentes ou localizadas em
+      outra página como referências pendentes.
+- [x] Expor validação pela rota interna autenticada do gateway.
+- [x] Interromper geração apenas para falha técnica ou cobertura incompleta;
+      pendências de referência não bloqueiam o envio.
+- [x] Não apresentar a medida de cobertura como confiança da IA.
+- [x] Homologar o fluxo completo na stack Docker local; referências pendentes
+      ficaram não bloqueantes, conforme o requisito.
+
+**Resultado:** o gateway confere automaticamente referências literais e páginas
+e devolve cobertura e pendências. O workflow acrescenta esse resumo ao relatório;
+referências não confirmadas ficam explicitamente marcadas, enquanto cobertura
+incompleta continua impedindo a geração de um relatório parcial.
+
+**Arquivos afetados:** `infra/regulatory_analysis/report_validation.py`,
+`infra/upload_gateway/app.py`, testes do validador, API e contrato do workflow,
+`workflows/automacao-regulatoria-internal-v1.json`, `PRD.md`, `README.md` e
+`workflows/README.md`.
+
+**Testes:** 35 testes direcionados passaram, incluindo citação válida, página
+inexistente, trecho ausente, trecho encontrado em outra página, cobertura
+incompleta e rota interna autenticada.
+
+**Resultado integrado:** o fluxo cobriu as três páginas, persistiu Markdown e
+PDF e encerrou o protocolo em `aguardando_envio`. A versão que já estava
+executando usava o prompt anterior, que pedia tabelas. As seis referências
+saíram pendentes e foram sinalizadas sem bloquear o relatório nem o envio; os
+testes unitários confirmam o caminho de citações válidas na versão atual.
+
+**Limitação operacional:** o registro da execução n8n continuou como
+`running`, apesar de o último nó (`State - Report persisted`) ter concluído e
+de não haver erro de execução. O log do n8n registra
+`r.firstEvent.getTime is not a function` no serviço de consolidação de
+estatísticas. A stack ficou saudável e o estado/artefatos do protocolo foram
+persistidos; esse defeito do registro de estatísticas não foi alterado nesta
+tarefa.
+
+**Impacto:** o leitor consegue distinguir cobertura documental de localização
+de evidências. Referências pendentes são avisos verificáveis, sem nota de
+confiança semântica da IA.
+
+## 38. Relatório PDF com listas — 2026-10-01
+
+- [x] Orientar o modelo a usar listas com marcadores nas respostas, ações e
+      referências.
+- [x] Remover a exigência de tabelas Markdown do workflow ativo.
+- [x] Testar o PDF gerado e confirmar que não há linhas de tabela cruas.
+- [x] Concluir a homologação ponta a ponta com PDF sintético; validar listas
+      separadamente no endpoint final do renderizador.
+
+**Resultado:** as tabelas foram substituídas por listas com marcadores. A
+renderização de exemplo foi inspecionada visualmente e suas seções, evidências e
+ações aparecem legíveis no PDF.
+
+**Arquivos afetados:** `prompts/regulatory-extraction-v5.md`,
+`workflows/automacao-regulatoria-internal-v1.json`, `workflows/README.md` e
+testes do renderizador e do contrato do workflow.
+
+**Testes:** 16 testes do renderizador e dos contratos e 73 testes da suíte
+completa passaram. `docker compose config --quiet` passou e todos os sete
+serviços estavam saudáveis. Um PDF de exemplo com listas foi extraído para
+conferência textual e renderizado em imagem para inspeção visual. O teste
+integrado gerou Markdown/PDF e confirmou cobertura 3/3 e `aguardando_envio`;
+ele começou antes da atualização do prompt de tabelas para listas.
+
+**Limitação:** a execução integrada deixou o status interno do n8n como
+`running` por uma exceção no serviço de estatísticas, embora o último nó tenha
+persistido os relatórios e o protocolo esteja pronto para envio. A cópia local
+do workflow foi atualizada para listas após essa execução; a versão final foi
+validada pelo contrato e pelo renderizador, sem uma segunda inferência lenta.
+
+**Impacto:** as seções do relatório usam marcadores simples que o PDF consegue
+renderizar e que continuam legíveis para conferência humana.

@@ -56,8 +56,9 @@ do PostgreSQL. Para autorizar reprocessamento, registre a decisão em
 `human_reviews`, mantenha o PDF no volume e devolva o documento ao estado
 `recebido`; o workflow de reconciliação fará o despacho pelo webhook interno.
 
-Resultados com baixa confiança, contradição ou evidência insuficiente seguem em
-`aguardando_envio` com o alerta preservado no relatório. O download oficial só é
+Resultados com citações pendentes, contradição ou evidência insuficiente
+seguem em `aguardando_envio` com o alerta preservado no relatório, desde que
+a cobertura de páginas esteja completa. O download oficial só é
 liberado quando o PostgreSQL indicar `concluido`. O operador pode visualizar o
 PDF, Markdown e JSON pelo painel autenticado e confirmar as páginas quando
 desejar, mas essa conferência não é obrigatória para solicitar o envio.
@@ -82,9 +83,13 @@ snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
 
 ## Documentos extensos
 
-Para documentos com mais de 20 páginas, a análise usa o recorte configurado no
-workflow e registra o recorte e suas limitações. O Markdown integral
-continua preservado no volume e relacionado ao documento no PostgreSQL.
+O workflow analisa todas as páginas do Markdown convertido em lotes de até
+6.000 caracteres. Cada lote preserva os números das páginas; páginas muito
+longas são divididas por parágrafo e, se necessário, por trechos menores. Os
+resultados dos lotes são combinados e duplicatas são removidas. Se qualquer
+lote falhar ou a contagem de páginas não corresponder ao PDF, o processamento
+falha e não cria um relatório parcial. O Markdown integral permanece guardado
+no volume e relacionado ao documento no PostgreSQL.
 
 ## Operação
 
@@ -98,14 +103,21 @@ pastas do Drive para representar estados. Arquivos antigos do Drive não são
 apagados automaticamente e só podem entrar por procedimento de importação
 controlada futuro.
 
-## RAG e validação de citações — capacidade opcional, fora do fluxo ativo
+## Validação atual de citações e RAG legado
 
-**Nota de vigência:** os parágrafos abaixo descrevem a capacidade legada de RAG
-e não o caminho operacional atual. O workflow ativo não chama esse serviço, não
-gera JSON estruturado e não cria `quality_checks`; ele usa o fluxo linear descrito
-acima.
+**Nota de vigência:** a seção abaixo descreve a capacidade legada de RAG,
+que não é chamada pelo caminho atual. O workflow atual usa JSON temporário em
+cada lote para organizar os achados, mas não persiste esse JSON nem cria
+`quality_checks`.
 
-Depois de persistir o Markdown, o workflow chama o serviço interno
+A validação usada atualmente é feita pelo gateway na rota interna
+`POST /internal/submissions/{id}/validate-report`. Ela abre o Markdown original e
+compara cada página e evidência literal do relatório. Retorna a cobertura, as
+referências confirmadas e as pendentes. Citações pendentes são marcadas no
+relatório e não bloqueiam a entrega; páginas não cobertas interrompem a
+geração para impedir relatório parcial.
+
+A capacidade legada de RAG funciona assim: depois de persistir o Markdown, o workflow chama o serviço interno
 `RAG_SERVICE_BASE_URL` para indexar chunks por página, executar busca híbrida e
 registrar os chunks recuperados. O contexto enviado ao Ollama contém o marcador
 `## Página N`, o protocolo e a instrução de copiar evidência curta.
@@ -117,32 +129,31 @@ limitações quando houver falha de qualidade, sem bloquear a disponibilização
 relatório quando não houver falha técnica.
 
 O contrato histórico de análise estruturada é o `regulatory-extraction-v3`. O
-contrato ativo é o `regulatory-extraction-v4`, orientado a inteligência
-regulatória e impacto de mercado. Ele responde, em ordem, a nove perguntas:
+contrato ativo é o `regulatory-extraction-v5-full-document-batched`, orientado
+a inteligência regulatória e impacto de mercado. O relatório responde a nove perguntas:
 o que aconteceu; quem é afetado; qual é o status regulatório; qual é o impacto
 direto no negócio; qual é o impacto potencial de mercado; se existe urgência ou
 prazo; o que a empresa deve fazer agora; o que ainda não foi comprovado; e qual
 é a prioridade executiva. O Ollama retorna Markdown com seções obrigatórias,
-plano de ação e referências de páginas. A análise não é parecer regulatório
-definitivo e a conferência humana é opcional.
+plano de ação e referências de páginas. Respostas e ações usam listas com
+marcadores para manter a leitura do PDF clara. A análise não é parecer
+regulatório definitivo e a conferência humana é opcional.
 
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
 
-## Fluxo simplificado vigente
+## Fluxo de análise integral vigente
 
-O workflow interno ativo segue uma cadeia linear para reduzir latência e
-instabilidades em documentos extensos:
+O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 
 ```text
-PDF -> Markdown com marcadores de página -> prompt do especialista sênior
-    -> relatório Markdown -> PDF comercial -> aguardando_envio
+PDF -> Markdown paginado -> lotes de até 6.000 caracteres
+    -> achados JSON temporários consolidados -> relatório Markdown
+    -> conferência de citações e sinal -> PDF -> aguardando_envio
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
-`regulatory-extraction-v4` recebe um recorte compacto e rastreável do Markdown,
-responde perguntas de negócio estabelecidas, produz somente Markdown e é
-instruído a não inventar páginas ou fatos. JSON,
-RAG, embeddings e `quality_checks` não são executados no caminho ativo; ficam
-como capacidade legada/opcional. O envio, a reconciliação, o tratamento de erros
-e o download oficial continuam operacionais.
+`regulatory-extraction-v5.md` define a extração estruturada e a consolidação.
+O JSON de cada lote é temporário e não é persistido como análise do documento.
+RAG, embeddings e `quality_checks` continuam fora do caminho ativo. O envio, a
+reconciliação, o tratamento de erros e o download oficial seguem sem alterações.

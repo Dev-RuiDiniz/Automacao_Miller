@@ -76,9 +76,13 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
         "PDF Converter",
         "Validate Markdown",
         "Internal Storage - Write Markdown",
-        "Prepare expert prompt",
+        "Prepare analysis batches",
+        "Ollama - Analyze each batch",
+        "Merge batch findings and prepare report",
         "Ollama - Generate report Markdown",
         "Validate report Markdown",
+        "Gateway - Validate report evidence",
+        "Accept evidence validation and add signal",
         "Internal Storage - Write report Markdown",
         "Report Renderer",
         "Internal Storage - Write report PDF",
@@ -99,32 +103,51 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "report_markdown" in report_markdown_state["parameters"]["query"]
     assert "prompt_version" in report_markdown_state["parameters"]["query"]
 
-    prepare_expert = next(node for node in workflow["nodes"] if node["name"] == "Prepare expert prompt")
-    expert_code = prepare_expert["parameters"]["jsCode"]
-    assert "analista" in expert_code
-    assert "relat" in expert_code
-    assert "prompt_version: 'regulatory-extraction-v4'" in expert_code
-    assert "O que aconteceu?" in expert_code
-    assert "impacto potencial de mercado" in expert_code
-    assert "Respostas às perguntas de negócio" in expert_code
-    assert "Plano de ação recomendado" in expert_code
-    assert "market_questionnaire_excerpt" in expert_code
-    assert "page_count" in expert_code
+    prepare_batches = next(node for node in workflow["nodes"] if node["name"] == "Prepare analysis batches")
+    batch_code = prepare_batches["parameters"]["jsCode"]
+    assert "6000" in batch_code
+    assert "page_count" in batch_code
+    assert "slice(0, 7000)" not in batch_code
+    assert "pageNumbers" in batch_code
+    assert "sortedPages.length !== expectedPages" in batch_code
+
+    merge_batches = next(node for node in workflow["nodes"] if node["name"] == "Merge batch findings and prepare report")
+    merge_code = merge_batches["parameters"]["jsCode"]
+    assert "pages.length !== expectedPages" in merge_code
+    assert "JSON.parse(raw)" in merge_code
+    assert "new Map()" in merge_code
+    assert "prompt_version: 'regulatory-extraction-v5-full-document-batched'" in merge_code
+    assert "impacto" in merge_code.lower()
+    assert "prioridade executiva" in merge_code.lower()
+    assert "sem tabelas Markdown" in merge_code
 
     ollama = next(node for node in workflow["nodes"] if node["name"] == "Ollama - Generate report Markdown")
     ollama_body = ollama["parameters"]["jsonBody"]
     assert "format: 'json'" not in ollama_body
-    assert "expert_prompt" in ollama_body
+    assert "report_prompt" in ollama_body
     assert "WORKFLOW_TIMEOUT_SECONDS" in ollama["parameters"]["options"]["timeout"]
     assert "* 1000" in ollama["parameters"]["options"]["timeout"]
     assert "num_ctx: 8192" in ollama_body
-    assert "num_predict: 2048" in ollama_body
+    assert "num_predict: 4096" in ollama_body
+
+    batch_ollama = next(node for node in workflow["nodes"] if node["name"] == "Ollama - Analyze each batch")
+    assert "format: 'json'" in batch_ollama["parameters"]["jsonBody"]
+    assert "batch_prompt" in batch_ollama["parameters"]["jsonBody"]
+    assert "WORKFLOW_TIMEOUT_SECONDS" in batch_ollama["parameters"]["options"]["timeout"]
 
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "status = 'aguardando_envio'" in report_state["parameters"]["query"]
     assert "aguardando_revisao" not in report_state["parameters"]["query"]
     report_payload = next(node for node in workflow["nodes"] if node["name"] == "Prepare report PDF payload")
     assert "report_markdown" in report_payload["parameters"]["jsCode"]
+    validate_evidence = next(node for node in workflow["nodes"] if node["name"] == "Gateway - Validate report evidence")
+    assert "/validate-report" in validate_evidence["parameters"]["url"]
+    assert "X-Internal-Token" in json.dumps(validate_evidence["parameters"])
+    accept_evidence = next(node for node in workflow["nodes"] if node["name"] == "Accept evidence validation and add signal")
+    assert "coverage.complete" in accept_evidence["parameters"]["jsCode"]
+    assert "if (pending.length)" in accept_evidence["parameters"]["jsCode"]
+    assert "references_pending" not in accept_evidence["parameters"]["jsCode"]
+    assert workflow["connections"]["Validate report Markdown"]["main"][0][0]["node"] == "Gateway - Validate report evidence"
     report_file = next(node for node in workflow["nodes"] if node["name"] == "Prepare report PDF file")
     assert "getBinaryDataBuffer" in report_file["parameters"]["jsCode"]
     renderer = next(node for node in workflow["nodes"] if node["name"] == "Report Renderer")
@@ -134,17 +157,24 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
 
 
 def test_market_prompt_file_matches_active_contract() -> None:
-    prompt = (ROOT / "prompts" / "regulatory-extraction-v4.md").read_text(encoding="utf-8")
-    assert "analista sênior de inteligência regulatória" in prompt
+    prompt = (ROOT / "prompts" / "regulatory-extraction-v5.md").read_text(encoding="utf-8")
+    assert "6.000 caracteres" in prompt
+    assert "Todos os\nlotes são analisados" in prompt
+    assert "duplicatas" in prompt
+    assert "- Página: N" in prompt
+    assert "- Evidência literal:" in prompt
+    assert "marcados como pendentes" in prompt
+    assert "listas com marcadores" in prompt
+    assert "Não use tabelas" in prompt
     for marker in (
-        "O que aconteceu?",
-        "Qual é o impacto direto no negócio?",
-        "Qual é o impacto potencial de mercado?",
-        "O que a empresa deve fazer agora?",
+        "o que aconteceu",
+        "qual é o status\nregulatório",
+        "qual é a prioridade executiva",
+        "trecho literal",
         "Referências de páginas",
     ):
-        assert marker in prompt
-    assert "Retorne somente Markdown" in prompt
+        assert marker.lower() in prompt.lower()
+    assert "JSON temporário" in prompt
     assert "RAG_CONTEXT" not in prompt
 
 

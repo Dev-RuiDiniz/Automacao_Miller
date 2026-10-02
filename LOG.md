@@ -1773,3 +1773,131 @@ diferenças.
 histórico de execução de teste, preservando os backups e as credenciais. O
 workflow de reconciliação permanece disponível para investigação, porém pausado
 para evitar que execuções travadas reapareçam.
+
+## 2026-10-01 — Análise integral em lotes
+
+Tipo: Correção funcional e melhoria de cobertura
+Status: Implementado localmente; homologação ponta a ponta pendente
+
+Contexto:
+O workflow anterior selecionava páginas por palavras-chave e cortava o
+contexto em 7.000 caracteres. Um ato posterior ao corte podia ficar fora da
+análise sem que o sistema interrompesse a geração do relatório.
+
+Decisão/Ação:
+O Markdown paginado agora é dividido em lotes de até 6.000 caracteres. Cada lote
+mantém os marcadores de página; páginas longas são repartidas por parágrafos e
+por trechos quando necessário. O workflow exige a resposta estruturada de cada
+lote, combina os achados e remove duplicatas pela página e evidência. Falha ou
+resposta inválida de qualquer lote, divergência nos marcadores ou cobertura
+incompleta interrompe o processamento antes da geração do relatório.
+
+Arquivos afetados:
+`workflows/automacao-regulatoria-internal-v1.json`,
+`tests/contracts/test_workflow_batching.py`,
+`tests/contracts/test_deployment_contract.py`,
+`prompts/regulatory-extraction-v5.md`, `README.md` e `workflows/README.md`.
+
+Testes:
+Os testes direcionados passaram. O código JavaScript real do nó de divisão foi
+executado com um documento sintético de três páginas: cinco lotes, limite máximo
+de 6.000 caracteres, evidência após os primeiros 7.000 caracteres encontrada e
+página excepcionalmente longa dividida sem perder página ou conteúdo.
+
+Pendências:
+Executar o fluxo completo com um PDF sintético na stack Docker local após
+concluir a validação automática de citações e a legibilidade do PDF. Não houve
+alteração ou teste na VPS nem ativação do workflow de reconciliação.
+
+Impacto:
+A cobertura deixa de depender de um recorte por palavras-chave. O tempo e o
+consumo do modelo podem aumentar porque cada lote gera uma inferência.
+
+## 2026-10-01 — Validação de evidências e sinalização de pendências
+
+Tipo: Correção de rastreabilidade
+Status: Implementado; testes direcionados aprovados; homologação ponta a ponta pendente
+
+Contexto:
+O relatório citava páginas e trechos, mas o sistema não os comparava com o
+Markdown de origem. Uma citação incorreta podia parecer comprovada ao leitor.
+
+Decisão/Ação:
+Foi adicionada uma rota interna autenticada que lê o Markdown persistido e
+confere cada referência. Página inexistente, evidência ausente ou localizada
+em outra página agora vira referência pendente explícita. A cobertura mede
+páginas processadas e não é apresentada como confiança da IA. A cobertura
+incompleta ou falha técnica interrompe a geração; referência pendente não
+bloqueia o relatório nem o envio manual.
+
+Arquivos afetados:
+`infra/regulatory_analysis/report_validation.py`,
+`infra/upload_gateway/app.py`, `tests/regulatory_analysis/test_report_validation.py`,
+`tests/upload_gateway/test_api.py`, `tests/contracts/test_deployment_contract.py`,
+`workflows/automacao-regulatoria-internal-v1.json`, `prompts/regulatory-extraction-v5.md`,
+`PRD.md`, `ROADMAP.md`, `README.md` e `workflows/README.md`.
+
+Testes:
+`python -m pytest tests/regulatory_analysis/test_report_validation.py
+tests/upload_gateway/test_api.py tests/contracts/test_deployment_contract.py -q`;
+35 testes passaram. Inclui citações confirmadas e pendentes, página inexistente,
+trecho fora da página citada, cobertura incompleta, rota autenticada e formato
+de tabela legado durante a transição.
+
+Pendências:
+Completar a homologação Docker com PDF sintético e confirmar a persistência do
+relatório, a saída PDF, a cobertura e o estado `aguardando_envio`.
+
+Impacto:
+O leitor recebe um aviso verificável para citações pendentes. A entrega segue
+disponível para conferência e nenhum relatório é produzido se páginas não
+tiverem sido analisadas.
+
+## 2026-10-01 — Relatório PDF com listas
+
+Tipo: Melhoria de legibilidade
+Status: Implementado; testes e inspeção do PDF de exemplo aprovados
+
+Contexto:
+O modelo era orientado a produzir tabelas Markdown. O renderizador atual
+apresenta linhas como parágrafos e não cria uma grade de tabela, deixando os
+separadores visíveis e o conteúdo confuso.
+
+Decisão/Ação:
+As instruções do prompt e do workflow foram simplificadas para usar listas com
+marcadores nas respostas, plano de ação e referências. O Markdown continua sendo
+a origem comum do relatório e do PDF; não foi adicionada lógica de tabela ao
+renderizador.
+
+Arquivos afetados:
+`prompts/regulatory-extraction-v5.md`,
+`workflows/automacao-regulatoria-internal-v1.json`, `workflows/README.md`,
+`tests/report_renderer/test_renderer.py` e
+`tests/contracts/test_deployment_contract.py`.
+
+Testes:
+`python -m pytest tests/report_renderer/test_renderer.py
+tests/contracts/test_deployment_contract.py -q`; 16 testes direcionados e 73
+testes da suíte completa passaram. `docker compose config --quiet` passou e os
+sete serviços estavam saudáveis. Foi gerado PDF de exemplo, conferido por
+extração de texto e renderização da página em imagem; listas e evidências
+estavam legíveis e não havia linhas de tabela Markdown.
+
+Pendências:
+O PDF sintético foi processado em três lotes com cobertura 3/3; Markdown, PDF
+e estado `aguardando_envio` foram persistidos e não houve e-mail. Essa execução
+começou com o prompt anterior, que ainda pedia tabelas: as seis referências
+foram sinalizadas como pendentes e não bloquearam a entrega. O workflow local
+foi atualizado depois para instruir listas e a nova redação passou pelos testes
+de contrato e renderização, sem uma segunda inferência lenta.
+
+Limitação operacional:
+O último nó da execução integrada foi `State - Report persisted`, sem erro no
+resultado do workflow, mas o registro n8n permaneceu `running`. O log local
+mostrou `r.firstEvent.getTime is not a function` no serviço de consolidação de
+estatísticas. O gateway, PostgreSQL e demais serviços estavam saudáveis, e o
+estado final e os dois relatórios ficaram persistidos. A exceção do rollup de
+estatísticas está fora desta correção e deve ser investigada separadamente.
+
+Impacto:
+As listas melhoram a leitura do PDF e deixam o relatório Markdown mais simples.

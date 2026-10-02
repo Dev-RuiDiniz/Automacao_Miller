@@ -18,7 +18,7 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 - Estrutura os resultados para facilitar a leitura e a conferência.
 - Gera relatórios padronizados em PDF.
 - Organiza os metadados no PostgreSQL, mantém os arquivos em volume privado e permite o envio manual por Gmail após a geração do relatório.
-- Sinaliza baixa confiança, ambiguidade, contradições e falhas para orientar a equipe; a conferência humana é opcional.
+- Sinaliza cobertura das páginas e das evidências, além de ambiguidade e contradições. Referências pendentes ficam destacadas e não bloqueiam o processamento; o sinal não é uma nota de confiança da IA.
 - Mantém o processamento rastreável, com estados de recebido, em processamento, aguardando envio, concluído ou com erro.
 
 ## Como funciona
@@ -76,7 +76,7 @@ Conforme o conteúdo de cada documento, o sistema pode estruturar:
 - exigências;
 - pendências;
 - evidências e referências do documento de origem;
-- sinalização de confiança, alertas de qualidade e referências de página.
+- cobertura de páginas, referências confirmadas e alertas de qualidade documental.
 
 O contrato de análise v3 adiciona um parecer técnico: conclusão,
 classificação geral, nível de risco prudente, fundamentos citados, apontamentos
@@ -176,15 +176,19 @@ textual. Cada consulta é filtrada pelo protocolo atual, preservando página,
 chunk, hash, score e consulta para auditoria. O `nomic-embed-text` gera os
 embeddings e o `qwen2.5:3b` continua responsável pela análise.
 
-Achados positivos precisam trazer página e trecho literal comprovável. Falhas
-de citação geram aviso e referência para conferência opcional; não podem transformar o documento em
-concluído. Revisões aprovadas podem receber uma análise corrigida e entrar no
+Cada lote exige achados com página e evidência literal. O gateway confere as
+citações no Markdown original e sinaliza a cobertura. Citações não
+confirmadas são marcadas como pendentes e não bloqueiam `aguardando_envio`;
+falhas técnicas ou cobertura incompleta interrompem a geração do relatório.
+Revisões aprovadas podem receber uma análise corrigida e entrar no
 dataset JSONL protegido. O exportador só libera exemplos elegíveis e mantém um
 conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
 depois dos mínimos documentados no roadmap.
 
 O prompt versionado está em
-`prompts/regulatory-extraction-v4.md`. O prompt ativo agora usa perguntas
+`prompts/regulatory-extraction-v5.md`. O workflow divide o documento inteiro em
+lotes de até 6.000 caracteres, preserva as páginas e combina os achados antes
+de gerar o relatório. O prompt ativo usa perguntas
 comerciais estabelecidas, impacto direto e potencial de mercado, prioridade
 executiva, plano de ação e referências de página. O schema estrutural v2 fica
 versionado apenas para compatibilidade e evolução futura; o prompt histórico v3

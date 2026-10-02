@@ -171,6 +171,55 @@ def test_internal_status_rejects_invalid_token_and_status(tmp_path: Path) -> Non
     assert invalid.status_code == 422
 
 
+def test_internal_report_validation_checks_source_evidence_and_coverage(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    created = client.post(
+        "/api/v1/submissions",
+        headers=headers,
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    source = "## Página 1\nAto regulatório do produto A.\n## Página 2\nExigência do produto B."
+    markdown_path = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    markdown_path.parent.mkdir(parents=True)
+    markdown_path.write_text(source, encoding="utf-8")
+    gateway.store.artifacts[submission_id].append({
+        "artifact_id": 2,
+        "artifact_type": "markdown",
+        "version": 1,
+        "storage_key": str(markdown_path.relative_to(tmp_path)).replace("\\", "/"),
+        "sha256": "a" * 64,
+        "size_bytes": markdown_path.stat().st_size,
+        "mime_type": "text/markdown",
+        "created_at": gateway.now(),
+    })
+    payload = {
+        "report_markdown": "# Relatório\n\n- Página: 99\n- Evidência literal: \"produto A\"",
+        "pages_processed": [1, 2],
+    }
+
+    denied = client.post(f"/internal/submissions/{submission_id}/validate-report", json=payload)
+    response = client.post(
+        f"/internal/submissions/{submission_id}/validate-report",
+        headers={"X-Internal-Token": "internal-test"},
+        json=payload,
+    )
+
+    assert denied.status_code == 403
+    assert response.status_code == 200
+    assert response.json()["coverage"]["complete"] is True
+    assert response.json()["references"]["pending"][0]["code"] == "page_not_found"
+    assert "Referência pendente (não comprovada)" in response.json()["validated_report_markdown"]
+    incomplete = client.post(
+        f"/internal/submissions/{submission_id}/validate-report",
+        headers={"X-Internal-Token": "internal-test"},
+        json={"report_markdown": "# Relatório", "pages_processed": [1]},
+    )
+    assert incomplete.status_code == 200
+    assert incomplete.json()["coverage"]["complete"] is False
+
+
 def test_operational_pages_require_session_or_private_token(tmp_path: Path) -> None:
     client = make_client(tmp_path)
     for path in ("/upload", "/new", "/settings/recipients"):

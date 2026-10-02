@@ -41,8 +41,15 @@ def test_compose_declares_isolated_required_services() -> None:
     for service in ("postgres:", "ollama:", "rag-service:", "pdf-converter:", "report-renderer:", "n8n:"):
         assert service in compose
     assert "pgvector/pgvector:pg15" in compose
-    assert "RAG_SERVICE_BASE_URL" in compose
-    assert "RAG_ENABLE_SEMANTIC_SEARCH" in compose
+    rag_service = compose.split("  rag-service:\n", 1)[1].split("\n  pdf-converter:", 1)[0]
+    n8n_service = compose.split("  n8n:\n", 1)[1].split("\nvolumes:", 1)[0]
+    assert 'profiles: ["rag"]' in rag_service
+    assert "RAG_ENABLE_SEMANTIC_SEARCH" in rag_service
+    assert "RAG_SERVICE_BASE_URL" not in n8n_service
+    assert "RAG_TOP_K" not in n8n_service
+    assert "rag-service:" not in n8n_service
+    assert "N8N_INTERNAL_PROCESSING_WEBHOOK_URL" in n8n_service
+    assert "N8N_REPORT_EMAIL_WEBHOOK_URL" in n8n_service
     assert "127.0.0.1:${N8N_HOST_PORT:-25678}:5678" in compose
     assert "automacao_miller_n8n_data" in compose
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
@@ -50,6 +57,12 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
     assert "automacao_miller_submission_data:" in compose
     assert '"${ARTIFACTS_GID:-10002}"' in compose
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "RAG é legado/optativo" in env_example
+    deployment = (ROOT / "deploy" / "README.md").read_text(encoding="utf-8")
+    assert "não inicia `rag-service`" in deployment
+    assert "6.912 MiB (6,75 GiB)" in deployment
+    assert "docker compose --profile rag up -d rag-service" in deployment
     entrypoint = (ROOT / "infra" / "upload_gateway" / "entrypoint.sh").read_text(encoding="utf-8")
     assert "chmod 2770" in entrypoint
 

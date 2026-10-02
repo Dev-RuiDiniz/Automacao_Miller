@@ -2022,3 +2022,47 @@ Impacto:
 Alinha o contrato do produto ao processamento implementado e separa cobertura
 de evidência da prioridade executiva, sem representar nenhuma delas como
 confiança semântica da IA.
+
+## 2026-10-02 — RAG optativo e menor dependência na inicialização
+
+Tipo:
+Simplificação de infraestrutura
+
+Status:
+Implementado localmente; perfil padrão e perfil RAG validados
+
+Contexto:
+O workflow ativo não chama RAG, mas o Compose iniciava `rag-service` e exigia
+que estivesse saudável antes de iniciar o n8n. Isso mantinha uma dependência e
+mais 512 MiB de limite máximo no caminho padrão. O n8n também não recebia a URL
+do webhook de envio que agora é chamada pela reconciliação.
+
+Decisão/Ação:
+O serviço foi movido ao perfil optativo `rag`; o n8n não depende dele nem recebe
+variáveis de RAG. As URLs de processamento e envio passaram a ser fornecidas ao
+n8n. O perfil padrão soma 6.912 MiB de limites configurados e o perfil com RAG
+soma 7.424 MiB. A stack Docker local foi recriada no perfil padrão e o
+`rag-service` foi parado, preservando os volumes.
+
+Arquivos afetados:
+`docker-compose.yml`, `.env.example`, `deploy/README.md`, `ROADMAP.md`,
+`tests/contracts/test_deployment_contract.py` e este registro.
+
+Testes:
+`docker compose ... config --quiet` passou sem perfil e com `--profile rag`.
+`python -m pytest tests/contracts/test_deployment_contract.py -q`: 12 passaram.
+`python -m pytest -q`: 75 passaram, com dois avisos de depreciação de
+`on_event` do FastAPI já existentes.
+O cálculo das configurações confirmou seis serviços/6.912 MiB no padrão e sete
+serviços/7.424 MiB no perfil RAG. Na stack local, os endpoints de prontidão do
+n8n e do gateway responderam HTTP 200 e os seis serviços ficaram saudáveis.
+Nenhum Gmail foi chamado.
+
+Pendências:
+Não houve alteração na VPS. O perfil RAG fica disponível apenas para avaliação
+específica; as cotas configuradas representam limites, não consumo real.
+
+Impacto:
+A inicialização padrão perdeu a dependência do serviço RAG e reserva mais
+memória para o sistema na VPS de referência. A reconciliação também recebe no
+n8n a configuração do webhook de envio.

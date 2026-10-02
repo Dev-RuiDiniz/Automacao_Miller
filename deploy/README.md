@@ -1,7 +1,9 @@
 # Implantação da stack de homologação
 
 Esta stack usa n8n, PostgreSQL, Ollama, os serviços locais de conversão e
-renderização e o gateway de upload, com volumes e rede próprios.
+renderização e o gateway de upload, com volumes e rede próprios. O serviço RAG
+é legado e fica fora da inicialização padrão; somente o perfil optativo `rag`
+o inicia.
 
 ## Preparação no servidor
 
@@ -24,6 +26,23 @@ docker compose config --quiet
 docker compose up -d --build
 docker compose ps
 ```
+
+Ao atualizar uma instalação antiga que já está executando RAG, pare o
+container antes de usar o perfil padrão:
+
+```bash
+docker compose --profile rag stop rag-service
+docker compose up -d --build
+```
+
+Isso preserva o container e os volumes; para voltar a iniciar o serviço, use o
+perfil `rag` explicitamente.
+
+Sem perfil adicional, os limites máximos declarados somam 6.912 MiB (6,75 GiB),
+incluindo até 3 GiB para o Ollama. Em uma VPS de referência com 8 GiB, isso
+deixa 1,25 GiB para o sistema e outros processos. Esses valores são tetos do
+Compose, não consumo esperado. O perfil opcional RAG acrescenta 512 MiB ao
+limite total; habilite-o somente para trabalho específico com essa capacidade.
 
 O modelo inicial definido para a homologação é `qwen2.5:3b`:
 
@@ -124,24 +143,26 @@ docker compose run --rm upload-gateway python -m infra.upload_gateway.password_h
 O valor de `LANDING_PASSWORD_HASH` contém `$`; mantenha-o entre aspas simples
 no `.env` da VPS.
 
-## RAG e migração do banco
+## Perfil legado opcional de RAG
 
-O serviço PostgreSQL usa a imagem PostgreSQL 15 com `pgvector`. Em ambiente
-existente, faça o backup conjunto antes de aplicar
-`deploy/postgres/init/004_rag_and_training.sql`; os arquivos de inicialização
-não são reaplicados automaticamente em um banco já criado. Depois, baixe o
-modelo `nomic-embed-text` no Ollama e confirme `RAG_EMBEDDING_DIMENSION=768`,
-`RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP` e `RAG_TOP_K` no ambiente protegido.
+O workflow ativo não chama RAG, embeddings ou `quality_checks`. A inicialização
+normal do Compose não inicia `rag-service` e o n8n não depende dele.
 
-O serviço `rag-service` fica apenas na rede Docker interna e não expõe o
-volume nem seus caminhos ao navegador. O dataset exportado por
-`scripts/export_training_dataset.py` deve ficar em diretório protegido fora do
-Git. O manifesto informa se os mínimos de 30 exemplos de treino e 10 de
-validação foram atingidos; até lá, mantenha o modelo base e use RAG.
+Para investigar essa capacidade legada de forma explícita, inicie apenas o
+serviço no perfil dedicado:
 
-Sequência de homologação: backup, aplicar a migração, indexar os Markdowns,
-comparar o fluxo paralelo, validar citações, ativar o workflow interno e só
-então considerar qualquer avaliação de fine-tuning.
+```bash
+docker compose --profile rag up -d rag-service
+docker compose --profile rag exec ollama ollama pull nomic-embed-text
+```
+
+Em banco já existente, faça o backup conjunto antes de aplicar
+`deploy/postgres/init/004_rag_and_training.sql`; arquivos de inicialização não
+são reaplicados automaticamente. O serviço permanece apenas na rede Docker e
+não expõe o volume nem seus caminhos ao navegador. Variáveis e configuração
+específicas estão identificadas como opcionais no `.env.example`. Ativar o perfil
+não conecta RAG ao workflow ativo. O dataset de treinamento exportado deve
+permanecer em diretório protegido fora do Git.
 
 ## Coleta do DOU em staging
 

@@ -894,3 +894,27 @@ MVP não exige uma nota de confiança semântica nem análise JSON persistida.
 **Testes:** 12 testes dos contratos passaram. Os schemas, serviços e exports de
 RAG/JSON antigos continuam versionados como capacidade legada/opcional; esta
 tarefa não removeu código nem alterou o workflow ativo.
+
+## 42. Simplificação do Compose e perfil RAG optativo — 2026-10-02
+
+- [x] Tornar `rag-service` optativo pelo perfil `rag`.
+- [x] Remover RAG das variáveis e dependências de inicialização do n8n.
+- [x] Passar ao n8n as URLs dos webhooks de processamento e envio.
+- [x] Documentar o uso explícito do perfil e os limites máximos de memória.
+- [x] Validar o Compose padrão e com perfil RAG e atualizar a stack local sem
+      remover volumes.
+
+**Resultado:** o perfil padrão usa seis serviços e soma 6.912 MiB (6,75 GiB)
+em limites máximos; o perfil RAG explícito soma 7.424 MiB (7,25 GiB). A stack
+local foi recriada sem o serviço RAG; PostgreSQL, Ollama, conversor, renderer,
+gateway e n8n continuam usando os volumes existentes. O endpoint de prontidão
+do n8n e o health check do gateway responderam HTTP 200. Nenhum e-mail foi
+enviado.
+
+**Testes:** `docker compose ... config --quiet` passou no perfil padrão e no
+perfil `rag`; os 12 testes dos contratos e os 75 testes da suíte completa
+passaram. Os seis serviços padrão ficaram saudáveis no Docker local.
+
+**Limitação:** os limites são tetos configurados, não medidas de consumo real.
+O perfil RAG continua disponível para uma validação separada, mas não participa
+do fluxo operacional.

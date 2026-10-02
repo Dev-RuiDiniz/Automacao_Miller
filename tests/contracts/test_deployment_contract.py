@@ -55,6 +55,7 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
     assert "ARTIFACT_STORAGE_DIR" in compose
     assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
+    assert "PDF_CONVERTER_TIMEOUT_SECONDS:-300" in compose
     assert "automacao_miller_submission_data:" in compose
     assert '"${ARTIFACTS_GID:-10002}"' in compose
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
@@ -104,14 +105,38 @@ def test_error_workflow_export_records_failures() -> None:
     assert workflow["id"] == "automacao-regulatoria-error-handler"
 
 
+def test_internal_error_workflow_avoids_code_runner() -> None:
+    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-error-v1.json").read_text(encoding="utf-8"))
+    normalize = next(node for node in workflow["nodes"] if node["name"] == "Normalize internal error")
+    assert normalize["type"] == "n8n-nodes-base.set"
+    assert normalize["typeVersion"] == 3.4
+    assignments = normalize["parameters"]["assignments"]["assignments"]
+    fields = {item["name"]: item["value"] for item in assignments}
+    assert {"submission_id", "delivery_id", "current_stage", "error_category", "error_message", "execution_id"} == set(fields)
+    assert "$json.workflowData" in fields["submission_id"]
+    assert "$json.execution?.error" in fields["error_message"]
+    assert normalize["parameters"]["includeOtherFields"] is False
+    assert not any(node["type"] == "n8n-nodes-base.code" for node in workflow["nodes"])
+    record = next(node for node in workflow["nodes"] if node["name"] == "Record internal error")
+    query = record["parameters"]["query"]
+    assert query.startswith("WITH error_context AS (")
+    assert "UPDATE automacao_miller.processing_attempts" in query
+    assert "UPDATE automacao_miller.documents" in query
+    assert "UPDATE automacao_miller.email_deliveries" in query
+    assert "; UPDATE" not in query
+
+
 def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v1.json").read_text(encoding="utf-8"))
+    error_workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-error-v1.json").read_text(encoding="utf-8"))
     names = {node["name"] for node in workflow["nodes"]}
     node_types = {node["type"] for node in workflow["nodes"]}
 
     assert workflow["id"] == "automacao-regulatoria-internal"
     assert workflow["active"] is False
     assert workflow["settings"]["errorWorkflow"] == "automacao-reg-error-handler"
+    assert workflow["settings"]["errorWorkflow"] == error_workflow["id"]
+    assert error_workflow["active"] is False
     assert {
         "Landing - Receber documento",
         "State - Claim document",
@@ -147,12 +172,22 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "report_markdown" in report_markdown_state["parameters"]["query"]
     assert "prompt_version" in report_markdown_state["parameters"]["query"]
 
+    converter = next(node for node in workflow["nodes"] if node["name"] == "PDF Converter")
+    assert converter["parameters"]["options"]["timeout"] == "={{ Number($env.PDF_CONVERTER_TIMEOUT_SECONDS || 300) * 1000 }}"
+    assert converter["retryOnFail"] is False
+    assert "maxTries" not in converter
+    assert "waitBetweenTries" not in converter
+
     prepare_batches = next(node for node in workflow["nodes"] if node["name"] == "Prepare analysis batches")
     batch_code = prepare_batches["parameters"]["jsCode"]
     assert "6000" in batch_code
     assert "page_count" in batch_code
     assert "slice(0, 7000)" not in batch_code
     assert "pageNumbers" in batch_code
+    assert "const batchSource = { ...source }" in batch_code
+    assert "delete batchSource.markdown" in batch_code
+    assert "...batchSource, batch_number:" in batch_code
+    assert "...source, batch_number:" not in batch_code
     assert "sortedPages.length !== expectedPages" in batch_code
 
     merge_batches = next(node for node in workflow["nodes"] if node["name"] == "Merge batch findings and prepare report")
@@ -178,6 +213,14 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "format: 'json'" in batch_ollama["parameters"]["jsonBody"]
     assert "batch_prompt" in batch_ollama["parameters"]["jsonBody"]
     assert "WORKFLOW_TIMEOUT_SECONDS" in batch_ollama["parameters"]["options"]["timeout"]
+    assert "num_ctx: 4096" in batch_ollama["parameters"]["jsonBody"]
+    loop = next(node for node in workflow["nodes"] if node["name"] == "Loop Over Items")
+    assert loop["type"] == "n8n-nodes-base.splitInBatches"
+    assert loop["parameters"]["batchSize"] == 1
+    assert workflow["connections"]["Prepare analysis batches"]["main"][0][0]["node"] == "Loop Over Items"
+    assert workflow["connections"]["Loop Over Items"]["main"][0][0]["node"] == "Merge batch findings and prepare report"
+    assert workflow["connections"]["Loop Over Items"]["main"][1][0]["node"] == "Ollama - Analyze each batch"
+    assert workflow["connections"]["Ollama - Analyze each batch"]["main"][0][0]["node"] == "Loop Over Items"
 
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "status = 'aguardando_envio'" in report_state["parameters"]["query"]

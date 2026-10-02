@@ -2,8 +2,11 @@
 
 ## Fluxo ativo
 
-A origem oficial de novos documentos é a landing privada. Importe e mantenha
-inativos até a validação no n8n:
+A origem oficial de novos documentos é a landing privada. Os exports ficam
+inativos no repositório para evitar ativação acidental. Na homologação local,
+importe os workflows de processamento e de erro interno, associe a credencial
+PostgreSQL aos dois e ative ambos. Mantenha o envio por e-mail e a reconciliação
+inativos no teste ponta a ponta:
 
 1. `automacao-regulatoria-internal-v1.json` — recebe o protocolo, reivindica o
    documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
@@ -47,7 +50,10 @@ legada; o fluxo atual não grava análise estruturada. Os workflows devem gravar
 somente chaves relativas, nunca caminhos absolutos.
 
 Associe no n8n apenas as credenciais PostgreSQL e Gmail. Nenhum ID de credencial
-é versionado neste repositório. A variável `ARTIFACTS_GID` deve representar o
+é versionado neste repositório. O workflow de erro interno precisa estar ativo
+e associado à credencial PostgreSQL para registrar a falha e mudar o protocolo
+para `erro`; sem ele, uma execução interrompida pode deixar o documento em
+`em_processamento`. A variável `ARTIFACTS_GID` deve representar o
 grupo compartilhado que permite ao gateway e ao n8n ler e gravar no volume.
 Além das permissões do volume, o n8n deve receber
 `N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts`, que libera os nós de arquivo
@@ -104,6 +110,19 @@ resultados dos lotes são combinados e duplicatas são removidas. Se qualquer
 lote falhar ou a contagem de páginas não corresponder ao PDF, o processamento
 falha e não cria um relatório parcial. O Markdown integral permanece guardado
 no volume e relacionado ao documento no PostgreSQL.
+
+O nó `Loop Over Items` envia um lote por vez ao Ollama e espera cada resposta
+antes de continuar. Sem essa sequência, o n8n pode iniciar centenas de chamadas
+simultâneas e exceder a memória do modelo. Essa proteção reduz picos de memória,
+mas aumenta o tempo de processamento de documentos extensos. A análise de cada
+lote usa contexto de 4.096 tokens; mantenha `OLLAMA_NUM_PARALLEL=1` no ambiente
+local de pouca memória.
+
+`PDF_CONVERTER_TIMEOUT_SECONDS` é configurado em segundos. O workflow converte
+essa unidade para milissegundos, como exige o nó HTTP do n8n. O padrão é 300
+segundos (300.000 milissegundos). A conversão não é repetida automaticamente:
+repetir uma conversão demorada pode sobrecarregar o serviço; falhas são
+registradas pelo workflow de erro e exigem reprocessamento explícito.
 
 ## Operação
 

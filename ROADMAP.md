@@ -14,6 +14,7 @@
 
 **Última observação da VPS (2026-09-23):** a base de homologação foi limpa, a reconciliação estava pausada após execuções travadas, a cópia remota divergia do repositório e o workflow ativo usava o prompt v3; a homologação do v4 estava pendente. A validação ponta a ponta registrada anteriormente foi feita com o v3.
 **Situação remota em 2026-10-02:** a VPS não foi consultada nesta atualização. O estado remoto atual é desconhecido; as informações de 23/09 são um registro histórico, não uma confirmação de que tudo continua igual.
+**Homologação local em 2026-10-02:** o workflow foi corrigido para analisar lotes do Ollama sequencialmente. O PDF enviado (142 páginas) foi convertido para Markdown, mas a inferência local ficou em cerca de 1,6 token/s; o usuário solicitou interromper a execução. Não foi gerado relatório final nem enviado e-mail.
 **Homologação:** aprovada historicamente para a versão então implantada; não representa validação da versão atual do repositório.
 **Produção:** condicionada à revisão de segurança e ao aceite operacional final.
 **MVP:** definido  
@@ -918,3 +919,31 @@ passaram. Os seis serviços padrão ficaram saudáveis no Docker local.
 **Limitação:** os limites são tetos configurados, não medidas de consumo real.
 O perfil RAG continua disponível para uma validação separada, mas não participa
 do fluxo operacional.
+
+## 43. Estabilização de PDFs longos no Ollama local — 2026-10-02
+
+- [x] Corrigir o timeout de conversão de segundos para milissegundos e desativar
+      retries automáticos que repetiam a conversão demorada.
+- [x] Evitar copiar o Markdown integral para cada item dos lotes.
+- [x] Fazer o n8n enviar um lote por vez ao Ollama, com contexto de 4.096 tokens.
+- [x] Tornar o registro de falha atômico no workflow de erro.
+- [x] Publicar o workflow corrigido no n8n local sem trocar a credencial local.
+- [x] Executar os testes do contrato, a suíte completa e a validação do Compose.
+- [x] Reprocessar o PDF recebido até a etapa de análise e interromper a tentativa
+      conforme pedido do usuário após medir a velocidade local.
+
+**Resultado:** a tentativa anterior falhava na conversão, serialização de dados
+ou por chamadas simultâneas ao Ollama. Com o loop sequencial, o PDF de 142
+páginas gerou Markdown de 1,63 MB e chegou à inferência sem reiniciar o Ollama.
+O modelo operou em CPU a aproximadamente 1,6 token por segundo.
+
+**Testes:** `python -m pytest tests/contracts/test_deployment_contract.py -q`
+passou com 13 testes; `python -m pytest -q` passou com 76 testes e dois avisos
+de depreciação preexistentes do FastAPI; `docker compose -p codex-miller-local
+config --quiet` passou. O workflow local ficou ativo e saudável. O modelo foi
+descarregado após a interrupção.
+
+**Limitação:** o usuário pediu para interromper a tentativa antes da conclusão
+de todos os lotes. O protocolo ficou em `erro`, com a interrupção registrada;
+não há relatório final. A validação ponta a ponta até `aguardando_envio` segue
+pendente. Nenhum e-mail foi enviado e a VPS não foi consultada.

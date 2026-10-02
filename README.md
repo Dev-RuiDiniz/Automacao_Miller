@@ -26,19 +26,15 @@ O agente foi concebido para reduzir esse esforço operacional e criar um process
 ```text
 PDF recebido pela landing privada
         ↓
-Conversão obrigatória para Markdown
+Markdown paginado persistido
         ↓
-Persistência interna no volume e no PostgreSQL
+Análise de todas as páginas em lotes de até 6.000 caracteres
         ↓
-Extração estruturada
+Achados JSON temporários consolidados
         ↓
-Análise complementar com IA local
+Relatório Markdown e validação das páginas/evidências
         ↓
-Dados estruturados
-        ↓
-Relatório padronizado
-        ↓
-PDF final no volume privado
+PDF final persistido no volume privado
         ↓
 Documento em aguardando envio
         ↓
@@ -55,15 +51,18 @@ e chama o webhook interno do n8n. O Google Drive permanece apenas nos exports
 históricos da homologação anterior e não participa do processamento ativo.
 
 Os arquivos ficam organizados por SHA-256 em
-`objects/ab/cd/<sha256>/original.pdf`, com versões de Markdown, análise JSON e
-relatório PDF no mesmo diretório. O banco guarda somente chaves relativas,
-estados, tentativas, erros, análises e revisões humanas.
+`objects/ab/cd/<sha256>/original.pdf`, com versões do Markdown de origem,
+relatório Markdown e relatório PDF no mesmo diretório. O JSON de cada lote é
+temporário e não é salvo como análise do documento. O banco guarda chaves
+relativas, estados, tentativas, erros e vínculos de artefatos.
 
 O painel autenticado em `/upload` apresenta a fila, os indicadores e os detalhes
-de cada protocolo. O operador pode abrir o PDF, Markdown e JSON, registrar uma
-conferência opcional, configurar destinatários padrão e solicitar o envio. O relatório só
-fica disponível para download oficial depois que o workflow manual confirmar o
-envio no Gmail e marcar o documento como `concluido`.
+de cada protocolo. O operador pode abrir o PDF e o Markdown, registrar uma
+conferência opcional, configurar destinatários padrão e solicitar o envio.
+Registros antigos podem conter JSON por compatibilidade, mas o fluxo atual não
+cria esse artefato. O relatório só fica disponível para download oficial depois
+que o workflow manual confirmar o envio no Gmail e marcar o documento como
+`concluido`.
 
 ## Informações que podem ser organizadas
 
@@ -78,17 +77,16 @@ Conforme o conteúdo de cada documento, o sistema pode estruturar:
 - evidências e referências do documento de origem;
 - cobertura de páginas, referências confirmadas e alertas de qualidade documental.
 
-O contrato de análise v3 adiciona um parecer técnico: conclusão,
-classificação geral, nível de risco prudente, fundamentos citados, apontamentos
-técnicos e recomendações priorizadas. A saída continua sendo apoio documental e
-mantém alertas, limitações e referências de páginas quando houver ambiguidade,
-contradição, contexto parcial, risco relevante ou impacto externo. A equipe pode
-confirmar esses pontos, mas a conferência humana não é obrigatória.
+O prompt ativo responde a nove perguntas de negócio sobre o ato, as pessoas
+afetadas, o status, os impactos, a urgência, as ações necessárias, as limitações
+e a prioridade executiva. Essa prioridade orienta a ordem das ações; não é uma
+nota de confiança da IA. Alertas e referências de página acompanham os achados,
+e a equipe pode conferir os pontos que considerar importantes sem tornar a
+revisão humana obrigatória.
 
-O PDF final usa um modelo executivo da DB Tecnologia, com status de qualidade,
-indicadores, parecer técnico, cartões de achados, próximos passos e aviso de
-responsabilidade. A apresentação é comercial e profissional, mas continua
-determinística e vinculada às evidências do documento original.
+O PDF é renderizado a partir do relatório Markdown. Ele preserva os títulos,
+listas, páginas, evidências e avisos de cobertura para facilitar a leitura e a
+conferência com o documento original.
 
 A ausência de uma informação é diferenciada de uma falha técnica de leitura, parsing, conversão ou análise. O sistema não deve transformar um erro de processamento em “informação não encontrada”.
 
@@ -149,9 +147,11 @@ Para iniciar a implantação, são necessários:
 5. definição dos destinatários dos relatórios;
 6. responsáveis pela operação e pela eventual conferência técnica das referências.
 
-O projeto está com a stack de homologação versionada e a migração para o
-repositório interno implementada no código. A ativação depende do backup
-conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
+O repositório contém o fluxo de entrada pela landing e o processamento no
+ambiente local Docker. A última observação da VPS está registrada em
+23/09/2026; ela não foi consultada nesta atualização e sua situação atual é
+desconhecida. Consulte o `ROADMAP.md` antes de interpretar registros de
+homologação como estado remoto atual.
 
 ## Documentação do projeto
 
@@ -159,7 +159,6 @@ conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
 - [ROADMAP.md](ROADMAP.md) — fases, marcos, pendências e bloqueios.
 - [LOG.md](LOG.md) — decisões, alterações e memória operacional.
 - [AGENTS.md](AGENTS.md) — regras de atuação e governança do repositório.
-- [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — parecer técnico executivo, arquitetura, fluxos, rotas, riscos e próximos passos.
 - [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — auditoria técnica, funcional e operacional em linguagem executiva.
 - [workflows/README.md](workflows/README.md) — operação dos workflows, incluindo a entrada da landing.
 
@@ -169,33 +168,26 @@ conjunto, da cópia controlada do volume antigo e da validação ponta a ponta.
 
 Responsável técnico: **Rui Diniz — Engenheiro de Software**
 
-## RAG e qualidade da análise
+## Fluxo atual e recursos fora do caminho ativo
 
-O workflow interno indexa o Markdown no PostgreSQL com `pgvector` e busca
-textual. Cada consulta é filtrada pelo protocolo atual, preservando página,
-chunk, hash, score e consulta para auditoria. O `nomic-embed-text` gera os
-embeddings e o `qwen2.5:3b` continua responsável pela análise.
+O prompt versionado está em `prompts/regulatory-extraction-v5.md`. O workflow
+divide o Markdown paginado completo em lotes de até 6.000 caracteres e combina
+os achados antes de gerar o relatório. O formato JSON é usado apenas dentro do
+workflow para transportar os achados dos lotes; não vira arquivo de análise
+nem aparece como resultado atual no painel. A saída persistida é o relatório
+Markdown e seu PDF.
 
-Cada lote exige achados com página e evidência literal. O gateway confere as
-citações no Markdown original e sinaliza a cobertura. Citações não
-confirmadas são marcadas como pendentes e não bloqueiam `aguardando_envio`;
-falhas técnicas ou cobertura incompleta interrompem a geração do relatório.
-Revisões aprovadas podem receber uma análise corrigida e entrar no
-dataset JSONL protegido. O exportador só libera exemplos elegíveis e mantém um
-conjunto de validação separado. Fine-tuning será avaliado fora da VPS apenas
-depois dos mínimos documentados no roadmap.
+O gateway confere cobertura e referências literais contra o Markdown original.
+Referências pendentes são identificadas sem bloquear `aguardando_envio`; falha
+técnica ou cobertura incompleta interrompe a geração. O sinal exibido mede
+cobertura e localização de referências, não confiança semântica da IA. A
+prioridade executiva é prioridade de ação e não confiança.
 
-O prompt versionado está em
-`prompts/regulatory-extraction-v5.md`. O workflow divide o documento inteiro em
-lotes de até 6.000 caracteres, preserva as páginas e combina os achados antes
-de gerar o relatório. O prompt ativo usa perguntas
-comerciais estabelecidas, impacto direto e potencial de mercado, prioridade
-executiva, plano de ação e referências de página. O schema estrutural v2 fica
-versionado apenas para compatibilidade e evolução futura; o prompt histórico v3
-também permanece no repositório para compatibilidade e auditoria. O fluxo ativo
-produz Markdown. A conferência humana é opcional;
-o relatório técnico segue para envio quando as etapas técnicas terminam sem
-erro.
+RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo. O
+serviço, o schema e os workflows associados permanecem no repositório como
+capacidade legada/opcional, sem participação na geração atual do relatório.
+Artefatos JSON e schemas antigos podem existir em registros e workflows legados,
+mas não são requisitos do MVP vigente. A conferência humana é opcional.
 
 ## Corpus oficial do DOU
 

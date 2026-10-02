@@ -7,6 +7,14 @@
 **Data-base da auditoria:** 15/09/2026
 **Versão de código auditada:** 3148fa0, estado de referência antes das alterações documentais deste relatório
 
+> **Aviso de vigência:** este relatório descreve uma arquitetura histórica com
+> RAG, saída JSON e indicadores de confiança. O fluxo ativo foi simplificado
+> depois da data-base: analisa o Markdown integral em lotes, usa JSON apenas
+> temporariamente e persiste Markdown/PDF. RAG não participa da análise atual;
+> cobertura e validação de citações não são uma nota de confiança da IA. Para o
+> produto vigente, consulte `README.md`, `PRD.md` e `workflows/README.md`. A VPS
+> não foi consultada em 2026-10-02; seu estado atual é desconhecido.
+
 **Atualização em 15/09/2026:** após a auditoria, o contrato de análise evoluiu
 para `regulatory-extraction-v3`, com relatório técnico sênior automatizado,
 apontamentos e

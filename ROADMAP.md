@@ -876,3 +876,21 @@ acesso à VPS nesta correção.
 **Testes:** 11 testes dos contratos passaram, incluindo a verificação de que o
 roadmap e o log deixam a data da observação e a ausência de consulta atual
 explícitas.
+
+## 41. Alinhamento da documentação ao fluxo ativo — 2026-10-02
+
+- [x] Definir o relatório Markdown/PDF como resultado persistido do MVP.
+- [x] Descrever o JSON dos lotes como temporário, sem artefato JSON final.
+- [x] Marcar RAG, embeddings e `quality_checks` como fora do fluxo ativo.
+- [x] Separar prioridade executiva de qualquer medida de confiança da IA.
+- [x] Atualizar PRD, README e operação dos workflows; marcar a auditoria antiga
+      como histórica.
+- [x] Criar teste de contrato para evitar contradições nas descrições atuais.
+
+**Decisão:** cobertura de páginas e confirmação de citações descrevem a
+localização de evidências. A prioridade executiva organiza ações sugeridas. O
+MVP não exige uma nota de confiança semântica nem análise JSON persistida.
+
+**Testes:** 12 testes dos contratos passaram. Os schemas, serviços e exports de
+RAG/JSON antigos continuam versionados como capacidade legada/opcional; esta
+tarefa não removeu código nem alterou o workflow ativo.

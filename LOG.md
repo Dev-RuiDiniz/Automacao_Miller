@@ -1979,3 +1979,46 @@ houve conexão remota nem alteração nesta tarefa.
 Impacto:
 Quem lê o roadmap sabe quando o estado foi observado e não confunde um registro
 histórico com uma checagem da situação da VPS hoje.
+
+## 2026-10-02 — Decisão de saída do produto e uso de RAG
+
+Tipo:
+Decisão de requisito e arquitetura
+
+Status:
+Implementado; documentação alinhada e teste de contrato aprovado
+
+Contexto:
+O fluxo ativo analisa todas as páginas em lotes, usa JSON apenas como formato
+temporário de consolidação e persiste o relatório em Markdown/PDF. RAG não é
+chamado no fluxo ativo. Parte do PRD, README e auditoria descrevia JSON
+persistido, RAG ativo e campos de confiança da análise; o prompt vigente pede
+prioridade executiva, que expressa urgência de ação e não confiança.
+
+Decisão/Ação:
+O requisito do MVP é o relatório final Markdown/PDF, com cobertura de páginas
+e confirmação literal de referências. Não há requisito de artefato JSON
+estruturado persistido, RAG ativo ou nota de confiança semântica da IA. JSON por
+lote segue interno e temporário; a prioridade executiva continua sendo a
+prioridade das ações. Esquemas e recursos de RAG existentes serão documentados
+como legado/capacidade opcional fora do caminho ativo. PRD, README e operação dos
+workflows foram alinhados; o relatório de auditoria recebeu aviso de vigência.
+
+Arquivos afetados:
+`PRD.md`, `README.md`, `ROADMAP.md`, `workflows/README.md`,
+`RELATORIO_AUDITORIA_PROJETO.md` e `tests/contracts/test_deployment_contract.py`.
+
+Testes:
+`python -m pytest tests/contracts/test_deployment_contract.py -q`: 12 passaram.
+O contrato verifica a descrição do formato de saída, o status de RAG, a
+distinção entre prioridade e confiança e o aviso de vigência da auditoria.
+
+Pendências:
+Nenhuma mudança funcional foi necessária para esta decisão. Os schemas, tabelas
+e exports históricos permanecem no repositório, documentados como legado ou
+opção futura; não foram removidos.
+
+Impacto:
+Alinha o contrato do produto ao processamento implementado e separa cobertura
+de evidência da prioridade executiva, sem representar nenhuma delas como
+confiança semântica da IA.

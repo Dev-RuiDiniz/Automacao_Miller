@@ -18,6 +18,24 @@ def test_remote_vps_status_is_explicitly_historical() -> None:
     assert "VPS ainda precisa ser alinhada" not in log
 
 
+def test_product_docs_match_active_markdown_report_flow() -> None:
+    prd = " ".join((ROOT / "PRD.md").read_text(encoding="utf-8").split())
+    readme = " ".join((ROOT / "README.md").read_text(encoding="utf-8").split())
+    workflows = " ".join((ROOT / "workflows" / "README.md").read_text(encoding="utf-8").split())
+    audit = " ".join((ROOT / "RELATORIO_AUDITORIA_PROJETO.md").read_text(encoding="utf-8").split())
+
+    assert "a saída persistida do MVP é o" in prd
+    assert "RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança" in prd
+    assert "prioridade das ações, não uma medida de confiança" in prd
+    assert "A saída persistida é o relatório" in readme
+    assert "RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo" in readme
+    assert "não confiança" in readme
+    assert "analysis-v1.json" not in workflows
+    assert "o fluxo atual não grava análise estruturada" in workflows
+    assert "Aviso de vigência" in audit
+    assert "não foi consultada em 2026-10-02; seu estado atual é desconhecido" in audit
+
+
 def test_compose_declares_isolated_required_services() -> None:
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     for service in ("postgres:", "ollama:", "rag-service:", "pdf-converter:", "report-renderer:", "n8n:"):

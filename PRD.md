@@ -13,9 +13,9 @@
 
 O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker.
 
-Na homologação anterior, a entrada e os artefatos ainda passavam pelo Google Drive.
-Esta é a arquitetura aprovada para a próxima implementação; a migração deve
-ser concluída antes de considerar o repositório interno como operacional.
+O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
+volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
+exports históricos; não é parte da entrada nem do processamento atual.
 
 O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
 
@@ -63,7 +63,7 @@ Responsável por:
 
 1. detectar novos documentos;
 2. processar o conteúdo;
-3. gerar dados estruturados;
+3. consolidar temporariamente os achados dos lotes;
 4. produzir o relatório;
 5. armazenar os artefatos;
 6. encaminhar o resultado por e-mail;
@@ -102,28 +102,28 @@ PDF recebido pelo gateway de upload
         ↓
 Persistência no volume privado e registro no PostgreSQL
         ↓
-Conversão obrigatória para Markdown
+Conversão para Markdown com marcadores de página
         ↓
-Persistência do Markdown e evidências no volume e no PostgreSQL
+Análise de todas as páginas em lotes
         ↓
-Extração estruturada a partir somente do Markdown
+Achados JSON temporários consolidados
         ↓
-Análise complementar com Ollama
+Relatório Markdown e validação de páginas/evidências
         ↓
-Geração do relatório
-        ↓
-Conversão para PDF
-        ↓
-Armazenamento do relatório no volume privado e registro no PostgreSQL
+Geração e armazenamento do PDF
         ↓
 Documento em aguardando_envio
         ↓
-Conferência interna de PDF, Markdown e JSON
+Conferência opcional do PDF e Markdown
         ↓
 Envio manual por Gmail
         ↓
 Documento concluído e download oficial liberado
 ```
+
+O JSON usado em cada lote é temporário: ele ajuda a consolidar os achados, mas
+não é salvo nem exibido como análise final. Os artefatos analíticos do caminho
+atual são o relatório Markdown e sua versão PDF.
 
 Quando o documento for enviado pela landing, o gateway persiste atomicamente o
 arquivo no volume privado, gera um protocolo e registra o documento no
@@ -134,9 +134,10 @@ Drive permanecem somente para auditoria e rollback.
 O volume `automacao_miller_artifacts_data` é montado em `/data/artifacts` no
 gateway e no n8n. Os arquivos usam chaves relativas organizadas por SHA-256 em
 `objects/ab/cd/<sha256>/`, enquanto o PostgreSQL registra metadados, estados,
-tentativas, erros, análises e revisões nas tabelas `documents`, `artifacts`,
-`processing_attempts`, `analysis_results`, `human_reviews` e
-`workflow_errors`.
+tentativas, erros e vínculos de artefatos nas tabelas `documents`, `artifacts`,
+`processing_attempts` e `workflow_errors`. Estruturas de análise JSON mantidas
+para compatibilidade com registros ou workflows antigos não são produzidas no
+caminho atual.
 
 ---
 
@@ -181,9 +182,12 @@ Para o relatório regulatório, deve organizar, quando presentes:
 - estudos clínicos indeferidos;
 - outros atos regulatórios, incluindo cancelamentos.
 
-### RF-06 — Estruturação de dados
+### RF-06 — Consolidação temporária dos achados
 
-A saída da análise deve ser transformada em dados estruturados antes da geração do relatório. Os registros devem preservar empresa, CNPJ quando disponível, detalhes do produto, processo, registro, validade, apresentação, assunto, produto relacionado e páginas de origem conforme a categoria.
+O workflow pode usar JSON temporário por lote para consolidar achados, páginas
+e evidências. Esse JSON não é um artefato final: a saída persistida do MVP é o
+relatório Markdown e seu PDF. A prioridade executiva do relatório representa a
+prioridade das ações, não uma medida de confiança ou certeza semântica da IA.
 
 ### RF-07 — Cobertura documental e qualidade das evidências
 
@@ -260,7 +264,8 @@ o fluxo atual não depende dele para concluir o relatório.
 O sistema deve oferecer login por sessão, painel de fila com busca, filtros,
 indicadores, detalhes do protocolo, linha do tempo, tentativas, erros, conferência
 opcional e configuração de destinatários. O detalhe deve permitir visualizar o
-relatório PDF, o Markdown e o JSON da análise antes do envio.
+relatório PDF e seu Markdown antes do envio. Registros antigos podem manter um
+artefato JSON por compatibilidade; o fluxo atual não o gera.
 
 ### RF-16 — Gateway de upload
 
@@ -403,19 +408,17 @@ A conversão PDF → Markdown deve ser executada por serviço local versionado, 
 
 ## 10. Modelo mínimo do relatório regulatório
 
-O relatório deve conter seções fixas para:
+O relatório em Markdown deve conter as seções fixas pedidas pelo prompt ativo:
 
-1. metadados do documento;
-2. medicamentos deferidos/registrados;
-3. medicamentos indeferidos;
-4. suplementos deferidos/aprovados;
-5. suplementos indeferidos;
-6. estudos clínicos deferidos;
-7. estudos clínicos indeferidos;
-8. outros atos identificados;
-9. categorias não localizadas;
-10. erros, avisos e conferência opcional;
-11. evidências por página.
+1. resumo executivo;
+2. respostas às perguntas de negócio;
+3. escopo e identificação do documento;
+4. achados regulatórios;
+5. impacto de mercado e comercial;
+6. plano de ação recomendado;
+7. riscos, contradições e pontos de atenção;
+8. limitações e informações não comprovadas;
+9. referências de páginas.
 
 Para facilitar a leitura por equipes operacionais e comerciais, o relatório
 também deve começar com um resumo executivo em linguagem clara, apresentar os
@@ -450,7 +453,7 @@ O projeto contempla:
 - desenvolvimento do workflow;
 - desenvolvimento dos prompts;
 - serviço local de conversão PDF → Markdown;
-- estruturação das saídas;
+- consolidação temporária dos achados de cada lote;
 - processamento de PDFs;
 - conversão para Markdown;
 - persistência do Markdown e das evidências;
@@ -485,11 +488,12 @@ Não fazem parte do escopo inicial:
 
 Qualquer item fora desta lista de requisitos deve ser tratado como alteração de escopo e registrado no `LOG.md` antes da implementação.
 
-O produto passa a incluir RAG híbrido no PostgreSQL, com embeddings do
-`nomic-embed-text`, busca textual e filtro obrigatório pelo documento atual.
-Fine-tuning não faz parte da operação inicial: a evolução começa com exemplos
-revisados por humanos, dataset separado de validação e avaliação externa do
-modelo. A importação de um modelo ajustado depende das métricas aprovadas.
+RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança
+semântica da IA não fazem parte do caminho ativo nem dos critérios de aceite do
+MVP. Código, tabelas e exports relacionados a RAG ou a esquemas JSON históricos
+permanecem como capacidade opcional/legada e não são chamados pelo workflow
+atual. A prioridade executiva continua no relatório porque orienta a ordem das
+ações sugeridas; ela não representa confiança da IA.
 
 ### Regras de qualidade e evidência
 
@@ -515,9 +519,9 @@ O MVP poderá ser considerado entregue quando:
 3. o PDF for convertido obrigatoriamente para Markdown;
 4. o Markdown possuir metadados, hash e marcadores de página;
 5. o Markdown for persistido e associado ao PDF de origem;
-6. a extração estruturada utilizar somente o Markdown persistido;
+6. a análise usar somente o Markdown paginado persistido como fonte documental;
 7. o Ollama processar o conteúdo localmente;
-8. a saída estruturada for produzida;
+8. todas as páginas forem analisadas e os achados temporários forem consolidados;
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
 11. o PDF final for armazenado no volume privado e associado ao documento no PostgreSQL;
@@ -565,12 +569,13 @@ Em caso de conflito entre implementação e documentação, a divergência deve 
 
 O sistema pode importar, em staging protegido, edições completas do DOU
 obtidas pelo INLABS da Imprensa Nacional. Cada edição deve permanecer como
-documento independente, com data, seção, edição, URL e SHA-256. O corpus serve
-como referência RAG e fila de candidatos; nenhum documento bruto entra
+documento independente, com data, seção, edição, URL e SHA-256. O corpus pode
+servir a uma futura capacidade opcional de RAG e à fila de candidatos, mas não
+é consultado pelo fluxo de análise atual. Nenhum documento bruto entra
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
 
-## Decisão vigente sobre o fluxo operacional — 2026-10-01
+## Decisão vigente sobre o fluxo operacional — 2026-10-02
 
 O processamento percorre uma cadeia linear, mas analisa o documento completo em
 lotes para manter cada chamada ao modelo dentro de um limite controlado:
@@ -592,7 +597,10 @@ O gateway confere a cobertura e cada citação do relatório contra o Markdown
 original. Citações não confirmadas ficam pendentes e não bloqueiam a entrega.
 Lote com falha técnica ou cobertura incompleta interrompe a geração do
 relatório. RAG, embeddings e `quality_checks` continuam fora do caminho ativo.
-A revisão humana continua disponível como conferência opcional.
+A revisão humana continua disponível como conferência opcional. O sinal do
+relatório mede cobertura e localização de citações; não é confiança da IA. A
+prioridade executiva indica a prioridade de ação recomendada e não substitui
+esse sinal nem expressa certeza semântica.
 
 Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros, envio autenticado e download somente após

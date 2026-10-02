@@ -197,16 +197,28 @@ def test_rag_and_training_schema_contract() -> None:
     assert "submission_id = %(submission_id)s" in (ROOT / "infra" / "rag" / "search.py").read_text(encoding="utf-8")
 
 
-def test_reconciliation_returns_protocols_for_dispatch() -> None:
+def test_reconciliation_routes_recovered_email_to_send_workflow() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-reconcile-v1.json").read_text(encoding="utf-8"))
     query = next(node for node in workflow["nodes"] if node["name"] == "State - Find pending documents")["parameters"]["query"]
-    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch pending document")
+    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch recovery task")
+    send_workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-send-report-v1.json").read_text(encoding="utf-8"))
+    send_webhook = next(node for node in send_workflow["nodes"] if node["name"] == "Panel - Request report send")
+
     assert query.startswith("WITH reset_deliveries AS")
-    assert "SELECT submission_id FROM reset" in query
+    assert "RETURNING ed.delivery_id, ed.submission_id, ed.requested_at" in query
+    assert "'email_delivery'::text AS recovery_type" in query
+    assert "'document'::text AS recovery_type" in query
+    assert "FROM reset_documents" in query
     assert "public.execution_entity" in query
     assert "ee.status IN ('new', 'running', 'waiting')" in query
-    assert "pa.attempt_number = (SELECT d.attempt_count" in query
+    assert "pa.attempt_number = ( SELECT d.attempt_count" in query
+    assert "$json.recovery_type === 'email_delivery'" in dispatch["parameters"]["url"]
+    assert "automacao-regulatoria-send-report" in dispatch["parameters"]["url"]
+    assert "automacao-regulatoria-internal'" in dispatch["parameters"]["url"]
+    assert "delivery_id: Number($json.delivery_id)" in dispatch["parameters"]["jsonBody"]
     assert "submission_id: $json.submission_id" in dispatch["parameters"]["jsonBody"]
+    assert send_webhook["parameters"]["path"] == "automacao-regulatoria-send-report"
+    assert "delivery_id" in next(node for node in send_workflow["nodes"] if node["name"] == "State - Claim email delivery")["parameters"]["query"]
 
 
 def test_manual_delivery_schema_and_workflow_contract() -> None:

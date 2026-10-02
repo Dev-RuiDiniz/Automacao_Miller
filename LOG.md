@@ -1901,3 +1901,44 @@ estatísticas está fora desta correção e deve ser investigada separadamente.
 
 Impacto:
 As listas melhoram a leitura do PDF e deixam o relatório Markdown mais simples.
+
+## 2026-10-02 — Retomada de entregas de e-mail paradas
+
+Tipo:
+Correção de workflow
+
+Status:
+Implementado; contratos e consulta SQL local aprovados
+
+Contexto:
+A reconciliação voltava uma entrega parada para `solicitado`, mas descartava o
+`delivery_id` no resultado final e enviava somente `submission_id` ao workflow
+de processamento. A análise do PDF não reivindica uma entrega de e-mail, então
+ela podia continuar parada sem ser retomada.
+
+Decisão/Ação:
+A consulta agora devolve tarefas tipadas como `email_delivery` ou `document`.
+Entregas recuperadas incluem `delivery_id` e são encaminhadas ao webhook do
+workflow de envio; documentos continuam sendo enviados ao processamento
+interno. O `delivery_id` continua sendo reivindicado pelo workflow de envio,
+que usa bloqueio e estado para evitar duas reivindicações simultâneas.
+
+Arquivos afetados:
+`workflows/automacao-regulatoria-reconcile-v1.json`,
+`workflows/README.md`, `tests/contracts/test_deployment_contract.py` e
+`ROADMAP.md`.
+
+Testes:
+`python -m pytest tests/contracts/test_deployment_contract.py -q`: 10 passaram.
+A consulta real exportada foi executada no PostgreSQL Docker local com uma
+entrega sintética envelhecida; retornou `email_delivery`, protocolo e
+`delivery_id`. A transação foi revertida e nenhum webhook ou Gmail foi chamado.
+
+Pendências:
+O workflow permanece inativo no export e não foi ativado no n8n local nem
+consultado na VPS. A homologação de execução n8n/Gmail segue para etapa
+autorizada, sem envio real.
+
+Impacto:
+O recuperador retoma o envio pendente no workflow adequado, sem reprocessar o
+PDF nem perder o identificador da entrega.

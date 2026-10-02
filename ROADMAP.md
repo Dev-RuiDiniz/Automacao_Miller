@@ -831,3 +831,22 @@ validada pelo contrato e pelo renderizador, sem uma segunda inferência lenta.
 
 **Impacto:** as seções do relatório usam marcadores simples que o PDF consegue
 renderizar e que continuam legíveis para conferência humana.
+
+## 39. Retomada de entregas de e-mail — 2026-10-02
+
+- [x] Devolver `delivery_id` e `submission_id` das entregas recuperadas.
+- [x] Distinguir tarefas de e-mail de tarefas de processamento de documentos.
+- [x] Despachar entregas recuperadas ao workflow de envio e documentos ao
+      workflow interno de processamento.
+- [x] Testar o contrato dos workflows e executar a consulta no PostgreSQL local
+      com dados sintéticos dentro de uma transação revertida.
+- [x] Documentar o comportamento de recuperação.
+
+**Resultado:** a reconciliação agora envia a entrega parada ao webhook de
+`automacao-regulatoria-send-report`, incluindo seu identificador. Documentos
+continuam seguindo ao workflow de processamento. O teste local confirmou o
+resultado da consulta; nenhum e-mail foi enviado.
+
+**Limitação:** o workflow exportado não foi ativado nem validado na VPS. A
+consulta foi executada no PostgreSQL Docker local e a rota foi verificada pelo
+contrato dos exports.

@@ -72,6 +72,14 @@ Cada achado exibe suas páginas de origem. Se a IA não conseguir comprovar a
 referência, o relatório mostra essa pendência de forma explícita e mantém o caso
 disponível para conferência, sem inventar a numeração da página.
 
+O workflow de reconciliação diferencia tarefas de documentos e entregas de
+e-mail. Quando uma entrega fica em `enviando` por mais de 15 minutos e não há
+uma execução n8n ativa, a reconciliação volta seu estado para `solicitado`,
+carrega `delivery_id` e `submission_id` e chama o workflow
+`automacao-regulatoria-send-report`. Documentos recebidos ou recuperados de uma
+execução parada continuam sendo enviados ao workflow interno de processamento.
+Assim, a retomada do e-mail não inicia novamente a análise do PDF.
+
 ## Painel e envio manual
 
 O gateway oferece `/upload` para a fila, `/new` para upload,

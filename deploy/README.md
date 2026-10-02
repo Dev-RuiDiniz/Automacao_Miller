@@ -5,6 +5,15 @@ renderização e o gateway de upload, com volumes e rede próprios. O serviço R
 é legado e fica fora da inicialização padrão; somente o perfil optativo `rag`
 o inicia.
 
+## Teste no computador local
+
+Para testar a landing em http://localhost:8085 sem expor a porta na rede,
+combine o Compose principal com deploy/docker-compose.local.yml. O roteiro
+completo, incluindo preparação da .env, credencial PostgreSQL no n8n, teste
+com PDF e estado final aguardando_envio, está em
+[docs/TESTE_LOCAL.md](../docs/TESTE_LOCAL.md). Não ative o envio Gmail durante
+essa homologação local.
+
 ## Preparação no servidor
 
 1. Copie o repositório para `/opt/automacao-miller`.

@@ -2066,3 +2066,47 @@ Impacto:
 A inicialização padrão perdeu a dependência do serviço RAG e reserva mais
 memória para o sistema na VPS de referência. A reconciliação também recebe no
 n8n a configuração do webhook de envio.
+
+## 2026-10-02 — Integração das PRs e roteiro de teste local
+
+Tipo:
+Integração e documentação operacional
+
+Status:
+PRs #1 e #2 integradas à main; documentação local atualizada nesta branch
+
+Contexto:
+A PR #2 tinha como base a branch da PR #1. Depois de integrar a primeira, era
+necessário mudar a base da segunda e confirmar que suas alterações continuavam
+independentes e sem conflito. Também faltava um roteiro reproduzível para subir
+a landing no computador local e validar o fluxo sem enviar e-mail.
+
+Decisão/Ação:
+A PR #1 foi integrada em 9aea58ca8cba2e37e19ca7928fbc98745caa4f9e. A PR #2 foi
+redirecionada para main e integrada em
+1d95467723207dcea6cd2e4ff5ec14ef1e6cecf3. Foi criado um override de Compose
+local que publica o gateway apenas em loopback e um guia de teste desde a
+preparação da .env até o estado aguardando_envio. README, implantação e
+documentação dos workflows agora apontam para esse roteiro. PRD e relatório de
+auditoria foram mantidos: não houve mudança de requisito e o relatório continua
+identificado como histórico.
+
+Arquivos afetados:
+deploy/docker-compose.local.yml, docs/TESTE_LOCAL.md, README.md,
+deploy/README.md, workflows/README.md, ROADMAP.md e LOG.md.
+
+Testes:
+python -m pytest -q: 75 passaram, com dois avisos de depreciação FastAPI já
+existentes. O Compose local passou em config --quiet. Os seis serviços estavam
+saudáveis; /healthz do gateway e /healthz/readiness do n8n responderam HTTP 200.
+
+Pendências:
+O upload integrado não foi repetido nesta atualização documental; a execução
+com PDF sintético registrada nas seções 36 a 38 do roadmap continua sendo a
+validação ponta a ponta disponível. Nenhum Gmail foi acionado. A VPS não foi
+consultada.
+
+Impacto:
+As correções estão em main e há um caminho documentado para repetir localmente
+o processamento sem disparar entrega externa. O guia explica como distinguir
+cobertura completa, referência pendente e erro técnico.

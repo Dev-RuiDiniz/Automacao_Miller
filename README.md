@@ -161,6 +161,7 @@ homologação como estado remoto atual.
 - [AGENTS.md](AGENTS.md) — regras de atuação e governança do repositório.
 - [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — auditoria técnica, funcional e operacional em linguagem executiva.
 - [workflows/README.md](workflows/README.md) — operação dos workflows, incluindo a entrada da landing.
+- [docs/TESTE_LOCAL.md](docs/TESTE_LOCAL.md) — roteiro para subir o Docker, enviar um PDF de teste e validar Markdown/PDF sem enviar e-mail real.
 
 ## Responsáveis
 

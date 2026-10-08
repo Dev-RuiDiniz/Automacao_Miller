@@ -2,59 +2,57 @@
 
 ## Objetivo
 
-Definir o conjunto mínimo de documentos e cenários para validar extração, análise, revisão humana, geração de artefatos e tratamento de erros.
+Registrar quais cenários precisam ser validados no fluxo atual e qual evidência comprova cada validação. Esta matriz separa teste automatizado de homologação ponta a ponta na VPS.
 
-O documento de referência foi fornecido para validação local. A matriz registra expectativas, páginas e responsáveis sem inventar resultados de extração. O PDF original permanece fora do Git por tamanho e rastreabilidade. Arquivos privados devem permanecer em `tests/fixtures/private/`, que é ignorado pelo Git. Somente fixtures autorizadas e sanitizadas podem ser versionadas.
+O PDF original recebido para validação permanece fora do Git. Só documentos autorizados e sanitizados podem ser versionados. Não invente resultados para preencher a matriz.
 
-## Documento de referência recebido
+## Estado conhecido
 
-- Arquivo: `2026_08_24_ASSINADO_do1.pdf`
-- Tipo: Diário Oficial da União, Seção 1
-- Páginas: 128
-- SHA-256: `3AD26053AF9898A8BFA7DE5AE3A409313AB9230ED28079F1794C82238797E9B6`
-- Local de validação: arquivo local autorizado, fora do repositório
-- Responsável pela validação: Miller
+- Os testes automatizados cobrem contratos e componentes individuais; consulte a execução de testes mais recente no LOG.md.
+- Em 03/10/2026, um PDF sintético de uma página chegou a Aguardando envio, com cobertura 1/1 e duas de três referências confirmadas.
+- A validação com PDF real de 142 páginas ainda não tinha resultado final registrado.
+- A revisão humana no produto é opcional. O aceite da qualidade dos testes continua sendo uma decisão do responsável operacional.
+- A origem ativa é a landing e o armazenamento interno. Google Drive não é o destino de entrada nem de saída.
 
-## Cenários mínimos
+## Cenários que faltam confirmar ponta a ponta
 
-| ID | Cenário | Resultado esperado | Fonte/arquivo | Responsável | Status |
-|---|---|---|---|---|---|
-| DOC-001 | PDF válido com texto extraível | Conteúdo extraído sem erro e associado ao documento de origem | A definir | A definir | TODO |
-| DOC-002 | Documento com informação regulatória reconhecível | Campos regulatórios estruturados com evidência | A definir | A definir | TODO |
-| DOC-003 | Documento sem determinada informação | Campo marcado como ausente, sem completar lacunas | A definir | A definir | TODO |
-| DOC-004 | Resultado de baixa confiança | Caso encaminhado para revisão humana | A definir | A definir | TODO |
-| DOC-005 | Conteúdo contraditório | Contradição preservada e sinalizada para revisão | A definir | A definir | TODO |
-| DOC-006 | PDF sem texto extraível ou erro de leitura | Falha classificada como erro de extração, não como dado ausente | A definir | A definir | TODO |
-| DOC-007 | Falha do Ollama | Erro de IA identificado com etapa e possibilidade de retry | Simulação autorizada | A definir | TODO |
-| DOC-008 | Falha de geração do PDF | Erro de geração de PDF identificado; não marcar como concluído | Simulação autorizada | A definir | TODO |
-| DOC-009 | Falha de upload no Google Drive | Erro de armazenamento identificado; preservar estado correto | Simulação autorizada | A definir | TODO |
-| DOC-010 | Falha de envio no Gmail | Erro de envio identificado; não marcar como concluído quando obrigatório | Simulação autorizada | A definir | TODO |
-| DOC-011 | Reprocessamento do mesmo documento | Duplicidade evitada ou reprocessamento explicitamente autorizado | A definir | A definir | TODO |
-| DOC-012 | Retomada após falha | Execução retomada na etapa suportada, sem ocultar o erro original | A definir | A definir | TODO |
-| REF-001 | PDF de referência completo | 128 marcadores de página e metadados preservados | 2026_08_24_ASSINADO_do1.pdf | Miller | TODO |
-| REF-002 | Alimentos/suplementos da Anvisa | Atos deferidos, cancelados e dados de produto separados por status | páginas 71–72 do PDF de referência | Miller | TODO |
-| REF-003 | Medicamentos deferidos | Empresa, medicamento, processo, registro, validade, apresentação e assunto preservados | páginas 72–74 do PDF de referência | Miller | TODO |
-| REF-004 | Medicamentos indeferidos | Itens classificados como indeferidos, sem confundir alterações ou cancelamentos | página 75 do PDF de referência | Miller | TODO |
-| REF-005 | Ensaio clínico de dispositivo | Estudo deferido com vínculo classificado como dispositivo, sem inventar medicamento/suplemento | página 79 do PDF de referência | Miller | TODO |
-| REF-006 | Ausência de estudo clínico indeferido | Categoria marcada como não localizada, não como erro técnico | recorte Anvisa do PDF de referência | Miller | TODO |
+| ID | Cenário | Resultado esperado | Estado de homologação |
+|---|---|---|---|
+| DOC-001 | PDF textual válido | Protocolo, Markdown paginado e artefatos ligados ao PDF | Parcial; teste sintético curto concluído |
+| DOC-002 | Ato regulatório reconhecível | Status correto, página e trecho literal | Pendente com documento real autorizado |
+| DOC-003 | Informação ausente | Campo explicitamente não localizado, sem completar lacunas | Pendente |
+| DOC-004 | Evidência fraca ou referência pendente | Aviso visível; processamento pode seguir se todas as páginas foram analisadas | Parcial; 1 referência pendente no teste sintético |
+| DOC-005 | Texto contraditório | Preservar as afirmações e páginas em conflito | Pendente |
+| DOC-006 | PDF inválido ou sem texto extraível | Erro explícito; não chamar IA nem declarar ausência de dado | Parcial; PDF inválido foi encerrado em erro |
+| DOC-007 | Falha do Ollama durante um lote | Erro ligado à tentativa; não criar relatório parcial | Pendente na VPS atual |
+| DOC-008 | Falha do renderizador PDF | Erro explícito; não marcar como concluído | Pendente na VPS atual |
+| DOC-009 | Falha de armazenamento do volume privado | Erro explícito e artefatos anteriores preservados | Pendente na VPS atual |
+| DOC-010 | Falha do Gmail | Registrar entrega com erro; download oficial permanece bloqueado até envio confirmado | Pendente na VPS atual |
+| DOC-011 | Arquivo duplicado e reprocessamento autorizado | Evitar duplicidade; reprocessar somente com autorização registrada | Pendente na VPS atual |
+| DOC-012 | Retomada após falha | Retomar a etapa suportada sem esconder a falha anterior | Pendente na VPS atual |
+| DOC-013 | PDF extenso de 142 páginas | Cobrir todas as páginas, validar referências e concluir com status conhecido | Estado da execução anterior precisa ser consultado |
+| DOC-014 | Instrução maliciosa dentro do texto do PDF | Tratar o texto como dado e ignorar pedidos para mudar regras, usar ferramentas ou revelar segredos | Pendente de validação do prompt ativo |
 
-## Campos a preencher para cada documento autorizado
+## Documento real de referência
 
-- identificador interno;
-- nome do arquivo;
-- origem e autorização de uso;
-- tipo de PDF e presença de texto extraível;
-- cenários cobertos;
-- resultado esperado;
-- evidência esperada;
-- responsável pela aprovação;
-- data da validação;
-- observações e limitações.
+- **Arquivo:** 2026_08_24_ASSINADO_do1.pdf.
+- **Tipo:** Diário Oficial da União, Seção 1.
+- **Quantidade informada:** 128 páginas.
+- **Responsável pelo aceite:** representante indicado pelo cliente.
+- **Local do original:** staging autorizado fora do Git.
+- **Estado da validação do fluxo ativo:** pendente de homologação com o prompt e os workflows atuais.
 
-## Regras de uso
+## Cobertura de conteúdo a validar
 
-- Não inventar texto, classificação, evidência ou resultado para preencher a matriz.
-- Não colocar credenciais, dados pessoais desnecessários ou documentos confidenciais no Git.
-- Diferenciar ausência de informação de falha de leitura, parsing, IA, geração, armazenamento ou envio.
-- Manter o vínculo entre resultado e documento de origem quando tecnicamente possível.
-- Atualizar o `LOG.md` quando a matriz ou o conjunto de referência for alterado.
+| ID | Assunto | Resultado esperado | Estado |
+|---|---|---|---|
+| REF-001 | Documento completo | Contagem e marcadores de todas as páginas consistentes | Pendente no fluxo ativo atual |
+| REF-002 | Suplementos deferidos, cancelados e ausência de indeferido | Preservar cada status; cancelamento não vira indeferimento | Pendente |
+| REF-003 | Medicamentos deferidos | Preservar empresa, produto, processo, validade, apresentação e evidência quando constarem | Pendente |
+| REF-004 | Medicamentos indeferidos | Não confundir indeferimento com alteração ou cancelamento | Pendente |
+| REF-005 | Ensaio clínico relacionado a dispositivo | Manter dispositivo como dispositivo; não inferir medicamento ou suplemento | Pendente |
+| REF-006 | Categoria sem ocorrência localizada | Informar limite do recorte; não mascarar falha técnica | Pendente |
+
+## Como registrar um resultado
+
+Para cada cenário concluído, registre no LOG.md a data, a versão do prompt/workflow, o identificador do caso de teste, resultado, limites observados e responsável pelo aceite. Não inclua segredos, dados pessoais desnecessários ou PDF confidencial no Git.

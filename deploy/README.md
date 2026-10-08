@@ -1,4 +1,6 @@
 # Implantação da stack de homologação
+Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. A última observação registrada da VPS é de 03/10/2026; confirme o estado real antes de executar comandos de implantação.
+
 
 Esta stack usa n8n, PostgreSQL, Ollama, os serviços locais de conversão e
 renderização e o gateway de upload, com volumes e rede próprios. O serviço RAG

@@ -1,4 +1,6 @@
 # Relatório de auditoria do projeto
+> **Documento histórico:** auditoria com data-base de 15/09/2026. Depois dela, o fluxo foi simplificado; consulte PRD.md, ROADMAP.md e FLUXOGRAMA.md para o comportamento vigente. Os fatos de implantação só valem para as datas registradas; a situação atual da VPS precisa ser confirmada.
+
 
 ## Agente de Automação e Análise Regulatória
 

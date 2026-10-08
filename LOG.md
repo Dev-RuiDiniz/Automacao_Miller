@@ -146,13 +146,13 @@ Casos com baixa confiança, informação contraditória ou evidência insuficien
 
 ## 2026-08-11 — Proposta comercial de referência
 
-**Tipo:** ESCOPO  
+**Tipo:** ESCOPO
 **Status:** BASELINE
 
-**Contexto:**  
+**Contexto:**
 Foi estabelecida a proposta comercial para criação de um Agente de Automação e Análise Regulatória utilizando n8n e Ollama.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 Adotar como arquitetura inicial:
 
 - n8n para orquestração;
@@ -162,13 +162,13 @@ Adotar como arquitetura inicial:
 - Docker para implantação;
 - VPS Linux para hospedagem.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 Baseline geral do projeto.
 
-**Testes:**  
+**Testes:**
 Ainda não aplicável.
 
-**Pendências:**  
+**Pendências:**
 
 - acessos;
 - arquivos de exemplo;
@@ -177,20 +177,20 @@ Ainda não aplicável.
 - workflow;
 - testes.
 
-**Impacto:**  
+**Impacto:**
 Define o escopo funcional e técnico inicial.
 
 ---
 
 ## 2026-08-11 — Infraestrutura de referência
 
-**Tipo:** INFRA  
+**Tipo:** INFRA
 **Status:** BASELINE
 
-**Contexto:**  
+**Contexto:**
 Foi indicada infraestrutura de baixo custo para o MVP.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 Usar como referência inicial:
 
 - 2 vCPU;
@@ -199,29 +199,29 @@ Usar como referência inicial:
 - Linux;
 - modelo Ollama leve e quantizado.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 Docker, n8n, Ollama.
 
-**Testes:**  
+**Testes:**
 Será necessário medir consumo real de CPU/RAM durante a fase de implantação.
 
-**Pendências:**  
+**Pendências:**
 Confirmar VPS efetivamente contratada.
 
-**Impacto:**  
+**Impacto:**
 O modelo de IA e os limites de processamento devem respeitar os recursos do servidor.
 
 ---
 
 ## 2026-08-11 — Política de IA
 
-**Tipo:** DECISAO  
+**Tipo:** DECISAO
 **Status:** BASELINE
 
-**Contexto:**  
+**Contexto:**
 A solução processará documentos potencialmente sensíveis e regulatórios.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 
 - executar IA localmente via Ollama;
 - não tratar saída da IA como parecer definitivo;
@@ -229,29 +229,29 @@ A solução processará documentos potencialmente sensíveis e regulatórios.
 - encaminhar ambiguidades para revisão humana;
 - evitar dependência de cobrança por token no escopo inicial.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 Prompts, workflow, relatórios, validações.
 
-**Testes:**  
+**Testes:**
 Criar casos com baixa evidência e conteúdo contraditório.
 
-**Pendências:**  
+**Pendências:**
 Definir o modelo inicial e a métrica/regra prática de confiança.
 
-**Impacto:**  
+**Impacto:**
 A arquitetura deve preservar supervisão humana.
 
 ---
 
 ## 2026-08-11 — Escopo de integração
 
-**Tipo:** ESCOPO  
+**Tipo:** ESCOPO
 **Status:** BASELINE
 
-**Contexto:**  
+**Contexto:**
 Foram definidas as integrações do MVP.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 O MVP contempla somente:
 
 - Google Drive;
@@ -261,29 +261,29 @@ O MVP contempla somente:
 
 Integrações adicionais exigem avaliação e registro de mudança de escopo.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 Workflow e credenciais.
 
-**Testes:**  
+**Testes:**
 Testar upload/download no Drive e envio pelo Gmail.
 
-**Pendências:**  
+**Pendências:**
 Receber acessos autorizados.
 
-**Impacto:**  
+**Impacto:**
 Evita expansão silenciosa de escopo.
 
 ---
 
 ## 2026-08-11 — Limitação de OCR
 
-**Tipo:** ESCOPO  
+**Tipo:** ESCOPO
 **Status:** BASELINE
 
-**Contexto:**  
+**Contexto:**
 PDFs escaneados podem não possuir texto extraível.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 OCR comercial pago não faz parte do escopo inicial.
 
 O sistema deve diferenciar:
@@ -292,29 +292,29 @@ O sistema deve diferenciar:
 - documento cuja extração falhou;
 - documento que exige OCR.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 Etapa de extração e tratamento de erro.
 
-**Testes:**  
+**Testes:**
 Adicionar PDF escaneado ao conjunto de validação.
 
-**Pendências:**  
+**Pendências:**
 Definir comportamento operacional para documento sem texto extraível.
 
-**Impacto:**  
+**Impacto:**
 Pode gerar encaminhamento manual ou necessidade de orçamento adicional.
 
 ---
 
 ## 2026-08-25 — Criação da governança do repositório
 
-**Tipo:** DOCUMENTACAO  
+**Tipo:** DOCUMENTACAO
 **Status:** CONCLUIDO
 
-**Contexto:**  
+**Contexto:**
 Foi solicitada a criação dos quatro arquivos de governança para orientar o projeto e qualquer agente atuando no repositório.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 Criados:
 
 - `PRD.md`;
@@ -322,70 +322,70 @@ Criados:
 - `ROADMAP.md`;
 - `LOG.md`.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 Documentação raiz do repositório.
 
-**Testes:**  
+**Testes:**
 Revisão cruzada entre escopo, regras, roadmap e memória.
 
-**Pendências:**  
+**Pendências:**
 
 - versionar os arquivos no repositório;
 - confirmar estrutura real do repositório;
 - confirmar status de infraestrutura e acessos;
 - atualizar este log conforme a execução começar.
 
-**Impacto:**  
+**Impacto:**
 O projeto passa a ter uma fonte explícita de requisitos, processo de desenvolvimento, acompanhamento e memória.
 
 ---
 
 ## 2026-08-25 — README comercial e versionamento inicial
 
-**Tipo:** DOCUMENTACAO  
+**Tipo:** DOCUMENTACAO
 **Status:** CONCLUIDO
 
-**Contexto:**  
+**Contexto:**
 Foi solicitada uma apresentação comercial e descritiva do produto para clientes e usuários, além do primeiro versionamento da documentação na branch estável.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 Criado um README com proposta de valor, fluxo operacional, públicos, recursos, segurança, limites da IA, escopo inicial, requisitos de implantação e próximos passos. Confirmado o uso da branch `main` como versão estável e do repositório remoto oficial `origin`.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 `README.md`, `PRD.md`, `ROADMAP.md`, `LOG.md`, `AGENTS.md` e plano de execução em `docs/superpowers/plans/`.
 
-**Testes:**  
+**Testes:**
 Revisão de consistência do README contra o PRD, revisão do diff e verificação de ausência de credenciais ou tokens nos arquivos da entrega. Não há testes automatizados aplicáveis a esta alteração exclusivamente documental.
 
-**Pendências:**  
+**Pendências:**
 Configuração da infraestrutura, integrações, arquivos PDF de referência, definição do modelo Ollama, testes ponta a ponta e demais itens do roadmap permanecem em aberto.
 
-**Impacto:**  
+**Impacto:**
 A documentação inicial passa a apresentar o produto para o público externo e a registrar a governança necessária para a evolução segura do projeto.
 
 ---
 
 ## 2026-08-25 — Fechamento da preparação interna da Fase 0
 
-**Tipo:** DOCUMENTACAO  
+**Tipo:** DOCUMENTACAO
 **Status:** PREPARAÇÃO INTERNA CONCLUÍDA
 
-**Contexto:**  
+**Contexto:**
 Foi executado o plano de fechamento da preparação interna do repositório, sem iniciar infraestrutura, integrações externas ou processamento de documentos.
 
-**Decisão/Ação:**  
+**Decisão/Ação:**
 Criados o `.gitignore`, o `.env.example` seguro, a estrutura inicial de diretórios e os checklists de acessos, responsáveis e documentos de referência. Os bloqueios externos permaneceram pendentes e foram explicitamente preservados no roadmap.
 
-**Arquivos/Componentes afetados:**  
+**Arquivos/Componentes afetados:**
 `.gitignore`, `.env.example`, `docs/checklists/`, `infra/`, `workflows/`, `prompts/`, `scripts/`, `tests/fixtures/`, `ROADMAP.md` e `LOG.md`.
 
-**Testes:**  
+**Testes:**
 Validação de placeholders no `.env.example`, verificação planejada de arquivos ignorados, revisão de referências Markdown e busca por padrões de credenciais. Não foram executados testes de infraestrutura ou integração, pois permanecem fora desta frente.
 
-**Pendências:**  
+**Pendências:**
 Confirmar VPS, acessos Google Drive/Gmail, PDFs autorizados, destinatários, responsáveis pela validação e demais itens dos bloqueios `EXT-001` a `EXT-005`.
 
-**Impacto:**  
+**Impacto:**
 O repositório possui uma base segura e organizada para iniciar a Fase 1 quando os acessos e insumos externos forem disponibilizados, sem criar dados ou credenciais fictícias.
 
 ---
@@ -2120,3 +2120,403 @@ O caminho deixou de disparar centenas de inferências ao mesmo tempo, reduzindo
 o risco de OOM. A execução integral preserva a cobertura, mas o modelo local em
 CPU torna o processamento muito demorado; estabilidade e tempo são limitações
 distintas e ambas ficam explícitas no estado e na documentação.
+
+
+## 2026-10-03 — Validação na VPS
+
+Data: 2026-10-03
+Tipo: Implantação e correção de workflow
+Status: stack instalada; fluxo principal chegou a aguardando_envio em teste sintético; homologação real pendente
+
+Contexto:
+A VPS foi preparada para testar o repositório após a limpeza autorizada. A máquina
+tem 2 vCPU e 7,8 GiB de RAM; portanto, o RAGFlow não foi implantado. A versão
+5862ee25b42b7788f6074140063dc5aec107f1a9 do repositório foi instalada em
+/opt/automacao-miller com o perfil Docker padrão.
+
+Decisão/Ação:
+A stack usa PostgreSQL, Ollama (qwen2.5:3b), conversor de PDF, renderizador de
+relatório, gateway de upload e n8n. n8n foi publicado apenas no loopback do host;
+o gateway ficou interno ao Compose. Uma credencial PostgreSQL foi criada no n8n
+sem inserir segredos nos exports. Os workflows interno e de erro foram publicados;
+reconciliação e envio pelo Gmail ficaram inativos.
+
+As execuções de teste revelaram validação frágil do cabeçalho das seções e
+citações reformuladas pelo modelo. O fluxo agora completa cabeçalhos ausentes com
+Não localizado nos achados analisados. e monta a seção de referências com as
+evidências estruturadas extraídas. O gateway continua conferindo cada citação
+contra o Markdown original e mantém evidências não localizadas como pendentes.
+A associação de erros por execution_id também foi corrigida para fechar a
+tentativa e o documento quando o Error Trigger não fornece submission_id.
+
+Arquivos afetados:
+workflows/automacao-regulatoria-internal-v1.json,
+workflows/automacao-regulatoria-internal-error-v1.json,
+tests/contracts/test_deployment_contract.py, ROADMAP.md e este registro.
+
+Testes:
+docker compose config --quiet passou; os seis serviços ficaram saudáveis e o
+modelo foi baixado. O teste sintético 452cf9dc-ef31-4c46-a554-6a310ad32358
+terminou em aguardando_envio, gerou Markdown e PDF, cobriu 1/1 páginas e teve
+2/3 referências comprovadas e uma pendente. Um PDF inválido controlado terminou
+em erro, com tentativa e evento registrados na etapa PDF Converter. Erros
+anteriores causados por títulos omitidos e achado incompleto também foram
+encerrados como erro; o documento sintético da primeira tentativa foi corrigido
+no banco para não ficar preso em em_processamento. Nenhum e-mail foi enviado.
+A validação local dos nós JavaScript e os contratos de workflow passaram.
+
+Pendências:
+Executar o conjunto integral de testes do repositório; conferir o estado final da
+stack e limpar arquivos temporários de credencial. Repetir a homologação com
+documentos reais representativos e PDFs longos, revisar a qualidade do relatório
+e testar o envio manual somente quando uma conta Gmail estiver configurada e
+autorizada. Investigar o erro recorrente do rollup de estatísticas do n8n
+(firstEvent.getTime). Não há domínio/TLS de produção configurados.
+
+Impacto:
+A automação está instalada e completa o caminho de PDF sintético até a revisão
+manual, mas ainda não está aprovada para uso produtivo. Trechos não comprovados
+continuam visivelmente pendentes e não foram enviados por e-mail.
+
+## 2026-10-03 — Homologação opcional com API externa
+
+Data:
+2026-10-03
+
+Tipo:
+Decisão de arquitetura e privacidade
+
+Contexto:
+O processamento local do PDF real de 142 páginas foi lento no modelo Ollama
+executado em CPU. O usuário autorizou testar um provedor externo para comparar
+tempo e qualidade. A chave da API ainda não está configurada na VPS.
+
+Decisão/Ação:
+Preparar uma variante de homologação GroqCloud com `openai/gpt-oss-120b`,
+separada e inativa por padrão; manter Ollama como padrão. A variante não deve
+transmitir o protocolo interno, precisa tratar texto do documento como conteúdo
+não confiável e manter as validações locais de estrutura, páginas e citações.
+Não haverá fallback automático nem envio de e-mail. Nenhum conteúdo foi enviado
+ao provedor até a configuração e validação da credencial.
+
+Arquivos afetados:
+`PRD.md`, `ROADMAP.md`, `workflows/README.md`,
+`workflows/automacao-regulatoria-internal-groq-v1.json`,
+`tests/contracts/test_deployment_contract.py` e este registro.
+
+Testes:
+Pendentes. A documentação oficial do Groq descreve aproximadamente 500 tokens/s
+para o modelo, JSON Schema estrito e limites que variam por plano. Isso é dado
+publicado pelo provedor, não uma medição da automação. A política atual informa
+que inferências não são retidas por padrão, mas logs de confiabilidade/abuso
+podem incluir entradas e saídas por até 30 dias; esses dados ficam em buckets
+GCP nos Estados Unidos. ZDR é uma opção de Data Controls. Fontes: [modelo e
+velocidade](https://console.groq.com/docs/model/openai/gpt-oss-120b), [saídas
+estruturadas](https://console.groq.com/docs/structured-outputs), [dados e
+retenção](https://console.groq.com/docs/your-data).
+
+Pendências:
+Criar e associar no n8n a credencial HTTP Header Auth para Groq, validar o plano
+e os limites aplicáveis, importar a variante inativa, apontar o gateway ao
+webhook de homologação e executar o PDF completo. Comparar o tempo, cobertura,
+referências confirmadas/pendentes e qualidade do relatório com a tentativa local.
+
+Impacto:
+Permite medir uma opção potencialmente mais rápida sem alterar o caminho local
+ou transmitir documentos sem credencial e escolha operacional explícitas.
+
+## 2026-10-03 — Verificação da API gratuita da NVIDIA
+
+Data:
+2026-10-03
+
+Tipo:
+Avaliação de provedor externo e restrição de dados
+
+Contexto:
+O usuário pediu para verificar o catálogo de API gratuita da NVIDIA como opção
+para acelerar a análise documental.
+
+Decisão/Ação:
+O catálogo oferece endpoints gratuitos para prototipação; o `openai/gpt-oss-20b`
+usa endpoint compatível com OpenAI Chat Completions, tem janela de 131 mil tokens
+e está marcado como Free Endpoint. Porém, os Termos da API Trial proíbem enviar
+informações confidenciais, sensíveis e governamentais, salvo permissão expressa
+do serviço; também autorizam coleta de conteúdo para melhoria de produtos e
+modelos e monitoramento antifraude/abuso. O PDF `...do1` aparenta ser uma edição
+do Diário Oficial da União; por isso, a API gratuita da NVIDIA não foi aprovada
+para receber o documento real. Nenhum conteúdo foi transmitido à NVIDIA.
+
+Arquivos afetados:
+Este registro; decisão sobre o próximo provedor/fixture de teste pendente da
+resposta do usuário.
+
+Testes:
+Consulta às páginas oficiais do [catálogo de modelos](https://build.nvidia.com/models),
+ao [endpoint gpt-oss-20b](https://build.nvidia.com/openai/gpt-oss-20b), ao
+[FAQ de acesso ao NIM](https://docs.api.nvidia.com/nim/docs/product) e aos
+[Termos da API Trial](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf).
+O Developer Program oferece API hospedada sem custo para prototipação e teste;
+os termos atuais reservam produção para licença NVIDIA AI Enterprise. Não foi
+encontrada no catálogo uma cota fixa pública de RPM/TPM por conta/modelo; validar
+limites e créditos no painel antes de qualquer chamada em lote.
+
+Pendências:
+O usuário escolherá entre testar NVIDIA com conteúdo sintético, continuar a
+comparação com outro provedor para o PDF real, ou aguardar uma opção com termos
+adequados. A API externa Groq também continua sem credencial configurada.
+
+Impacto:
+Evita enviar um documento potencialmente governamental para um serviço cujos
+termos de teste vedam esse tipo de dado e preserva a comparação externa como
+uma decisão explícita, condicionada ao provedor e ao conteúdo.
+
+## 2026-10-03 — Escopo do teste NVIDIA com conteúdo sintético
+
+Data:
+2026-10-03
+
+Tipo:
+Decisão de teste e privacidade
+
+Contexto:
+Após a avaliação dos termos da NVIDIA API Trial, o usuário escolheu seguir com
+NVIDIA usando um documento sintético, sem enviar o PDF do Diário Oficial.
+
+Decisão/Ação:
+Substituir a variante Groq ainda não implantada por um workflow manual, isolado
+e inativo para chamar o endpoint NVIDIA com `openai/gpt-oss-20b`. Foi criado um
+fixture fictício sem dados reais que verifica JSON, página e evidência literal.
+O workflow não acessa o gateway, o processamento de documentos reais nem e-mail.
+A credencial deve ser criada pelo operador no n8n; a chave não será gravada em
+código, `.env`, export ou chat. O teste mede uma pequena chamada sintética e não
+comprova velocidade ou qualidade no PDF real.
+
+Arquivos afetados:
+`PRD.md`, `ROADMAP.md`, `LOG.md`, `workflows/README.md`,
+`workflows/nvidia-synthetic-api-eval-v1.json`,
+`tests/fixtures/synthetic-regulatory-sample.md` e
+`tests/contracts/test_deployment_contract.py`. A variante Groq criada durante
+preparação não foi publicada e será removida em favor do escopo escolhido.
+
+Testes e validação:
+`python -m pytest tests/contracts/test_deployment_contract.py -q` passou com
+14 testes; `python -m pytest -q` passou com 77 testes e dois avisos preexistentes
+de depreciação do FastAPI. O JSON, as conexões e a sintaxe JavaScript dos nós
+foram validados. O workflow foi importado na VPS e confirmado inativo, com quatro
+nós e sem credencial associada. Nenhuma chamada NVIDIA foi realizada por falta
+da credencial; nenhum conteúdo foi transmitido à NVIDIA.
+
+Pendências:
+Associar no n8n a credencial NVIDIA `HTTP Header Auth`; executar apenas o fixture
+sintético, medir latência/estrutura e confirmar que o workflow permanece inativo.
+
+Impacto:
+Permite testar o endpoint gratuito sem expor conteúdo real ou criar risco de
+acionamento acidental pelo caminho de upload.
+
+## 2026-10-03 — Verificação de credencial para execução NVIDIA
+
+Data:
+2026-10-03
+
+Tipo:
+Pré-validação de integração
+
+Contexto:
+O usuário solicitou iniciar a chamada de teste à API NVIDIA com o fixture
+sintético.
+
+Decisão/Ação:
+Inspecionados somente os metadados do workflow e das credenciais no PostgreSQL
+da VPS. O nó `NVIDIA - Analyze synthetic fixture` não tem credencial associada
+e não foi encontrada credencial com tipo HTTP Header Auth ou nome NVIDIA. Não
+foi feita chamada externa nem transmitido conteúdo.
+
+Arquivos afetados:
+`LOG.md`.
+
+Testes:
+Consulta somente leitura ao banco do n8n confirmou o workflow ainda inativo,
+sem vínculo de credencial no nó NVIDIA. Os testes estáticos do contrato seguem
+com 14 aprovações; nenhum teste autenticado contra a API foi executado.
+
+Pendências:
+Criar no n8n a credencial HTTP Header Auth com a chave NVIDIA, vinculá-la ao nó
+de análise sintética e executar o workflow manual para medir latência e validar
+a resposta.
+
+Impacto:
+O teste permanece restrito ao fixture sintético até que a credencial seja
+configurada no n8n.
+
+## 2026-10-03 — Handoff de acesso à NVIDIA
+
+Data:
+2026-10-03
+
+Tipo:
+Bloqueio de autenticação e aceite de termos
+
+Contexto:
+O usuário pediu que a configuração da API fosse feita pelo agente.
+
+Decisão/Ação:
+Aberto o portal NVIDIA Build. A sessão não está autenticada; a tela solicita
+identificação por e-mail e informa que prosseguir implica aderir ao NVIDIA
+Developer Program e aceitar os NVIDIA Technology Access Terms of Use. A etapa
+foi deixada para o usuário, sem inserir credenciais, aceitar termos ou criar
+uma chave.
+
+Arquivos afetados:
+`LOG.md`.
+
+Testes:
+Nenhuma chamada API foi realizada e nenhum documento foi transmitido.
+
+Pendências:
+O usuário deve concluir a autenticação e decidir sobre o aceite dos termos,
+criar a chave NVIDIA e salvá-la diretamente no n8n como `HTTP Header Auth`,
+associada ao nó de avaliação sintética. Depois, o agente pode executar o fixture.
+
+Impacto:
+O workflow segue inativo e sem credenciais até a conclusão do handoff.
+
+## 2026-10-03 — Chave NVIDIA exposta durante configuração
+
+Data:
+2026-10-03
+
+Tipo:
+Incidente de credencial
+
+Contexto:
+Durante a preparação do acesso à API gratuita NVIDIA, uma chave de API foi
+exibida na captura da tela de geração e depois enviada pelo usuário no chat.
+
+Decisão/Ação:
+Não copiar, armazenar em arquivo/configuração nem usar a chave. Orientar o
+usuário a revogá-la e gerar uma substituta; a nova chave deve ser salva
+diretamente na credencial protegida do n8n, sem passar pelo chat.
+
+Arquivos afetados:
+`LOG.md` (sem registrar o valor da chave).
+
+Testes:
+Nenhuma chamada foi feita à API NVIDIA e nenhum conteúdo sintético foi
+transmitido.
+
+Pendências:
+Revogar a chave exposta; criar uma substituta e associá-la no n8n ao nó
+`NVIDIA - Analyze synthetic fixture`; então executar o fixture e registrar
+latência e validação estrutural.
+
+Impacto:
+A credencial exposta deve ser considerada comprometida. O fluxo continua
+inativo e sem credencial segura até a substituição.
+
+## 2026-10-03 — Avaliação sintética no NVIDIA Playground
+
+Data:
+2026-10-03
+
+Tipo:
+Teste de modelo e prompt
+
+Contexto:
+O usuário autorizou expressamente aceitar os termos de trial na tela do
+Playground e testar apenas o fixture sintético com `openai/gpt-oss-20b`.
+
+Decisão/Ação:
+Enviadas duas chamadas do fixture fictício pelo NVIDIA Playground na sessão
+autenticada do NVIDIA Build. Nenhum documento real foi enviado. O valor textual
+da chave compartilhada no chat não foi copiado para arquivos nem para o n8n.
+
+Arquivos afetados:
+`ROADMAP.md` e `LOG.md`.
+
+Testes:
+As respostas foram observadas em aproximadamente 16 s e 19 s na interface,
+sem métrica exata de servidor ou tokens. Ambas extraíram a alteração de 90 para
+120 dias, apontaram página 1 e ignoraram a instrução maliciosa simulada. A
+primeira resposta era JSON válido, mas juntou duas passagens no campo `evidencia`;
+uma checagem local confirmou que o valor inteiro não é substring contínua do
+fixture, embora a frase central seja literal. A segunda resposta incluiu aspas
+delimitadoras sem escape no valor de evidência e falhou `JSON.parse`. O Playground
+não exercitou o `response_format` com JSON Schema estrito configurado no workflow.
+
+Pendências:
+Revogar a chave exposta no chat/captura e criar outra; o usuário deve salvá-la
+diretamente no n8n como `HTTP Header Auth` e associá-la ao workflow. Depois,
+executar o workflow integrado, validar a evidência e registrar latência/tokens.
+
+Impacto:
+O teste confirma que o modelo extraiu o fato principal e resistiu à injeção do
+fixture, mas os resultados brutos do Playground não passam de forma consistente
+pela validação de evidência/JSON. A automação integrada segue sem teste ponta a
+ponta e permanece inativa.
+
+## 2026-10-08 — Consolidação da documentação do projeto
+
+Data: 2026-10-08
+Tipo: documentação, segurança e validação
+
+Contexto:
+O usuário pediu a leitura dos documentos e áudios do repositório e a consolidação
+da documentação principal na raiz. A última observação da VPS disponível nos
+registros é de 2026-10-03; nenhuma consulta remota foi feita nesta atualização.
+
+Decisão/Ação:
+Foram preparados README.md comercial, PRD.md, AGENTS.md, ROADMAP.md,
+FLUXOGRAMA.md e ACESSOS.md com escopo e linguagem consistentes. O roadmap foi
+reduzido a uma lista ordenada de pendências; o histórico cronológico permanece
+no LOG.md. Documentos auxiliares foram corrigidos ou identificados como
+históricos quando ainda descreviam Google Drive ou RAG como parte ativa do
+fluxo.
+
+ACESSOS.md informa os locais de configuração e as ações de rotação, sem guardar
+senhas ou tokens. O arquivo .env local foi identificado como ignorado pelo Git,
+não foi aberto e não foi incluído.
+
+A matriz de homologação passou a distinguir testes unitários de validação
+integrada. A leitura do prompt ativo revelou que o PRD exige tratamento
+explícito de comandos embutidos nos PDFs como conteúdo não confiável; essa
+garantia ainda precisa ser confirmada no workflow ativo. A pendência e um caso
+sintético foram adicionados ao roadmap e à matriz, sem alterar o prompt nesta
+tarefa.
+
+O inventário encontrou 21 documentos Markdown no projeto, três PDFs temporários
+de teste e nenhum arquivo de áudio ou vídeo. Os PDFs temporários são amostras e
+relatórios sintéticos; um relatório contém afirmações deliberadamente sem
+evidência e não foi tratado como resultado válido do produto.
+
+Arquivos afetados:
+AGENTS.md, ACESSOS.md, FLUXOGRAMA.md, LOG.md, PRD.md, README.md, ROADMAP.md,
+RELATORIO_AUDITORIA_PROJETO.md, deploy/README.md,
+docs/checklists/acessos-e-responsaveis.md,
+docs/checklists/matriz-documentos-referencia.md,
+docs/superpowers/plans/2026-08-25-documentacao-inicial-produto.md,
+infra/pdf_converter/README.md, prompts/regulatory-extraction-v1.md,
+prompts/regulatory-extraction-v2.md, prompts/regulatory-extraction-v3.md,
+prompts/regulatory-extraction-v4.md, tests/contracts/test_deployment_contract.py,
+workflows/README.md e workflows/pdf-to-markdown-gate.md.
+
+Testes:
+python -m pytest -q: 77 testes passaram; dois avisos preexistentes de depreciação
+do FastAPI.
+docker compose --env-file .env config --quiet: passou.
+git diff --check: passou.
+Checagem de 21 arquivos Markdown: links locais existentes e cercas de código
+balanceadas.
+
+Pendências:
+Confirmar na VPS o estado da execução do PDF real de 142 páginas antes de criar
+outra execução. Revogar a chave NVIDIA exposta e, se o teste ainda for desejado,
+gerar outra e guardá-la somente no n8n. Confirmar hardening SSH, credenciais e
+restauração de backup. Validar a proteção do prompt ativo contra instruções
+maliciosas em documentos antes de produção.
+
+Impacto:
+A documentação agora separa visão comercial, requisitos, execução, estado,
+fluxo e tratamento de acessos. Nenhum segredo foi incluído e nenhuma mudança de
+requisito ou configuração remota foi feita nesta tarefa.

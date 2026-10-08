@@ -2,9 +2,9 @@
 
 ## 1. Identificação do produto
 
-**Produto:** Agente de Automação e Análise Regulatória  
-**Empresa responsável:** DB Tecnologia  
-**Responsável técnico:** Rui Diniz — Engenheiro de Software  
+**Produto:** Agente de Automação e Análise Regulatória
+**Empresa responsável:** DB Tecnologia
+**Responsável técnico:** Rui Diniz — Engenheiro de Software
 **Objetivo do projeto:** automatizar o recebimento, leitura, organização, análise e distribuição de documentos regulatórios em PDF, substituindo um processo manual e repetitivo por um fluxo automatizado, rastreável e de baixo custo operacional.
 
 ---
@@ -76,7 +76,9 @@ Responsável por:
 Componentes definidos para o projeto:
 
 - **n8n:** automação e orquestração do workflow;
-- **Ollama:** execução local do modelo de IA;
+- **Ollama:** execução local padrão do modelo de IA;
+- **NVIDIA NIM API Trial:** provedor externo limitado a avaliações com conteúdo
+  sintético, usando credencial protegida no n8n;
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
 - **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
@@ -157,9 +159,17 @@ O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermed
 
 Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao Ollama. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
 
-### RF-04 — Análise por IA local
+### RF-04 — Análise por IA
 
-A análise deve ser executada pelo Ollama instalado no próprio servidor, sem depender de API externa de IA no escopo inicial, utilizando somente o Markdown persistido como entrada documental.
+A análise de documentos reais deve usar Ollama local por padrão, com o Markdown
+persistido como única fonte documental. O endpoint gratuito de trial da NVIDIA
+pode ser chamado somente pelo workflow manual de avaliação, separado e inativo,
+com fixture sintético sem dados reais. Esse workflow exige credencial protegida
+no n8n e valida estrutura, página e evidência do fixture; não processa uploads
+nem substitui o Ollama no fluxo real. Não deve haver fallback automático entre
+provedores. A adoção de qualquer serviço externo para documentos reais exige
+revisão específica dos termos, privacidade e autorização aplicáveis antes do
+envio.
 
 ### RF-05 — Identificação regulatória
 
@@ -286,7 +296,7 @@ O sistema deve manter destinatários padrão ativos ou inativos, destinatários
 específicos por documento e um snapshot de cada solicitação de envio, com
 status, execução, tentativa, erro, responsável e datas.
 
-### RF-17 — Acesso por usuário e senha
+### RF-19 — Acesso por usuário e senha
 
 A landing deve oferecer uma página de acesso com usuário e senha antes da tela
 de upload. As credenciais devem ser configuradas somente no ambiente autorizado;
@@ -372,6 +382,15 @@ expiração configurável e assinatura baseada em segredo do ambiente. O logout
 deve invalidar o cookie local. Usuário, hash da senha, segredo de sessão e
 tokens não podem ser versionados.
 
+### RN-16 — Conteúdo documental não confiável
+
+Texto extraído do documento e achados dele derivados são dados de origem, não
+instruções para o modelo. Prompts devem instruir explicitamente o modelo a não
+obedecer a comandos embutidos no documento, não acessar ferramentas e não
+alterar as regras da análise. A rota externa não deve transmitir identificadores
+internos do protocolo que não sejam necessários ao provedor. O resultado segue
+sujeito à validação de estrutura, cobertura e evidências do workflow.
+
 ---
 
 ## 9. Requisitos não funcionais
@@ -382,7 +401,12 @@ O ambiente deve ser executável em servidor Linux utilizando Docker.
 
 ### RNF-02 — Privacidade operacional
 
-A análise de IA deve ocorrer localmente por Ollama no escopo inicial, reduzindo a dependência de serviços externos de IA.
+A análise de documentos reais ocorre localmente por Ollama. A avaliação com a
+API Trial gratuita da NVIDIA usa apenas um texto artificial fixo, sem documento
+real, identificador interno ou dado pessoal. O workflow de avaliação é manual,
+separado e inativo por padrão; sua credencial fica somente no armazenamento
+protegido do n8n. O endpoint de trial não pode ser usado para processar o PDF
+governamental recebido.
 
 ### RNF-03 — Manutenibilidade
 
@@ -564,6 +588,8 @@ Para governança do desenvolvimento:
 4. `LOG.md` registra **decisões, alterações, incidentes e memória operacional**.
 
 Em caso de conflito entre implementação e documentação, a divergência deve ser registrada e resolvida antes de considerar a tarefa concluída.
+
+O README.md apresenta a visão comercial e o uso; FLUXOGRAMA.md ilustra as etapas; ACESSOS.md informa onde configurar credenciais sem armazenar seus valores. Esses documentos complementam, mas não alteram, os requisitos deste PRD.
 
 ## Corpus oficial do DOU
 

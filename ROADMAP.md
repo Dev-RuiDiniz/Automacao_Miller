@@ -1,949 +1,169 @@
-# ROADMAP.md — Acompanhamento do Projeto
+# ROADMAP.md — O que falta para concluir o projeto
 
-## 1. Projeto
+**Atualizado em:** 8 de outubro de 2026
+**Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
+**Regra de leitura:** as últimas informações confirmadas da VPS são de 3 de outubro de 2026. A VPS não foi consultada durante esta atualização. “Último estado conhecido” não significa “estado atual”.
 
-**Nome:** Agente de Automação e Análise Regulatória  
-**Stack principal:** n8n + Ollama + PostgreSQL + volume privado Docker + Gmail
-**Prazo comercial de referência:** até 10 dias úteis, contado após aprovação, pagamento da entrada, disponibilização dos acessos e arquivos de exemplo.
+## 1. Em que ponto estamos
 
-> Este roadmap é o documento operacional de acompanhamento. Datas devem ser atualizadas conforme o início real do projeto e os bloqueios encontrados.
+O caminho principal do produto está implementado no repositório: envio pela landing, protocolo, armazenamento privado, conversão de PDF para Markdown, análise local em lotes, relatório Markdown/PDF, fila de envio e entrega manual pelo Gmail.
 
----
+A última observação registrada da VPS informa:
 
-## 2. Status geral
+- Os seis serviços padrão do Docker estavam saudáveis.
+- O n8n 2.30.5 estava publicado no host somente em 127.0.0.1:25678; o gateway permanecia na rede interna.
+- O Ollama usava qwen2.5:3b. O serviço RAG estava fora do perfil padrão.
+- Os workflows de processamento e erro foram publicados. Os de envio e reconciliação ainda não estavam habilitados para o teste então registrado.
+- Um PDF sintético de uma página terminou em Aguardando envio; foram confirmadas 2 de 3 referências. O teste de PDF inválido terminou em erro. Nenhum e-mail foi enviado nessa validação.
+- Uma execução com PDF real de 142 páginas ainda estava em processamento quando foi observada. Seu resultado posterior não está registrado aqui. Consulte primeiro o protocolo e não inicie outro processamento igual até saber o estado daquela execução.
+- O workflow de avaliação NVIDIA foi importado inativo e sem credencial vinculada. Duas chamadas feitas no Playground com o fixture sintético levaram aproximadamente 16 e 19 segundos; uma resposta falhou a checagem de evidência e a outra não era JSON válido. Uma chave foi exposta e precisa ser revogada. Nenhum documento real foi enviado à NVIDIA.
 
-**Última observação da VPS (2026-09-23):** a base de homologação foi limpa, a reconciliação estava pausada após execuções travadas, a cópia remota divergia do repositório e o workflow ativo usava o prompt v3; a homologação do v4 estava pendente. A validação ponta a ponta registrada anteriormente foi feita com o v3.
-**Situação remota em 2026-10-02:** a VPS não foi consultada nesta atualização. O estado remoto atual é desconhecido; as informações de 23/09 são um registro histórico, não uma confirmação de que tudo continua igual.
-**Homologação local em 2026-10-02:** o workflow foi corrigido para analisar lotes do Ollama sequencialmente. O PDF enviado (142 páginas) foi convertido para Markdown, mas a inferência local ficou em cerca de 1,6 token/s; o usuário solicitou interromper a execução. Não foi gerado relatório final nem enviado e-mail.
-**Homologação:** aprovada historicamente para a versão então implantada; não representa validação da versão atual do repositório.
-**Produção:** condicionada à revisão de segurança e ao aceite operacional final.
-**MVP:** definido  
-**Último registro de infraestrutura:** VPS auditada; stack Docker isolada implantada em `/opt/automacao-miller` (sem verificação atual).
-**Dependências externas:** acessos do cliente, Gmail, VPS e arquivos de exemplo
-**Critério de finalização:** fluxo ponta a ponta validado, testes aprovados e documentação entregue.
-
----
-
-## 3. Legenda de status
+O histórico detalhado está em [LOG.md](LOG.md). A situação da instalação n8n/VPS precisa ser reconfirmada antes de qualquer ativação ou decisão de produção.
 
-- `TODO` — não iniciado
-- `DOING` — em andamento
-- `BLOCKED` — bloqueado
-- `REVIEW` — aguardando revisão
-- `DONE` — concluído
-- `CANCELLED` — removido do escopo
+## 2. Ordem de execução
 
----
+### P0 — Resolver o estado da execução longa
 
-## 4. Fase 0 — Governança e preparação
+**Responsável:** responsável técnico.
+**Estado:** precisa de consulta à VPS.
 
-**Objetivo:** estabelecer fonte de verdade e condições para início seguro.
+1. Consultar o n8n e o PostgreSQL pelo protocolo do PDF de 142 páginas citado no LOG.md.
+2. Confirmar se a execução terminou, falhou ou continua ativa.
+3. Se terminou, conferir cobertura, relatório, citações, erros e artefatos.
+4. Se continua ativa, decidir se deve ser mantida ou interrompida; não criar uma execução concorrente.
+5. Registrar o resultado no LOG.md e atualizar este roadmap.
 
-- [x] Definir visão inicial do produto
-- [x] Criar `PRD.md`
-- [x] Criar `AGENTS.md`
-- [x] Criar `ROADMAP.md`
-- [x] Criar `LOG.md`
-- [x] Criar `README.md` comercial
-- [x] Confirmar repositório oficial
-- [x] Confirmar estratégia de branches (`main` como versão estável)
-- [x] Criar `.gitignore`
-- [x] Criar `.env.example`
-- [x] Definir estrutura de diretórios
-- [x] Confirmar arquivos PDF de referência para testes (documentos recebidos e registrados na matriz)
-- [x] Confirmar responsáveis por validação (Miller)
-
-**Gate de saída:** governança versionada e acessos mínimos identificados.
-
-**Status da fase:** preparação interna concluída. Os acessos de homologação foram validados; permanecem pendências de segurança, conferência opcional e simulação de falhas.
-
----
-
-## 5. Fase 1 — Infraestrutura base
-
-**Objetivo:** preparar o ambiente Linux para execução do sistema.
-
-- [x] Provisionar/confirmar VPS
-- [ ] Atualizar sistema operacional
-- [ ] Configurar usuário administrativo adequado
-- [x] Configurar firewall e acesso SSH
-- [x] Instalar Docker
-- [x] Instalar Docker Compose, se utilizado
-- [x] Criar estrutura persistente de volumes
-- [x] Configurar política de restart
-- [x] Definir backup das configurações
-- [x] Validar recursos disponíveis da VPS
-
-**Referência de infraestrutura:**
-
-- 2 vCPU
-- 8 GB RAM
-- 100 GB NVMe
-- Linux
-
-**Gate de saída:** Docker funcional, armazenamento persistente e acesso seguro ao servidor.
-
----
-
-## 6. Fase 2 — n8n
-
-**Objetivo:** disponibilizar a camada de orquestração.
-
-- [x] Implantar n8n self-hosted
-- [x] Configurar persistência
-- [x] Configurar credenciais fora do código
-- [x] Validar acesso ao painel
-- [x] Definir workflow principal
-- [x] Definir tratamento de erros
-- [x] Definir estratégia de retry
-- [x] Definir rastreabilidade por documento
-- [x] Integrar gate HTTP PDF → Markdown
-- [x] Persistir Markdown no Google Drive antes da extração na homologação histórica
-- [x] Impedir chamada ao Ollama antes da conversão validada
-
-**Gate de saída:** n8n estável e pronto para receber integrações.
-
-## Fase 2B — Repositório interno de documentos
-
-**Objetivo:** substituir a organização operacional por pastas do Google Drive por
-um repositório interno controlado pelo PostgreSQL e por volume privado do Docker.
-
-- [x] Aprovar PostgreSQL como fonte de verdade operacional
-- [x] Aprovar volume privado como armazenamento de PDFs e artefatos
-- [x] Criar modelo de documentos, artefatos, tentativas, análises, revisões e erros
-- [x] Criar volume `automacao_miller_artifacts_data` em `/data/artifacts`
-- [x] Persistir PDF original, Markdown, análise JSON e relatório no volume interno
-- [x] Alterar o gateway para hash, deduplicação e chaves relativas
-- [x] Alterar o n8n para reivindicar documentos pendentes no PostgreSQL
-- [x] Remover o Drive dos workflows ativos; exports antigos permanecem históricos
-- [x] Criar reconciliação de documentos presos e workflow de erros interno
-- [x] Criar rotina de backup conjunto e migração controlada do volume antigo
-- [x] Validar upload, reprocessamento, revisão e download no repositório interno
-- [x] Executar backup e cópia dos dados na VPS de homologação
-- [x] Ativar workflows internos após associação das credenciais e desativação dos históricos
-
-**Gate de saída:** o processamento completo ocorre sem depender do Google Drive
-para armazenar ou organizar os arquivos.
-
-**Status da fase:** concluída em homologação. O processamento interno, a
-reconciliação, o tratamento de erros, o backup conjunto e a preservação do
-volume legado foram validados.
-
-## Fase 2A — Landing e gateway de upload
-
-**Objetivo:** oferecer entrada privada por navegador, protocolo assíncrono e
-download controlado do relatório.
-
-- [x] Criar landing responsiva com seleção e arrastar/soltar
-- [x] Criar API de upload, status e download
-- [x] Validar token privado e token interno separado
-- [x] Calcular SHA-256 e impedir duplicidade acidental
-- [x] Persistir uploads e relatórios no volume privado dedicado
-- [x] Criar workflow n8n de processamento iniciado pela landing
-- [x] Criar workflow n8n de reconciliação e atualização de status
-- [x] Criar página de acesso com usuário e senha
-- [x] Criar sessão HttpOnly, expiração e logout
-- [x] Configurar usuário, hash da senha e segredo da sessão no ambiente autorizado
-- [x] Configurar tokens no ambiente autorizado
-- [x] Configurar Caddy/HTTPS para a landing
-- [x] Validar fluxo de homologação ponta a ponta
-
-**Gate de saída:** um usuário autorizado consegue enviar um PDF, acompanhar o
-protocolo e baixar o relatório final sem acesso às credenciais internas.
-
-## Fase 2C — Painel operacional e envio manual
-
-**Objetivo:** permitir que o operador autenticado acompanhe os protocolos,
-confira os artefatos, mantenha destinatários e controle a entrega por Gmail.
-
-- [x] Criar fila com indicadores, busca, filtros e estados vazios
-- [x] Criar detalhe com metadados, linha do tempo, tentativas e erros
-- [x] Criar visualização autenticada de PDF, Markdown e JSON
-- [x] Criar cadastro de destinatários padrão e substituição por documento
-- [x] Criar revisão humana com liberação ou reprocessamento
-- [x] Criar tabelas de destinatários e entregas no PostgreSQL
-- [x] Separar o envio manual em workflow n8n próprio
-- [x] Bloquear download oficial antes da confirmação do Gmail
-- [x] Aplicar schema e migrar destinatários na homologação
-- [x] Validar envio real, falha, retry e auditoria no Gmail
-- [x] Liberar o painel após backup e validação ponta a ponta em homologação
-
-**Gate de saída:** operador autenticado consegue revisar um relatório, escolher
-destinatários, solicitar uma única entrega, confirmar o resultado e baixar o
-PDF somente após `concluido`.
-
----
-
-## 7. Fase 3 — Ollama
-
-**Objetivo:** disponibilizar IA local compatível com a VPS.
-
-- [x] Instalar Ollama
-- [x] Selecionar modelo inicial leve e quantizado
-- [x] Registrar modelo e versão no `LOG.md`
-- [x] Validar memória e CPU
-- [x] Executar teste básico de inferência
-- [x] Medir tempo aproximado de resposta
-- [x] Definir timeout do workflow
-- [x] Validar chamada do Ollama a partir do n8n
-
-**Gate de saída:** modelo local respondendo de forma estável no ambiente.
-
----
-
-## 8. Fase 4 — Integração Google Drive (histórico)
-
-**Objetivo:** criar entrada automática e armazenamento dos resultados.
-
-As atividades desta fase registram a integração validada na homologação
-anterior. Os workflows desta fase estão inativos e não são origem, controle de
-estado ou armazenamento dos fluxos atuais. O Drive não será usado para novos
-documentos.
-
-- [x] Configurar credenciais do Google Drive
-- [x] Definir pasta de entrada
-- [x] Definir pasta de processamento
-- [x] Definir pasta de concluídos
-- [x] Definir pasta de revisão
-- [x] Definir pasta de erro
-- [x] Configurar monitoramento de novos PDFs
-- [x] Implementar controle contra duplicidade
-- [x] Validar download do documento
-- [x] Validar upload dos artefatos finais
-
-**Gate de saída:** um PDF de teste pode entrar e ser recuperado automaticamente pelo workflow.
-
----
+**Concluído quando:** a execução tem estado final conhecido, ou existe decisão registrada para a execução ainda ativa.
 
-## 9. Fase 5 — Extração e normalização
+### P0 — Revogar e substituir a chave NVIDIA exposta
 
-**Objetivo:** transformar o PDF em conteúdo utilizável pelo modelo.
+**Responsável:** administrador da conta NVIDIA e operador do n8n.
+**Estado:** pendente conforme último registro.
 
-- [x] Implementar leitura de PDFs com texto extraível no serviço local
-- [x] Identificar PDFs sem conteúdo textual
-- [x] Não tratar falha de extração como ausência de informação
-- [x] Converter/normalizar conteúdo para Markdown
-- [x] Gerar representação Markdown com `## Página N`
-- [x] Preservar metadados básicos, hash e versão do conversor
-- [x] Criar contrato HTTP `/healthz` e `/v1/convert`
-- [x] Implantar o serviço no Docker da VPS
-- [x] Persistir o Markdown no Google Drive na homologação vigente
-- [x] Persistir o Markdown no volume interno e registrar o artefato no PostgreSQL
-- [x] Validar documentos de exemplo
-
-**Observação:** OCR comercial pago está fora do escopo inicial.
-
-**Gate de saída:** PDFs suportados geram conteúdo textual/Markdown consistente.
-
----
-
-## 10. Fase 6 — Prompt e análise regulatória
-
-**Objetivo:** produzir análise estruturada com IA local.
-
-- [x] Criar prompt/contrato base versionado
-- [x] Definir campos estruturados e schema JSON
-- [x] Identificar status regulatório `deferido`, `indeferido`, `cancelado` e `outro`
-- [x] Definir campos de medicamentos
-- [x] Definir campos de suplementos alimentares
-- [x] Definir campos de ensaios clínicos e tipo de produto relacionado
-- [x] Identificar exigências
-- [x] Identificar pendências
-- [x] Definir política de evidência insuficiente
-- [x] Definir controle de confiança
-- [x] Definir regra de conteúdo contraditório
-- [x] Definir regra de conferência humana opcional
-- [ ] Criar conjunto de documentos de validação
-
-**Gate de saída:** saída estruturada consistente nos casos de referência.
-
----
-
-## 11. Fase 7 — Relatório e PDF
-
-**Objetivo:** transformar a análise em artefato final padronizado.
-
-- [x] Definir template do relatório
-- [x] Mapear dados estruturados para o relatório
-- [x] Diferenciar campos encontrados, ausentes e inconclusivos
-- [x] Gerar relatório
-- [x] Converter relatório para PDF
-- [x] Validar legibilidade do PDF
-- [x] Salvar PDF no Google Drive na homologação vigente
-- [x] Salvar PDF no volume interno
-- [x] Associar relatório ao documento de origem
-
-**Gate de saída:** um documento processado produz PDF final válido e armazenado.
-
----
-
-## 12. Fase 8 — Gmail
-
-**Objetivo:** entregar o relatório mediante solicitação manual do operador.
-
-- [x] Configurar credenciais Gmail
-- [x] Definir remetente autorizado
-- [x] Definir a estrutura de destinatários padrão e por documento
-- [x] Criar assunto e corpo padrão
-- [x] Anexar ou referenciar relatório conforme regra aprovada
-- [x] Enviar e-mail de teste
-- [ ] Tratar falha de envio
-- [x] Impedir status `concluído` quando o envio solicitado falhar
-
-**Gate de saída:** relatório de teste enviado com sucesso.
-
----
-
-## 13. Fase 9 — Tratamento de erros e conferência opcional
-
-**Objetivo:** impedir falhas silenciosas e resultados inseguros.
-
-- [x] Classificar tipos de erro
-- [x] Implementar log mínimo por execução
-- [x] Criar caminho de retry
-- [x] Criar caminho de conferência humana opcional
-- [x] Criar status de baixa confiança
-- [x] Criar status de erro técnico
-- [x] Garantir que erro não seja interpretado como dado ausente
-- [ ] Validar comportamento de retomada
-
-**Gate de saída:** falhas e ambiguidades possuem destino claro.
-
----
-
-## 14. Fase 10 — Testes integrados
-
-**Objetivo:** validar o fluxo ponta a ponta.
-
-### Casos mínimos
-
-- [x] Conversor: PDF textual simples
-- [x] Conversor: PDF inválido
-- [x] Conversor: PDF sem camada textual
-- [x] API: health check e contrato de conversão
-- [x] PDF válido
-- [ ] PDF com status regulatório
-- [ ] PDF com medicamentos
-- [ ] PDF com suplementos
-- [ ] PDF com ensaios clínicos
-- [x] PDF de referência DOU com 128 páginas
-- [ ] PDF de referência: medicamento deferido e indeferido
-- [ ] PDF de referência: suplemento deferido, cancelado e ausência de indeferido
-- [ ] PDF de referência: ensaio clínico relacionado a dispositivo
-- [ ] PDF com exigências/pendências
-- [ ] Informação ausente
-- [ ] Baixa confiança
-- [ ] Informação contraditória
-- [ ] Falha de extração
-- [ ] Falha do Ollama
-- [ ] Falha de geração do PDF
-- [ ] Falha no armazenamento interno
-- [ ] Falha no Gmail
-- [ ] Documento duplicado
-- [ ] Reprocessamento autorizado
-- [ ] Entrada pela landing privada
-- [ ] Atualização de status e download do relatório pela landing
-
-### Validação
-
-- [x] Conferir contrato e erros do conversor local
-- [ ] Conferir dados estruturados
-- [ ] Conferir relatório
-- [ ] Conferir PDF
-- [ ] Conferir armazenamento
-- [ ] Conferir envio
-- [ ] Conferir logs
-- [x] Conferir uso opcional da revisão humana
-
-**Gate de saída:** cenários críticos aprovados sem bloqueios de severidade alta.
-
----
-
-## 15. Fase 11 — Documentação e entrega
-
-**Objetivo:** deixar o sistema operável e rastreável.
-
-- [x] Atualizar `PRD.md` com a decisão landing-only e repositório interno
-- [x] Atualizar `ROADMAP.md`
-- [x] Consolidar `LOG.md`
-- [ ] Revisar `AGENTS.md`
-- [x] Documentar implantação
-- [x] Documentar operação
-- [x] Documentar credenciais necessárias sem expor segredos
-- [x] Documentar backup
-- [x] Documentar recuperação
-- [x] Documentar modelo Ollama utilizado após benchmark na VPS
-- [x] Documentar workflow final
-- [x] Documentar serviço PDF → Markdown e gate n8n
-- [ ] Entregar arquivos e acessos definidos
-- [x] Executar validação final técnica; a avaliação do DOU real permanece pendente,
-      com conferência humana opcional
-
-**Gate de saída:** operação pode ser entendida por outro responsável técnico sem depender exclusivamente do desenvolvedor original.
-
----
-
-## 16. Fase 12 — Pós-entrega / backlog
-
-Itens possíveis, mas fora do escopo inicial ou dependentes de nova aprovação:
-
-- [ ] OCR pago
-- [ ] painel administrativo
-- [ ] aplicativo mobile
-- [ ] fine-tuning
-- [ ] modelo proprietário
-- [ ] novas integrações
-- [ ] observabilidade avançada
-- [ ] métricas e dashboard
-- [ ] filas dedicadas
-- [ ] alta disponibilidade
-- [ ] escalabilidade horizontal
-
-Nenhum item deste bloco deve entrar no desenvolvimento automaticamente.
-
----
-
-## 17. Bloqueios externos
-
-Registrar aqui bloqueios que dependem do cliente ou terceiros.
-
-| ID | Bloqueio | Responsável | Status | Impacto |
-|---|---|---|---|---|
-| EXT-001 | Acesso à VPS | Cliente | DONE | VPS auditada; implantação em andamento |
-| EXT-002 | Acesso/credencial Google Drive | Cliente | DONE | OAuth validado e credencial configurada |
-| EXT-003 | Acesso/credencial Gmail | Cliente | DONE | OAuth validado e envio testado |
-| EXT-004 | PDFs reais/de exemplo | Cliente | DONE | Documentos recebidos; validação técnica segue na Fase 10 |
-| EXT-005 | Definição dos destinatários | Cliente | DONE | Destinatário de homologação configurado |
-
----
-
-## 18. Marcos
-
-| Marco | Resultado esperado | Status |
-|---|---|---|
-| M1 | Governança criada | DONE |
-| M2 | Ambiente Docker + n8n + Ollama operacional | DONE |
-| M3 | Entrada pelo Drive funcionando na homologação histórica | DONE |
-| M4 | Extração + Markdown funcionando | DONE |
-| M5 | Análise estruturada funcionando | DONE |
-| M6 | Relatório + PDF funcionando | DONE |
-| M7 | Gmail funcionando na homologação histórica | DONE |
-| M8 | Revisão humana + erros funcionando | DONE |
-| M9 | Testes ponta a ponta aprovados em homologação | DONE |
-| M10 | Documentação e entrega | DONE |
-| M11 | Repositório interno landing-only implementado | DONE |
-| M12 | Painel operacional e envio manual implementados | DONE |
-
-## 19. Homologação operacional concluída — 2026-09-09
-
-Validações realizadas na VPS de homologação:
-
-- [x] Upload de PDF válido, protocolo, hash e deduplicação.
-- [x] Processamento interno com PostgreSQL e volume privado, incluindo PDF,
-  Markdown, análise JSON e relatório PDF.
-- [x] Visualização autenticada dos artefatos e bloqueio do download antes de
-  `concluido`.
-- [x] Revisão humana, liberação para envio e histórico de tentativas/erros.
-- [x] Envio manual real pelo Gmail, registro de falha, retry e sucesso.
-- [x] Bloqueio de duas solicitações de envio concorrentes.
-- [x] Webhook repetido sem criação de processamento concorrente duplicado.
-- [x] PDF inválido rejeitado com erro de entrada.
-- [x] Backup conjunto do PostgreSQL e do volume; manifesto, hashes, permissões,
-  preservação do volume legado e leitura isolada dos arquivos de restauração
-  conferidos.
-
-Antes da ativação em produção ainda devem ser tratados o hardening do acesso
-administrativo da VPS, o aceite formal do operador e a definição do procedimento
-de restauração em janela de manutenção.
-
----
-
-## 20. Regra de atualização deste roadmap
-
-Ao concluir uma atividade:
-
-1. marcar o item;
-2. atualizar o status da fase;
-3. registrar decisão relevante no `LOG.md`;
-4. adicionar novos bloqueios, se surgirem;
-5. não apagar itens históricos — usar `CANCELLED` quando removidos do escopo.
-
-Este arquivo deve refletir a realidade do projeto, e não apenas a intenção inicial.
-
-## 22. Documento real validado com revisão pendente — 2026-09-09 (registro histórico)
-
-> Este registro descreve o comportamento anterior do fluxo. Em 15/09/2026 a
-> revisão humana deixou de ser requisito; permanece apenas a validação técnica
-> do documento real e a conferência opcional das referências.
-
-- [x] Receber o PDF real pela landing e preservar o original no volume interno.
-- [x] Converter o documento de 128 páginas para Markdown com 1.585.605 bytes.
-- [x] Gerar e persistir análise JSON e relatório PDF após correção do contexto do
-      Ollama e da validação do schema.
-- [x] Abrir e validar visualmente o relatório PDF gerado.
-- [x] Bloquear o download oficial enquanto o documento não estiver concluído.
-- [x] Classificar o resultado como `baixa_confianca` quando houver ocorrências
-      sem evidência de página.
-- [ ] Executar a revisão humana das classificações e evidências do documento real.
-- [ ] Validar o envio manual e o download oficial após a revisão aprovada.
-
-## 23. Relatório executivo para leitura comercial — 2026-09-10
-
-- [x] Adicionar resumo executivo com contagem de achados e pontos de atenção.
-- [x] Explicar os achados em linguagem prática para operação e acompanhamento
-      comercial.
-- [x] Exibir evidências de página, confiança e próximos passos no PDF.
-- [x] Validar a nova apresentação com teste automatizado e inspeção visual.
-
-## 24. Evidência de página obrigatória no relatório — 2026-09-10 (regra vigente; revisão histórica superada)
-
-- [x] Solicitar `paginas_origem` em cada achado produzido pela IA.
-- [x] Exibir sempre as páginas de origem no relatório executivo.
-- [x] Informar explicitamente quando a página não for comprovada e manter a
-      conferência opcional, sem inventar a referência.
-- [x] Exibir no resumo o recorte de páginas usado pela análise automatizada.
-
-## 25. RAG e hardening da qualidade — 2026-09-10
-
-- [x] Adicionar PostgreSQL 15 com `pgvector` e migração de chunks, embeddings,
-      consultas recuperadas e checagens de qualidade.
-- [x] Criar serviço interno de indexação, busca híbrida e validação limitada ao
-      documento atual.
-- [x] Exigir página e trecho literal nos achados e preservar os status
-      `deferido`, `indeferido`, `cancelado` e `outro`.
-- [x] Integrar indexação, recuperação e validação ao workflow interno.
-- [x] Permitir payload corrigido em revisão humana e filtrar exemplos elegíveis.
-- [x] Criar exportação JSONL protegida com separação determinística de treino e
-      validação.
-- [x] Documentar o modelo base `qwen2.5:3b` e `nomic-embed-text`.
-- [ ] Aplicar migração e indexar Markdowns na homologação após backup conjunto.
-- [ ] Comparar fluxo atual e RAG em documentos de referência, incluindo páginas
-      71–75 e 79.
-- [ ] Atingir pelo menos 30 exemplos de treino e 10 de validação, medir schema,
-      cobertura de citações e afirmações sem suporte.
-- [ ] Avaliar LoRA/QLoRA fora da VPS e importar modelo somente se superar o
-      modelo base.
-## 20. Fechamento da homologacao - 2026-08-26
-
-Estado atualizado: stack Docker isolada operacional em /opt/automacao-miller,
-n8n local em 127.0.0.1:25678, PostgreSQL proprio, Ollama qwen2.5:3b,
-conversor e renderizador saudaveis. OAuth Drive/Gmail, pastas, destinatario,
-credencial PostgreSQL e workflow de erros configurados fora do Git.
-
-Concluido e validado:
-
-- [x] PDF simples ponta a ponta, com Markdown e relatorio salvos no Drive.
-- [x] PDF simples enviado ao Gmail com anexo PDF.
-- [x] Status simples concluido gravado como email_enviado somente apos envio.
-- [x] DOU convertido integralmente com page_count 128; paginas 71-75 e 79
-      presentes no Markdown e conferidas por marcadores de conteudo.
-- [x] DOU com relatorio PDF salvo no Drive e enviado ao Gmail com anexo.
-- [x] DOU encaminhado para aguardando_revisao e pasta Revisao, pois o modelo
-      retornou estrutura generica e a politica de confianca impediu conclusao.
-- [x] Duplicidade bloqueada por documento/hash, com reprocessamento operacional
-      autorizado sem apagar o historico.
-- [x] Export versionado sem credenciais; credenciais permanecem somente no n8n/VPS.
-
-Pendencias reais:
-
-- [ ] Rotacionar imediatamente a senha root exposta e validar chave SSH alternativa.
-- [ ] Executar a revisao humana do DOU e validar classificacoes e evidencias.
-- [ ] Ajustar a inferencia para classificacao completa de documentos extensos.
-- [ ] Simular falhas de Drive, Gmail, Ollama, PDF e renderizador e validar workflow_errors.
-- [ ] Validar retomada apos falha e manter autorizacao de reprocessamento no log operacional.
-
-## 21. Ativação do acesso da landing - 2026-09-08
-
-Estado atualizado: login por usuário e senha configurado na VPS, com sessão
-segura em HTTPS e compatibilidade mantida para o token legado.
-
-Concluído e validado:
-
-- [x] Credenciais aleatórias de homologação geradas e entregues em arquivo local protegido.
-- [x] `.env` da VPS atualizado com backup restrito anterior à alteração.
-- [x] Gateway reconstruído no commit `de93fb9`.
-- [x] Login, sessão, logout e bloqueio pós-logout validados pelo domínio HTTPS.
-- [x] n8n, gateway, conversor, renderer, PostgreSQL e Ollama saudáveis.
-
-Pendências reais:
-
-- [ ] Executar upload de um PDF de teste autorizado pela landing.
-- [ ] Confirmar protocolo, processamento, relatório e download pela interface.
-- [ ] Executar os cenários de falha externa e retomada já previstos.
-
-## 26. Corpus oficial DOU e pacote de validação — 2026-09-10
-
-- [x] Criar coletor autenticado do INLABS com retomada, retry e manifesto.
-- [x] Planejar PDFs completos e XMLs das seções normais e extras para
-      12/08/2026–10/09/2026.
-- [x] Criar preparação de staging com conversão para Markdown e fila de revisão.
-- [x] Criar relatório consolidado Markdown, cinco lotes PDF, manifesto, hashes
-      e ZIP sem documentos brutos.
-- [x] Cobrir no dry-run as 270 combinações de data, PDF e XML.
-- [ ] Configurar credencial autorizada do INLABS fora do Git.
-- [ ] Executar a coleta real e revisar os candidatos no painel.
-- [ ] Exportar exemplos aprovados e comparar as métricas do modelo base.
-
-## 27. Auditoria completa e relatório executivo — 2026-09-15
-
-- [x] Consolidar arquitetura, componentes, fluxos, funções, rotas e modelo de dados.
-- [x] Separar funcionalidades implementadas, validadas, históricas e pendentes.
-- [x] Registrar riscos de segurança, operação, ativação e qualidade da IA.
-- [x] Criar RELATORIO_AUDITORIA_PROJETO.md na raiz com linguagem executiva e comercial.
-- [x] Linkar o relatório na documentação principal.
-- [x] Validar a suíte local de testes antes do versionamento.
-
-**Resultado:** o projeto possui um relatório único para apresentação comercial,
-operação e auditoria técnica. A ativação produtiva continua condicionada aos
-gates de segurança, RAG, falhas/retomada e restauração já registrados nas
-pendências anteriores; a revisão humana deixou de ser requisito do fluxo e
-permanece apenas como conferência opcional.
-
-## 28. Prompt de análise técnica preliminar v2 — 2026-09-15 (substituído pelo v3)
-
-- [x] Criar prompt especializado com separação entre fato e interpretação.
-- [x] Criar schema v2 com parecer técnico, fundamentos, apontamentos e recomendações.
-- [x] Integrar o contrato v2 ao workflow interno e ao coletor DOU.
-- [x] Exigir revisão humana para risco alto/crítico e conclusões inconclusivas (regra v2, substituída pelo v3).
-- [x] Exibir parecer técnico preliminar e recomendações no renderer PDF.
-- [x] Atualizar validação de qualidade, confiança e testes de contrato.
-- [ ] Comparar o prompt v2 com documentos de referência e medir cobertura de citações.
-- [ ] Republicar na VPS e revisar o documento real de 128 páginas.
-- [ ] Confirmar que o modelo `qwen2.5:3b` responde dentro do limite sem truncamento.
-
-**Regra de governança:** o parecer v2 é uma análise técnica preliminar de apoio
-documental. Não substitui profissional habilitado nem pode liberar sozinho
-decisão regulatória, jurídica, médica ou comercial de alto impacto.
-
-## 29. Modelo executivo do documento final — 2026-09-15
-
-- [x] Redesenhar o renderer PDF com identidade visual comercial e profissional.
-- [x] Exibir status de conferência, indicadores e parecer técnico em destaque.
-- [x] Organizar achados em cartões com evidências, páginas e rastreabilidade.
-- [x] Preservar conferência opcional, aviso de responsabilidade e regras de liberação.
-- [x] Renderizar e inspecionar visualmente PDF de amostra sem cortes ou sobreposição.
-- [ ] Publicar o renderer atualizado na VPS e regenerar o documento real de 128 páginas.
-
-**Resultado:** a versão local `1.3.0` melhora a leitura executiva do relatório
-final sem alterar o contrato funcional, a política de confiança ou os requisitos
-de auditoria.
-
-## 30. Relatório técnico automático sem gate de revisão humana — 2026-09-15
-
-- [x] Registrar no PRD que a conferência humana é opcional.
-- [x] Manter confiança, contradições, riscos e referências como informação explícita no relatório.
-- [x] Permitir que baixa confiança, lacuna ou contradição sigam para `aguardando_envio`.
-- [x] Preservar páginas, evidências literais, limites e erros técnicos sem inventar dados.
-- [x] Orientar o modelo a produzir relatório técnico automatizado com padrão de análise sênior.
-- [ ] Publicar o workflow/prompt atualizado na VPS e processar novamente o documento real de 128 páginas.
-
-**Decisão:** a equipe recebe o relatório técnico automaticamente e consulta as
-páginas indicadas quando desejar. A conferência humana permanece disponível no
-painel para confirmação ou correção, mas não é requisito para gerar, enviar ou
-baixar o relatório. Falhas técnicas continuam interrompendo o processamento.
-
-## 31. Atualização e validação controlada da VPS — 2026-09-15 (encerramento do expediente)
-
-- [x] Atualizar a VPS para a `main` até o commit operacional `ae76265`.
-- [x] Executar backup conjunto com manifesto, SHA-256 e validação dos artefatos.
-- [x] Aplicar somente a migração `004_rag_and_training.sql`.
-- [x] Instalar e validar `nomic-embed-text` mantendo `qwen2.5:3b`.
-- [x] Reimportar o workflow interno v3 com vínculos de credenciais preservados.
-- [x] Manter ativos os quatro workflows operacionais e inativos os históricos.
-- [x] Corrigir o timeout efetivo do Ollama para documentos extensos.
-- [x] Completar o teste pequeno com envio real e download HTTP 200.
-- [x] Persistir 255 chunks e 8 recuperações RAG no teste do DOU.
-- [ ] Concluir a tentativa 24 do DOU, confirmar relatório v3, qualidade, envio e download.
-- [ ] Executar a suíte completa local e registrar o resultado final da janela.
-- [ ] Fazer hardening SSH da VPS em atividade separada, incluindo rotação de senha.
-
-**Estado no encerramento:** os serviços permaneceram operacionais, o teste
-pequeno foi aprovado ponta a ponta e a tentativa extensa do DOU ficou em
-processamento para retomada/acompanhamento. A ausência de resultado final do DOU
-não deve ser interpretada como aprovação ou falha de conteúdo; a validação foi
-interrompida antes do fechamento do ciclo.
-
-## 32. Simplificação do fluxo ativo — 2026-09-16
-
-- [x] Reduzir o caminho crítico para PDF → Markdown → prompt do especialista →
-      relatório Markdown → PDF.
-- [x] Manter PostgreSQL, volume privado, deduplicação, tentativas e envio manual
-      como controles operacionais.
-- [x] Retirar JSON, indexação RAG, recuperação semântica e `quality_checks` do
-      caminho crítico para evitar processamento redundante e truncamento.
-- [x] Persistir `report_markdown` e disponibilizar o artefato pelo gateway.
-- [x] Adicionar renderização direta de Markdown para PDF no renderer.
-- [ ] Publicar o workflow simplificado na VPS e reprocessar o DOU de 128 páginas.
-- [ ] Confirmar envio, estado `concluido` e download HTTP 200 do documento real.
-
-**Decisão de arquitetura:** RAG, embeddings, JSON estruturado e `quality_checks`
-continuam disponíveis para uma futura camada opcional, mas deixam de ser
-critério de aceite do fluxo simplificado. A versão atual prioriza velocidade,
-clareza do relatório e rastreabilidade por página.
-
-## 33. Validação remota do fluxo simplificado — 2026-09-16
-
-- [x] Publicar o commit `0ea18ee` na VPS e validar `docker compose config`.
-- [x] Aplicar a migração aditiva `005_simple_report_flow.sql`.
-- [x] Reconstruir gateway/renderer e ativar o workflow interno de 22 nós.
-- [x] Reprocessar `2026_08_24_ASSINADO_do1.pdf` como tentativa 34 sem apagar
-      histórico ou artefatos anteriores.
-- [x] Gerar relatório Markdown e PDF com `regulatory-extraction-v3`, parecer,
-      recomendações e referências de páginas.
-- [x] Confirmar envio `enviado`, documento `concluido` e download oficial HTTP 200.
-- [x] Confirmar seis serviços saudáveis, quatro workflows operacionais ativos e
-      workflows históricos do Drive inativos.
-
-**Resultado:** o caminho linear foi validado ponta a ponta no DOU de 128 páginas.
-O teste final levou aproximadamente 3 minutos e 9 segundos entre o disparo e a
-conclusão do relatório, incluindo a inferência do modelo local. RAG, embeddings,
-JSON estruturado e `quality_checks` não foram executados por decisão de escopo
-do fluxo simplificado.
-
-## 34. Prompt v4 orientado a mercado — 2026-09-16
-
-- [x] Criar `prompts/regulatory-extraction-v4.md` com papel de analista sênior.
-- [x] Estabelecer nove perguntas fixas de negócio para todos os relatórios.
-- [x] Separar impacto confirmado, impacto potencial e impacto não comprovado.
-- [x] Exigir plano de ação, prioridade executiva e referências de páginas.
-- [x] Validar seções obrigatórias antes de persistir o relatório Markdown.
-- [x] Atualizar README, documentação de workflows, PRD, testes e auditoria.
-- [ ] Publicar o prompt v4 na VPS e executar nova homologação controlada.
-
-**Estado:** A implementação v4 está validada no repositório. A homologação
-remota registrada anteriormente continua sendo evidência histórica do prompt v3;
-ela não deve ser apresentada como validação da nova redação até que a VPS seja
-atualizada e o fluxo seja executado novamente.
-
-## 35. Reinício limpo da homologação na VPS — observação de 2026-09-23
-
-> Registro histórico. Os estados descritos abaixo foram observados em 23/09 e
-> não foram verificados novamente em 2026-10-02.
-
-- [x] Criar e validar backup do PostgreSQL, do volume ativo de artefatos e dos
-      volumes legados de submissão, sem remover backups anteriores.
-- [x] Apagar registros de documentos, tentativas, análises, revisões, erros,
-      entregas, chunks, avaliações de qualidade e demais dados de teste.
-- [x] Limpar arquivos dos volumes de artefatos e submissões do Automação Miller.
-- [x] Remover os quatro workflows que já estavam inativos, sem alterar as
-      credenciais, as configurações restantes ou os dados de outras aplicações.
-- [x] Limpar execuções antigas com erro/crash e execuções travadas de
-      reconciliação.
-- [x] Reiniciar os serviços do Miller; os sete contêineres estavam saudáveis na
-      verificação final.
-- [ ] Diagnosticar e corrigir o workflow de reconciliação, que voltou a acumular
-      execuções `running` a cada minuto mesmo com a base vazia, e reativá-lo após
-      validação controlada.
-- [ ] Alinhar a implantação da VPS ao repositório antes dos novos testes. Na
-      observação de 23/09, a cópia remota estava em commit diferente, com
-      alterações locais, e o workflow ativo usava o prompt v3; a homologação v4
-      estava pendente naquela data.
-- [ ] Executar a nova matriz de testes a partir da base limpa.
-
-**Resultado observado em 23/09:** foram preservados os três workflows
-operacionais ativos, as credenciais e as configurações. A definição da
-reconciliação foi preservada e pausada temporariamente para impedir novas
-execuções travadas. O registro da operação informa que os dados apagados estavam
-nos backups então validados em `/opt/backups/automacao-miller` na VPS; a
-disponibilidade atual desses backups não foi verificada.
-
-## 36. Análise integral em lotes — 2026-10-01
-
-- [x] Analisar todas as páginas do Markdown em lotes de até 6.000 caracteres.
-- [x] Preservar marcadores de página ao dividir páginas longas.
-- [x] Consolidar e remover achados duplicados entre lotes.
-- [x] Interromper o processamento se um lote falhar ou a cobertura divergir.
-- [x] Testar evidência após 7.000 caracteres e página longa.
-- [x] Homologar o processamento completo de PDF na stack Docker local.
-- [x] Validar automaticamente as referências (detalhes na tarefa 37).
-- [x] Renderizar listas sem expor linhas de tabela Markdown cruas.
-
-**Resultado:** o PDF sintético foi processado em três lotes. O gateway registrou
-cobertura 3/3, Markdown e PDF, e estado `aguardando_envio`. Nenhum e-mail foi
-enviado. O marcador de teste depois de 7.000 caracteres está coberto pelo teste
-direto do divisor; o relatório integrado citou o Produto Alfa, mas não repetiu
-o marcador literal.
-
-## 37. Validação de evidências e sinalização de pendências — 2026-10-01
-
-- [x] Comparar citações do relatório com a página indicada no Markdown original.
-- [x] Sinalizar páginas não existentes e evidências ausentes ou localizadas em
-      outra página como referências pendentes.
-- [x] Expor validação pela rota interna autenticada do gateway.
-- [x] Interromper geração apenas para falha técnica ou cobertura incompleta;
-      pendências de referência não bloqueiam o envio.
-- [x] Não apresentar a medida de cobertura como confiança da IA.
-- [x] Homologar o fluxo completo na stack Docker local; referências pendentes
-      ficaram não bloqueantes, conforme o requisito.
-
-**Resultado:** o gateway confere automaticamente referências literais e páginas
-e devolve cobertura e pendências. O workflow acrescenta esse resumo ao relatório;
-referências não confirmadas ficam explicitamente marcadas, enquanto cobertura
-incompleta continua impedindo a geração de um relatório parcial.
-
-**Arquivos afetados:** `infra/regulatory_analysis/report_validation.py`,
-`infra/upload_gateway/app.py`, testes do validador, API e contrato do workflow,
-`workflows/automacao-regulatoria-internal-v1.json`, `PRD.md`, `README.md` e
-`workflows/README.md`.
-
-**Testes:** 35 testes direcionados passaram, incluindo citação válida, página
-inexistente, trecho ausente, trecho encontrado em outra página, cobertura
-incompleta e rota interna autenticada.
-
-**Resultado integrado:** o fluxo cobriu as três páginas, persistiu Markdown e
-PDF e encerrou o protocolo em `aguardando_envio`. A versão que já estava
-executando usava o prompt anterior, que pedia tabelas. As seis referências
-saíram pendentes e foram sinalizadas sem bloquear o relatório nem o envio; os
-testes unitários confirmam o caminho de citações válidas na versão atual.
-
-**Limitação operacional:** o registro da execução n8n continuou como
-`running`, apesar de o último nó (`State - Report persisted`) ter concluído e
-de não haver erro de execução. O log do n8n registra
-`r.firstEvent.getTime is not a function` no serviço de consolidação de
-estatísticas. A stack ficou saudável e o estado/artefatos do protocolo foram
-persistidos; esse defeito do registro de estatísticas não foi alterado nesta
-tarefa.
-
-**Impacto:** o leitor consegue distinguir cobertura documental de localização
-de evidências. Referências pendentes são avisos verificáveis, sem nota de
-confiança semântica da IA.
-
-## 38. Relatório PDF com listas — 2026-10-01
-
-- [x] Orientar o modelo a usar listas com marcadores nas respostas, ações e
-      referências.
-- [x] Remover a exigência de tabelas Markdown do workflow ativo.
-- [x] Testar o PDF gerado e confirmar que não há linhas de tabela cruas.
-- [x] Concluir a homologação ponta a ponta com PDF sintético; validar listas
-      separadamente no endpoint final do renderizador.
-
-**Resultado:** as tabelas foram substituídas por listas com marcadores. A
-renderização de exemplo foi inspecionada visualmente e suas seções, evidências e
-ações aparecem legíveis no PDF.
-
-**Arquivos afetados:** `prompts/regulatory-extraction-v5.md`,
-`workflows/automacao-regulatoria-internal-v1.json`, `workflows/README.md` e
-testes do renderizador e do contrato do workflow.
-
-**Testes:** 16 testes do renderizador e dos contratos e 73 testes da suíte
-completa passaram. `docker compose config --quiet` passou e todos os sete
-serviços estavam saudáveis. Um PDF de exemplo com listas foi extraído para
-conferência textual e renderizado em imagem para inspeção visual. O teste
-integrado gerou Markdown/PDF e confirmou cobertura 3/3 e `aguardando_envio`;
-ele começou antes da atualização do prompt de tabelas para listas.
-
-**Limitação:** a execução integrada deixou o status interno do n8n como
-`running` por uma exceção no serviço de estatísticas, embora o último nó tenha
-persistido os relatórios e o protocolo esteja pronto para envio. A cópia local
-do workflow foi atualizada para listas após essa execução; a versão final foi
-validada pelo contrato e pelo renderizador, sem uma segunda inferência lenta.
-
-**Impacto:** as seções do relatório usam marcadores simples que o PDF consegue
-renderizar e que continuam legíveis para conferência humana.
-
-## 39. Retomada de entregas de e-mail — 2026-10-02
-
-- [x] Devolver `delivery_id` e `submission_id` das entregas recuperadas.
-- [x] Distinguir tarefas de e-mail de tarefas de processamento de documentos.
-- [x] Despachar entregas recuperadas ao workflow de envio e documentos ao
-      workflow interno de processamento.
-- [x] Testar o contrato dos workflows e executar a consulta no PostgreSQL local
-      com dados sintéticos dentro de uma transação revertida.
-- [x] Documentar o comportamento de recuperação.
-
-**Resultado:** a reconciliação agora envia a entrega parada ao webhook de
-`automacao-regulatoria-send-report`, incluindo seu identificador. Documentos
-continuam seguindo ao workflow de processamento. O teste local confirmou o
-resultado da consulta; nenhum e-mail foi enviado.
-
-**Limitação:** o workflow exportado não foi ativado nem validado na VPS. A
-consulta foi executada no PostgreSQL Docker local e a rota foi verificada pelo
-contrato dos exports.
-
-## 40. Delimitação do estado histórico da VPS — 2026-10-02
-
-- [x] Identificar a observação remota mais recente registrada, de 2026-09-23.
-- [x] Marcar como históricos o estado da base, da reconciliação e do prompt v3.
-- [x] Informar que a VPS não foi consultada em 2026-10-02 e que o estado atual
-      é desconhecido.
-- [x] Atualizar o log sem apagar o registro operacional original.
-- [x] Adicionar teste de contrato para impedir que o estado remoto histórico
-      seja apresentado como confirmação atual.
-
-**Resultado:** o roadmap separa estado conhecido do repositório e última
-observação remota. O log mantém os fatos de 23/09 com data explícita; não houve
-acesso à VPS nesta correção.
-
-**Testes:** 11 testes dos contratos passaram, incluindo a verificação de que o
-roadmap e o log deixam a data da observação e a ausência de consulta atual
-explícitas.
-
-## 41. Alinhamento da documentação ao fluxo ativo — 2026-10-02
-
-- [x] Definir o relatório Markdown/PDF como resultado persistido do MVP.
-- [x] Descrever o JSON dos lotes como temporário, sem artefato JSON final.
-- [x] Marcar RAG, embeddings e `quality_checks` como fora do fluxo ativo.
-- [x] Separar prioridade executiva de qualquer medida de confiança da IA.
-- [x] Atualizar PRD, README e operação dos workflows; marcar a auditoria antiga
-      como histórica.
-- [x] Criar teste de contrato para evitar contradições nas descrições atuais.
-
-**Decisão:** cobertura de páginas e confirmação de citações descrevem a
-localização de evidências. A prioridade executiva organiza ações sugeridas. O
-MVP não exige uma nota de confiança semântica nem análise JSON persistida.
-
-**Testes:** 12 testes dos contratos passaram. Os schemas, serviços e exports de
-RAG/JSON antigos continuam versionados como capacidade legada/opcional; esta
-tarefa não removeu código nem alterou o workflow ativo.
-
-## 42. Simplificação do Compose e perfil RAG optativo — 2026-10-02
-
-- [x] Tornar `rag-service` optativo pelo perfil `rag`.
-- [x] Remover RAG das variáveis e dependências de inicialização do n8n.
-- [x] Passar ao n8n as URLs dos webhooks de processamento e envio.
-- [x] Documentar o uso explícito do perfil e os limites máximos de memória.
-- [x] Validar o Compose padrão e com perfil RAG e atualizar a stack local sem
-      remover volumes.
-
-**Resultado:** o perfil padrão usa seis serviços e soma 6.912 MiB (6,75 GiB)
-em limites máximos; o perfil RAG explícito soma 7.424 MiB (7,25 GiB). A stack
-local foi recriada sem o serviço RAG; PostgreSQL, Ollama, conversor, renderer,
-gateway e n8n continuam usando os volumes existentes. O endpoint de prontidão
-do n8n e o health check do gateway responderam HTTP 200. Nenhum e-mail foi
-enviado.
-
-**Testes:** `docker compose ... config --quiet` passou no perfil padrão e no
-perfil `rag`; os 12 testes dos contratos e os 75 testes da suíte completa
-passaram. Os seis serviços padrão ficaram saudáveis no Docker local.
-
-**Limitação:** os limites são tetos configurados, não medidas de consumo real.
-O perfil RAG continua disponível para uma validação separada, mas não participa
-do fluxo operacional.
-
-## 43. Estabilização de PDFs longos no Ollama local — 2026-10-02
-
-- [x] Corrigir o timeout de conversão de segundos para milissegundos e desativar
-      retries automáticos que repetiam a conversão demorada.
-- [x] Evitar copiar o Markdown integral para cada item dos lotes.
-- [x] Fazer o n8n enviar um lote por vez ao Ollama, com contexto de 4.096 tokens.
-- [x] Tornar o registro de falha atômico no workflow de erro.
-- [x] Publicar o workflow corrigido no n8n local sem trocar a credencial local.
-- [x] Executar os testes do contrato, a suíte completa e a validação do Compose.
-- [x] Reprocessar o PDF recebido até a etapa de análise e interromper a tentativa
-      conforme pedido do usuário após medir a velocidade local.
-
-**Resultado:** a tentativa anterior falhava na conversão, serialização de dados
-ou por chamadas simultâneas ao Ollama. Com o loop sequencial, o PDF de 142
-páginas gerou Markdown de 1,63 MB e chegou à inferência sem reiniciar o Ollama.
-O modelo operou em CPU a aproximadamente 1,6 token por segundo.
-
-**Testes:** `python -m pytest tests/contracts/test_deployment_contract.py -q`
-passou com 13 testes; `python -m pytest -q` passou com 76 testes e dois avisos
-de depreciação preexistentes do FastAPI; `docker compose -p codex-miller-local
-config --quiet` passou. O workflow local ficou ativo e saudável. O modelo foi
-descarregado após a interrupção.
-
-**Limitação:** o usuário pediu para interromper a tentativa antes da conclusão
-de todos os lotes. O protocolo ficou em `erro`, com a interrupção registrada;
-não há relatório final. A validação ponta a ponta até `aguardando_envio` segue
-pendente. Nenhum e-mail foi enviado e a VPS não foi consultada.
+1. Revogar a chave exposta.
+2. Criar uma nova chave apenas se o teste sintético ainda for desejado.
+3. Guardar a chave diretamente numa credencial HTTP Header Auth do n8n; nunca no Git, chat, captura, export ou .env.
+4. Associar a credencial somente ao workflow sintético.
+5. Executar o fixture artificial, validar JSON, página, evidência literal e latência.
+6. Desativar o workflow depois do teste e registrar o resultado sem registrar a chave.
+
+O teste NVIDIA não faz parte do processamento de PDFs reais e não é condição para usar Ollama local.
+
+### P0 — Confirmar a segurança do acesso à VPS
+
+**Responsável:** administrador da VPS.
+**Estado:** precisa ser confirmado; registros antigos mencionam rotação de acesso administrativo pendente.
+
+1. Confirmar quem administra o servidor e qual conta tem privilégios.
+2. Confirmar a rotação da senha administrativa e o uso de acesso SSH por chave.
+3. Antes de instalar uma chave, conferir o fingerprint com o responsável.
+4. Confirmar firewall, proxy HTTPS da landing e que o n8n não está exposto diretamente à Internet.
+5. Confirmar que o arquivo .env e os backups têm permissões restritas.
+6. Registrar apenas a situação, nunca os valores dos segredos, em [ACESSOS.md](ACESSOS.md).
+
+### P1 — Homologar o fluxo atual com documentos autorizados
+
+**Responsáveis:** responsável técnico e responsável de validação do cliente.
+**Estado:** validação parcial; teste atual foi sintético e curto.
+
+1. Usar cópias autorizadas de documentos de referência.
+2. Começar com um PDF textual curto e confirmar protocolo, Markdown e relatório.
+3. Conferir se as páginas aparecem em sequência e se os fatos citados estão no trecho correto.
+4. Concluir a validação do PDF longo de 142 páginas citado acima, sem iniciar duplicata.
+5. Conferir o relatório com o responsável operacional; a revisão humana é uma conferência opcional do produto, mas o aceite dos testes do projeto continua necessário.
+6. Não enviar dados reais a provedores externos de IA. O fluxo real usa Ollama local.
+
+**Concluído quando:** todas as páginas dos casos aprovados foram analisadas, o relatório foi criado, as referências foram classificadas corretamente e as limitações foram aceitas pelo responsável.
+
+### P1 — Aplicar proteção contra instruções embutidas no PDF
+
+**Responsável:** responsável técnico.
+**Estado:** regra registrada no RN-16 do PRD; o prompt ativo ainda precisa ser conferido e ajustado explicitamente.
+
+1. Atualizar a instrução do workflow ativo para tratar o texto do PDF como dado de origem, nunca como comando.
+2. Proibir que instruções encontradas no documento mudem as regras, solicitem ferramentas, peçam segredos ou autorizem envio externo.
+3. Validar o comportamento com o fixture sintético que contém uma instrução maliciosa simulada.
+4. Versionar a mudança de prompt e comparar a saída com os casos de referência.
+
+**Concluído quando:** o fluxo local ignora a instrução simulada, preserva a análise factual e passa pelos testes de estrutura e evidência.
+### P1 — Validar erros, reprocessamento e retomada
+
+**Responsáveis:** responsável técnico e operador.
+**Estado:** há testes automatizados e validação parcial; faltam cenários integrados na VPS atual.
+
+Executar de forma controlada e registrar o resultado para:
+
+- arquivo inválido, PDF sem camada de texto e conversão interrompida;
+- falha do Ollama em um lote;
+- falha de geração ou persistência do PDF;
+- falha de armazenamento;
+- erro e nova tentativa de envio Gmail;
+- arquivo duplicado e reprocessamento autorizado;
+- documento ou entrega parados, reconciliação e retomada;
+- download bloqueado até o envio ser confirmado.
+
+Uma falha técnica deve terminar como erro identificável. Uma citação pendente, sozinha, não bloqueia o relatório.
+
+**Concluído quando:** cada falha tem etapa e registro, retry não duplica operações e nenhum documento incompleto fica como concluído.
+
+### P1 — Confirmar credenciais e operação de envio
+
+**Responsáveis:** administrador do n8n e operador autorizado.
+**Estado:** não confirmado para a versão implantada mais recente.
+
+1. Conferir as credenciais PostgreSQL e Gmail guardadas dentro do n8n.
+2. Confirmar os destinatários padrão pelo painel.
+3. Ativar o workflow de envio somente no ambiente de homologação autorizado.
+4. Enviar um relatório de teste para destinatário aprovado.
+5. Confirmar registro de sucesso, estado Concluído e download autorizado.
+6. Repetir com falha controlada e verificar que a entrega pode ser tentada novamente.
+
+### P1 — Fazer um teste de restauração
+
+**Responsável:** administrador da VPS.
+**Estado:** procedimento e script existem; restauração atual não foi confirmada.
+
+1. Fazer backup conjunto do PostgreSQL e do volume de artefatos.
+2. Conferir manifesto, hashes, permissões e local seguro da cópia.
+3. Restaurar em ambiente isolado, sem substituir os volumes operacionais.
+4. Confirmar que um protocolo, seus artefatos e estados podem ser lidos.
+5. Registrar data, resultado e problemas no LOG.md.
+
+### Gate final — Aceite e decisão de entrada em produção
+
+Só considerar produção depois dos itens P0 e P1 acima, mais:
+
+- aceite documentado do responsável operacional;
+- política de backup e restauração definida;
+- destinatários, responsável pelo envio e tratamento de falhas definidos;
+- confirmação de HTTPS, autenticação e permissões;
+- revisão do estado da VPS e dos workflows no n8n;
+- pendências conhecidas aceitas ou resolvidas.
+
+**Concluído quando:** o responsável autoriza a operação e os testes críticos terminam sem falha não explicada.
+
+## 3. O que já existe no repositório
+
+- Stack Docker com PostgreSQL, Ollama, n8n, conversor, renderizador e gateway.
+- Landing com login, upload, protocolo, painel, destinatários e consulta de artefatos.
+- Armazenamento privado por SHA-256 e proteção contra duplicação acidental.
+- Conversão local para Markdown com marcadores de página; OCR não está incluído.
+- Workflow de análise sequencial em lotes, com JSON temporário e relatório Markdown/PDF.
+- Validação de cobertura e localização literal de evidências.
+- Workflows separados para processamento, erro, reconciliação e envio manual.
+- Scripts de backup, migração e coletor do DOU para staging protegido.
+- Testes automatizados unitários e de contrato. A suíte completa foi executada nesta atualização em 08/10/2026 e passou com 77 testes; isso não substitui os testes integrados pendentes na VPS.
+
+O estado dos exports no Git não prova o estado dos workflows no n8n. Os exports vêm inativos para evitar ativação acidental.
+
+## 4. Fora do caminho ativo e fora do escopo
+
+- Google Drive: integração histórica; não recebe novos documentos.
+- RAG, embeddings e quality_checks: capacidade opcional/legada, não usada no fluxo atual.
+- JSON de cada lote: temporário; não é relatório final nem artefato persistido.
+- NVIDIA Trial: somente teste manual com fixture sintético; nunca documento real.
+- OCR pago, app mobile, fine-tuning e modelo proprietário: fora do escopo aprovado.
+
+## 5. Como manter este roadmap
+
+Ao terminar uma tarefa, atualize o estado aqui e acrescente o contexto cronológico ao LOG.md. Não transforme uma observação histórica numa confirmação atual. Registre bloqueios, responsáveis e o que prova a conclusão.

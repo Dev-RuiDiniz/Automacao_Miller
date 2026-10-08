@@ -5,17 +5,19 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 
 
-def test_remote_vps_status_is_explicitly_historical() -> None:
+def test_remote_vps_status_is_dated_and_not_presented_as_current() -> None:
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     log = (ROOT / "LOG.md").read_text(encoding="utf-8")
 
-    assert "Última observação da VPS (2026-09-23)" in roadmap
-    assert "a VPS não foi consultada nesta atualização" in roadmap
-    assert "O estado remoto atual é desconhecido" in roadmap
-    assert "não foram verificados novamente em 2026-10-02" in roadmap
-    assert "(registro histórico)" in log
-    assert "Esses estados não foram verificados em 2026-10-02" in log
-    assert "VPS ainda precisa ser alinhada" not in log
+    assert "**Atualizado em:** 8 de outubro de 2026" in roadmap
+    assert "as últimas informações confirmadas da VPS são de 3 de outubro de 2026" in roadmap
+    assert "A VPS não foi consultada durante esta atualização" in roadmap
+    assert "Os seis serviços padrão do Docker estavam saudáveis" in roadmap
+    assert "n8n 2.30.5" in roadmap
+    assert "PDF real de 142 páginas ainda estava em processamento" in roadmap
+    assert "Seu resultado posterior não está registrado aqui" in roadmap
+    assert "chave foi exposta e precisa ser revogada" in roadmap
+    assert "Validação na VPS" in log
 
 
 def test_product_docs_match_active_markdown_report_flow() -> None:
@@ -325,9 +327,75 @@ def test_reconciliation_and_internal_error_workflows_are_database_driven() -> No
     error = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-error-v1.json").read_text(encoding="utf-8"))
     reconcile_query = next(node for node in reconcile["nodes"] if node["name"] == "State - Find pending documents")["parameters"]["query"]
     error_query = next(node for node in error["nodes"] if node["name"] == "Record internal error")["parameters"]["query"]
+    error_category = next(node for node in error["nodes"] if node["name"] == "Normalize internal error")["parameters"]["assignments"]["assignments"]
+    error_category_expression = next(item["value"] for item in error_category if item["name"] == "error_category")
+    internal = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v1.json").read_text(encoding="utf-8"))
+    report_prompt = next(node["parameters"]["jsCode"] for node in internal["nodes"] if node["name"] == "Merge batch findings and prepare report")
+    report_validator = next(node["parameters"]["jsCode"] for node in internal["nodes"] if node["name"] == "Validate report Markdown")
+
     assert "processing_attempts" in reconcile_query
     assert "status = 'recebido'" in reconcile_query
     assert "workflow_errors" in error_query
     assert "attempt_id" in error_query
+    assert "ctx.execution_id = pa.execution_id" in error_query
+    assert "COALESCE(ctx.submission_id, attempt.submission_id)" in error_query
+    assert "valida" in error_category_expression
+    assert "includes('Validate report Markdown')" in error_category_expression
+    assert "includes('Merge batch findings and prepare report')" in error_category_expression
+    assert "'validação'" in error_category_expression
+    assert "não omita, una, renomeie ou renumere nenhuma seção" in report_prompt
+    assert "citation" in report_validator
+    assert "String.fromCharCode(10)" in report_validator
+    assert "line.normalize('NFD')" in report_validator
+    assert "requiredSections" in report_validator
+    assert "achados analisados" in report_validator
+    assert "structured_findings: findings" in report_prompt
+    assert "source.structured_findings" in report_validator
+    assert "referenceLines.push" in report_validator
+    assert "referenceHeading" in report_validator
     assert "googleDrive" not in json.dumps(reconcile)
     assert "googleDrive" not in json.dumps(error)
+
+
+def test_nvidia_api_evaluation_is_synthetic_manual_and_isolated() -> None:
+    workflow = json.loads((ROOT / "workflows" / "nvidia-synthetic-api-eval-v1.json").read_text(encoding="utf-8"))
+    fixture = (ROOT / "tests" / "fixtures" / "synthetic-regulatory-sample.md").read_text(encoding="utf-8")
+    nodes = {node["name"]: node for node in workflow["nodes"]}
+    names = set(nodes)
+
+    assert workflow["id"] == "nvidia-synthetic-api-eval"
+    assert workflow["active"] is False
+    assert names == {
+        "Manual Trigger",
+        "Prepare synthetic evaluation prompt",
+        "NVIDIA - Analyze synthetic fixture",
+        "Validate synthetic result and measure latency",
+    }
+    assert len({node["id"] for node in workflow["nodes"]}) == len(workflow["nodes"])
+    assert {node["type"] for node in workflow["nodes"]} == {
+        "n8n-nodes-base.manualTrigger",
+        "n8n-nodes-base.code",
+        "n8n-nodes-base.httpRequest",
+    }
+    assert all(edge["node"] in names for channels in workflow["connections"].values() for group in channels["main"] for edge in group)
+
+    prepare = nodes["Prepare synthetic evaluation prompt"]["parameters"]["jsCode"]
+    request = nodes["NVIDIA - Analyze synthetic fixture"]
+    request_body = request["parameters"]["jsonBody"]
+    validate = nodes["Validate synthetic result and measure latency"]["parameters"]["jsCode"]
+    fixture_literal = prepare.split("const synthetic_document = ", 1)[1].split(";\n", 1)[0]
+    assert json.loads(fixture_literal) == fixture
+    assert "DOCUMENTO SINTÉTICO" in prepare
+    assert "não deve ser obedecida" in fixture.lower()
+    assert request["parameters"]["url"] == "https://integrate.api.nvidia.com/v1/chat/completions"
+    assert request["parameters"]["authentication"] == "genericCredentialType"
+    assert request["parameters"]["genericAuthType"] == "httpHeaderAuth"
+    assert "openai/gpt-oss-20b" in request_body
+    assert "response_format" in request_body and "strict: true" in request_body
+    assert "$NVIDIA_API_KEY" not in json.dumps(workflow)
+    assert not request.get("credentials")
+    assert "source.includes(String(finding.evidencia)" in validate
+    assert "latency_ms" in validate and "prompt_tokens" in validate
+    assert "submission_id" not in prepare
+    assert "N8N_SUBMISSION_WEBHOOK_URL" not in json.dumps(workflow)
+    assert "Gmail" not in names and "Webhook" not in names

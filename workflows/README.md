@@ -1,4 +1,6 @@
 # Workflows n8n
+Visão do fluxo em [FLUXOGRAMA.md](../FLUXOGRAMA.md); locais seguros de credenciais em [ACESSOS.md](../ACESSOS.md). Confirme o estado dos workflows na VPS: os arquivos exportados no Git ficam inativos por segurança.
+
 
 ## Fluxo ativo
 
@@ -190,3 +192,34 @@ O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
 O JSON de cada lote é temporário e não é persistido como análise do documento.
 RAG, embeddings e `quality_checks` continuam fora do caminho ativo. O envio, a
 reconciliação, o tratamento de erros e o download oficial seguem sem alterações.
+
+## Avaliação sintética da API NVIDIA
+
+`nvidia-synthetic-api-eval-v1.json` é um workflow manual, inativo e isolado do
+upload. Ele envia somente o fixture artificial
+`tests/fixtures/synthetic-regulatory-sample.md` ao endpoint
+`https://integrate.api.nvidia.com/v1/chat/completions`, usando o modelo
+`openai/gpt-oss-20b`. Não lê arquivos, não chama o gateway nem o Gmail e não
+altera o workflow de documentos reais. O resultado passa por validação JSON e
+conferência literal da página/evidência contra o próprio fixture; a latência e
+os tokens reportados pela API são exibidos na saída.
+
+Para executar:
+
+1. Crie no n8n uma credencial `HTTP Header Auth` com o cabeçalho `Authorization`
+   e valor `Bearer <chave NVIDIA>`. Não coloque a chave no export, no `.env`, nos
+   logs ou no chat.
+2. Importe o export inativo e selecione a credencial no nó
+   `NVIDIA - Analyze synthetic fixture`.
+3. Execute manualmente o workflow e confira `latency_ms`, uso de tokens,
+   quantidade de achados e validação da evidência.
+4. Mantenha o workflow inativo ao terminar. A execução não usa nem representa o
+   PDF recebido: mede uma requisição curta com texto artificial e não prova o
+   tempo ou a precisão do processamento real de 142 páginas.
+
+A NVIDIA oferece o endpoint para prototipação e teste, com limites/créditos
+dependentes da conta. Os termos da API Trial proíbem conteúdo governamental,
+confidencial e dados pessoais/financeiros/de saúde sem permissão expressa; também
+preveem coleta de conteúdo para melhoria de produtos/modelos e logs de segurança.
+Não envie o PDF `do1` a esse serviço gratuito. Uso em produção requer a licença
+NVIDIA AI Enterprise segundo a FAQ oficial do NIM.

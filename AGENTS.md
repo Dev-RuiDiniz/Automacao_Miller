@@ -26,6 +26,13 @@ A fonte de verdade é: código e workflows para o comportamento implementado; PR
 
 ## 4. Mantenha o escopo
 
+### Verifique e date o estado externo
+
+- Ao documentar VPS, n8n, serviços externos ou credenciais, registre a data da consulta e diga se a informação foi verificada agora ou veio de um registro histórico.
+- Separe o comportamento previsto no PRD, o que o código implementa e o que está publicado/ativo no ambiente. Um export inativo no Git não comprova o estado do n8n.
+- Um health check verde confirma que o serviço responde; não comprova o fluxo ponta a ponta, as credenciais ou a qualidade do relatório.
+- Não leia nem copie valores de arquivos de segredo para montar um resumo. Registre apenas existência, permissão, local e situação.
+
 - Implemente somente o que estiver previsto no PRD ou solicitado explicitamente.
 - Não adicione serviços, dependências pagas, integrações ou mudanças de arquitetura por conveniência.
 - Uma mudança de regra de negócio exige registro no LOG.md e atualização do PRD.md; ajuste o ROADMAP.md se mudar fase, prioridade ou trabalho pendente.

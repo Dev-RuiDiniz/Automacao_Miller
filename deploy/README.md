@@ -1,11 +1,13 @@
 # Implantação da stack de homologação
-Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. A última observação registrada da VPS é de 03/10/2026; confirme o estado real antes de executar comandos de implantação.
+Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. A VPS foi consultada por SSH em 26/10/2026; confirme o estado real e faça backup antes de qualquer comando que altere containers ou dados.
 
 
 Esta stack usa n8n, PostgreSQL, Ollama, os serviços locais de conversão e
 renderização e o gateway de upload, com volumes e rede próprios. O serviço RAG
 é legado e fica fora da inicialização padrão; somente o perfil optativo `rag`
 o inicia.
+
+Na consulta de 26/10/2026, os seis containers do Miller estavam saudáveis, mas somente os workflows de processamento e erro estavam ativos. Envio e reconciliação estavam inativos, o proprietário do n8n não estava configurado e o diretório de backup esperado não existia. O gateway não tinha publicação HTTP/HTTPS no host. Isso não é uma stack pronta para uso externo ou produção.
 
 ## Preparação no servidor
 

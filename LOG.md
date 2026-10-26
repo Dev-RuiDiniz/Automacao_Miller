@@ -57,6 +57,18 @@ Tipos sugeridos:
 
 ## 3. Contexto consolidado do projeto
 
+### Estado consolidado verificado em 26/10/2026
+
+- **Produto:** automação interna para receber PDFs regulatórios pela landing, gerar Markdown paginado, analisar com Ollama local, criar relatório Markdown/PDF e permitir envio manual.
+- **Stack no repositório:** n8n, PostgreSQL, Ollama, gateway, conversor PDF, renderizador e volume privado Docker. RAG é opcional/legado e não está no caminho ativo.
+- **VPS:** commit 38f5358 da main; seis containers do Miller saudáveis. O n8n 2.30.5 está preso ao loopback; Ollama 0.32.1 usa qwen2.5:3b.
+- **Workflows publicados:** processamento interno e erro ativos; envio manual, reconciliação e avaliação NVIDIA sintética inativos.
+- **Operação:** 3 documentos em aguardando_envio, 6 em erro e nenhum em processamento. A conta proprietária do n8n não tem e-mail/senha definidos.
+- **Segurança e recuperação:** a senha root exposta e a chave NVIDIA exposta ainda precisam de rotação/revogação; o diretório de backup esperado não existe; a landing não tem entrada HTTPS publicada.
+- **VPS compartilhada:** o outro projeto Docker observado é ideia-saude-agent-test. As stacks BRANDRIOT Socialsuite e Supabase Socialsuite foram removidas em 26/10/2026.
+
+Os tópicos seguintes desta seção descrevem a proposta e a linha de base histórica. Para estado operacional e trabalho pendente, use ROADMAP.md; para requisitos, use PRD.md.
+
 ### Produto
 
 Solução automatizada para processamento e análise de documentos regulatórios em PDF.
@@ -65,7 +77,7 @@ Solução automatizada para processamento e análise de documentos regulatórios
 
 Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de baixo custo operacional.
 
-### Stack definida
+### Stack definida na linha de base inicial (histórico)
 
 - n8n;
 - Ollama;
@@ -74,7 +86,7 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 - Docker;
 - Linux em VPS.
 
-### Arquitetura aprovada para evolução
+### Arquitetura aprovada para evolução na linha de base inicial (histórico)
 
 - PostgreSQL como fonte de verdade operacional;
 - volume privado do Docker para PDFs, Markdown e relatórios;
@@ -86,7 +98,7 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 Essa arquitetura ainda não está implementada nos workflows versionados. A
 homologação vigente registrada nos eventos históricos continua usando o Drive.
 
-### Fluxo de referência
+### Fluxo de referência inicial (histórico)
 
 ```text
 Google Drive
@@ -102,7 +114,7 @@ Google Drive
 → Gmail
 ```
 
-### Capacidades previstas
+### Capacidades previstas na linha de base inicial (histórico)
 
 - monitoramento automático de PDFs;
 - extração de conteúdo;
@@ -466,7 +478,9 @@ A governança da Fase 0 passa a registrar os insumos e o responsável sem versio
 
 ---
 
-## 5. Pendências abertas
+## 5. Pendências iniciais — snapshot histórico de 2026-08-25
+
+> Esta tabela registra a situação inicial, não a situação atual. Consulte ROADMAP.md para as pendências vigentes.
 
 | ID | Pendência | Tipo | Prioridade | Status |
 |---|---|---|---|---|
@@ -483,7 +497,7 @@ A governança da Fase 0 passa a registrar os insumos e o responsável sem versio
 
 ---
 
-## 6. Decisões que ainda precisam ser fechadas
+## 6. Decisões que ainda precisavam ser fechadas na linha de base inicial
 
 ### D-001 — Modelo Ollama
 
@@ -2621,3 +2635,35 @@ O checkout local, o remoto e o código versionado na VPS ficaram sincronizados.
 As execuções ativas do n8n não foram reiniciadas ou modificadas, porque os
 workflows publicados já correspondiam à lógica do repositório e suas
 credenciais são específicas da instalação.
+
+## 2026-10-26 — Avaliação operacional e atualização da documentação
+
+Data: 2026-10-26
+Tipo: DOCUMENTAÇÃO / AVALIAÇÃO / OPERAÇÃO
+Status: documentação atualizada; pendências de homologação preservadas
+
+Contexto:
+O usuário solicitou uma avaliação completa da Automação Miller, leitura dos documentos disponíveis e criação/atualização da documentação principal em linguagem fácil de entender e executar.
+
+Decisão/Ação:
+Foram revisados os documentos Markdown versionados e auxiliares, os exports e prompts relevantes, o Compose, os serviços principais e os artefatos PDF sintéticos existentes. O inventário do projeto não encontrou arquivos de áudio. O arquivo .env local não foi aberto. A auditoria por SSH foi somente de leitura e usou a chave configurada no computador.
+
+A documentação foi alinhada para separar requisitos do produto, comportamento implementado e estado ativo na VPS. README.md, PRD.md, AGENTS.md, ROADMAP.md, FLUXOGRAMA.md e ACESSOS.md foram atualizados. Também foram alinhados workflows/README.md, deploy/README.md, docs/checklists/matriz-documentos-referencia.md e o contexto inicial deste LOG.md, sem apagar o histórico cronológico.
+
+Estado observado na VPS:
+O checkout estava no commit 38f5358, sincronizado com origin/main. Os seis containers do Miller estavam saudáveis. Somente os workflows de processamento interno e erro estavam ativos; envio manual, reconciliação e avaliação NVIDIA estavam inativos. Havia 3 documentos em aguardando_envio, 6 em erro e nenhum em processamento. O registro proprietário do n8n não tinha e-mail nem senha definidos. O arquivo .env remoto existia com permissão 600; o diretório de backup esperado estava ausente. O gateway não tinha entrada pública HTTP/HTTPS identificada. A VPS compartilhava recursos com ideia-saude-agent-test; as stacks BRANDRIOT Socialsuite e Supabase Socialsuite removidas em 26/10 não apareciam mais no inventário Docker.
+
+Risco de qualidade:
+Um relatório sintético temporário apresentou afirmações sem apoio no documento e 0 de 6 referências comprovadas. O validador marcou as referências como pendentes, mas a regra atual não bloqueia o envio por esse motivo. O roadmap registra a decisão de produto necessária; nenhum requisito foi alterado nesta atualização.
+
+Arquivos afetados:
+README.md, PRD.md, AGENTS.md, ROADMAP.md, FLUXOGRAMA.md, ACESSOS.md, LOG.md, workflows/README.md, deploy/README.md e docs/checklists/matriz-documentos-referencia.md.
+
+Testes e verificações:
+Não foram executados testes da aplicação nem alterações funcionais. Foram feitas consultas somente de leitura à VPS, inventário e leitura dos documentos, conferência de estado dos containers, workflows e contagens agregadas do banco, verificação de permissão do .env sem ler seu conteúdo e checagem do estado Git. A última suíte automatizada registrada continua sendo a de 77 testes aprovada em 08/10/2026; ela não foi repetida nesta tarefa.
+
+Pendências:
+Seguir os itens P0 e P1 do ROADMAP.md: rotacionar/revogar credenciais expostas, configurar o proprietário do n8n, publicar a landing por HTTPS, estabelecer backup e restauração, decidir o tratamento de relatórios sem referências comprovadas, ativar e homologar envio/reconciliação, reforçar o prompt contra instruções embutidas e concluir a matriz de falhas com dados autorizados.
+
+Impacto:
+A documentação deixa explícito que a stack saudável ainda não equivale a uma operação pronta. O caminho esperado, os bloqueios atuais, os riscos de qualidade e a ordem de execução agora podem ser entendidos sem consultar senhas ou tratar registros históricos como estado atual.

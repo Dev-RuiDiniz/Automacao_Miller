@@ -21,6 +21,10 @@ O sistema deve receber novos documentos PDF pelo gateway de upload, converter ca
 
 A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
 
+### Em palavras simples
+
+O operador entrega um PDF; o sistema organiza o texto, aponta o que encontrou e mostra de quais páginas tirou cada citação. O operador decide se solicita o envio do relatório. O resultado ajuda a equipe a trabalhar, mas não garante que a interpretação da IA esteja correta e não substitui um profissional habilitado.
+
 ---
 
 ## 3. Problema que o produto resolve
@@ -217,6 +221,8 @@ A validação é oferecida pela rota interna autenticada
 do armazenamento, confere as páginas analisadas e cada par página/evidência,
 e devolve as referências confirmadas e pendentes. A origem não pode ser enviada
 pelo cliente como substituta do artefato guardado.
+
+Essa validação comprova apenas cobertura e localização literal de páginas e trechos. Ela não verifica se a interpretação da IA está semanticamente correta. Pela regra atual, referências pendentes não bloqueiam por si só o relatório ou a solicitação manual de envio; esse comportamento não deve ser apresentado como garantia de qualidade.
 
 ### RF-08 — Conferência humana opcional
 

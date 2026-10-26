@@ -16,6 +16,8 @@ Pense numa esteira:
 
 ## Fluxo principal
 
+> Este diagrama mostra como o produto deve funcionar quando estiver habilitado. Na VPS, em 26/10/2026, somente o processamento e o tratamento de erros estavam ativos. O envio e a reconciliação estavam desativados, a landing não tinha uma entrada HTTPS publicada e havia 3 documentos aguardando envio e 6 com erro. Consulte o [ROADMAP.md](ROADMAP.md) antes de tratar o fluxo desenhado como operação disponível.
+
 ```mermaid
 flowchart TD
     A[Operador entra na landing] --> B[Envia PDF]

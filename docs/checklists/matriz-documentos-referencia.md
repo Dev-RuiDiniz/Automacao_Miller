@@ -8,9 +8,10 @@ O PDF original recebido para validação permanece fora do Git. Só documentos a
 
 ## Estado conhecido
 
+- Verificação da VPS em 26/10/2026: 3 documentos aguardando_envio, 6 em erro e nenhum em processamento. Envio manual e reconciliação estavam inativos.
 - Os testes automatizados cobrem contratos e componentes individuais; consulte a execução de testes mais recente no LOG.md.
 - Em 03/10/2026, um PDF sintético de uma página chegou a Aguardando envio, com cobertura 1/1 e duas de três referências confirmadas.
-- A validação com PDF real de 142 páginas ainda não tinha resultado final registrado.
+- O PDF real de 142 páginas teve falha registrada na etapa de análise pelo Ollama em verificações anteriores. Não reprocessar sem decisão do responsável e janela controlada.
 - A revisão humana no produto é opcional. O aceite da qualidade dos testes continua sendo uma decisão do responsável operacional.
 - A origem ativa é a landing e o armazenamento interno. Google Drive não é o destino de entrada nem de saída.
 
@@ -24,14 +25,14 @@ O PDF original recebido para validação permanece fora do Git. Só documentos a
 | DOC-004 | Evidência fraca ou referência pendente | Aviso visível; processamento pode seguir se todas as páginas foram analisadas | Parcial; 1 referência pendente no teste sintético |
 | DOC-005 | Texto contraditório | Preservar as afirmações e páginas em conflito | Pendente |
 | DOC-006 | PDF inválido ou sem texto extraível | Erro explícito; não chamar IA nem declarar ausência de dado | Parcial; PDF inválido foi encerrado em erro |
-| DOC-007 | Falha do Ollama durante um lote | Erro ligado à tentativa; não criar relatório parcial | Pendente na VPS atual |
+| DOC-007 | Falha do Ollama durante um lote | Erro ligado à tentativa; não criar relatório parcial | Há 1 documento em erro na etapa Ollama; causa e recuperação ainda pendentes |
 | DOC-008 | Falha do renderizador PDF | Erro explícito; não marcar como concluído | Pendente na VPS atual |
 | DOC-009 | Falha de armazenamento do volume privado | Erro explícito e artefatos anteriores preservados | Pendente na VPS atual |
 | DOC-010 | Falha do Gmail | Registrar entrega com erro; download oficial permanece bloqueado até envio confirmado | Pendente na VPS atual |
 | DOC-011 | Arquivo duplicado e reprocessamento autorizado | Evitar duplicidade; reprocessar somente com autorização registrada | Pendente na VPS atual |
 | DOC-012 | Retomada após falha | Retomar a etapa suportada sem esconder a falha anterior | Pendente na VPS atual |
-| DOC-013 | PDF extenso de 142 páginas | Cobrir todas as páginas, validar referências e concluir com status conhecido | Estado da execução anterior precisa ser consultado |
-| DOC-014 | Instrução maliciosa dentro do texto do PDF | Tratar o texto como dado e ignorar pedidos para mudar regras, usar ferramentas ou revelar segredos | Pendente de validação do prompt ativo |
+| DOC-013 | PDF extenso de 142 páginas | Cobrir todas as páginas, validar referências e concluir com status conhecido | Falha em análise pelo Ollama registrada; novo processamento depende de diagnóstico e autorização |
+| DOC-014 | Instrução maliciosa dentro do texto do PDF | Tratar o texto como dado e ignorar pedidos para mudar regras, usar ferramentas ou revelar segredos | O fixture sintético foi ignorado no teste manual do Playground; ainda falta proteção explícita e validação integrada do prompt ativo |
 
 ## Documento real de referência
 

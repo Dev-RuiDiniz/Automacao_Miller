@@ -1,6 +1,14 @@
 # Workflows n8n
 Visão do fluxo em [FLUXOGRAMA.md](../FLUXOGRAMA.md); locais seguros de credenciais em [ACESSOS.md](../ACESSOS.md). Confirme o estado dos workflows na VPS: os arquivos exportados no Git ficam inativos por segurança.
 
+## Estado observado na VPS em 26/10/2026
+
+O n8n tinha cinco workflows registrados. Estavam ativos somente Automação Regulatória - Repositório Interno e Automação Regulatória - Erros Internos. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM estavam inativos.
+
+Por isso, um relatório pode chegar a aguardando_envio, mas a solicitação de envio não está operacional até que o workflow de Gmail seja publicado, configurado e testado. A reconciliação também não recupera documentos ou entregas parados enquanto estiver inativa. Este estado é uma fotografia da consulta; confira novamente no n8n antes de operar.
+
+Os exports do Git continuam com active=false de propósito. Não os use como prova do estado remoto e não reimporte workflows em produção sem backup, preservação dos vínculos de credenciais e teste controlado.
+
 
 ## Fluxo ativo
 

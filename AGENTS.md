@@ -48,6 +48,8 @@ Fora do escopo inicial, salvo nova decisão registrada: OCR comercial pago, apli
 - Preserve divergências e contradições; não escolha uma versão por suposição.
 - Diferencie dado não localizado de erro de leitura, conversão, IA, validação, PDF, armazenamento, envio ou infraestrutura.
 - A IA presta apoio documental. Não produza parecer definitivo nem remova o caminho para conferência humana.
+- Uma chamada a provedor externo com documento real exige autorização explícita para o documento e o destino, e os termos/licença do serviço precisam permitir aquele tipo de dado. Registre o provedor e o modelo usados em cada tentativa.
+- A NVIDIA API Trial/Developer Catalog permanece restrita ao fixture sintético. Não envie informação governamental, confidencial, pessoal ou sensível ao Trial. Para documentos reais, use apenas endpoint de produção licenciado e autorizado cujos termos permitam o tipo de dado.
 
 ## 6. Segurança e acessos
 

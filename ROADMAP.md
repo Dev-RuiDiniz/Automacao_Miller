@@ -13,7 +13,7 @@ A base do produto existe e os seis containers do Miller estão saudáveis. A ent
 
 ### Repositório
 
-- O código local e o remoto origin/main estão no commit d3316e6. A VPS continua no commit 38f5358; este incremento ainda não foi implantado.
+- O código local e o remoto origin/main receberam atualizações documentais após a última verificação. A VPS continua no commit 38f5358; este incremento ainda não foi implantado.
 - A suíte local foi executada em 26/10/2026: 89 testes passaram. Isso valida o checkout local, não o comportamento da VPS.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 
@@ -28,7 +28,7 @@ Verificação por SSH em 26/10/2026:
 - Existe um registro proprietário no banco do n8n, mas e-mail e senha estão vazios; ainda não há login administrativo utilizável.
 - O banco tem 3 documentos em `aguardando_envio`, 6 em `erro` e nenhum em processamento. Os erros estão nas etapas de conversor, análise pelo Ollama, consolidação dos lotes e validação do relatório.
 - A segunda tentativa autorizada para o PDF extenso foi interrompida quando o usuário escolheu avaliar o uso da NVIDIA API. O n8n registrou a execução 16 como erro em `Ollama - Analyze each batch`; o Ollama foi reativado e está saudável. PDF original, Markdown v1 e artefatos anteriores foram preservados. Não foi gerado relatório v2 nem enviado e-mail.
-- Não há credencial NVIDIA configurada na VPS. O único workflow NVIDIA é a avaliação sintética, inativa e sem credencial. O endpoint Developer/API Catalog é para prototipagem; o PRD permite o Trial apenas com fixture artificial. Não transmitir o PDF real ao Trial. Para prosseguir com uma API NVIDIA em produção, provisionar primeiro endpoint e assinatura/licença apropriados, confirmar as condições de privacidade e configurar o acesso no cofre do n8n. A licença da conta NVIDIA não foi verificada.
+- Não há credencial NVIDIA configurada na VPS. O único workflow NVIDIA é a avaliação sintética, inativa e sem credencial. O usuário autorizou planejar NVIDIA NIM como provedor externo para documentos reais, mas a implementação depende de endpoint e licença de produção cujos termos permitam expressamente informação governamental. A chave enviada pelo chat está comprometida e não pode ser usada. Não transmitir o PDF real ao Developer/API Catalog Trial; a licença da conta NVIDIA não foi verificada.
 - A senha administrativa root foi exposta anteriormente e sua rotação continua pendente. A chave de API NVIDIA exposta também precisa ser revogada.
 - O diretório /opt/backups/automacao-miller não existe. O script de backup está no repositório, mas ainda não há backup/restauração operacional confirmados.
 - A VPS tem 2 vCPU e 7,8 GiB de RAM. Na consulta havia 6,2 GiB disponíveis, 330 MiB de swap em uso e 64 GiB livres em disco. Ela é compartilhada com o projeto Ideia Saúde Agent Test, que mantém 5 containers. O container de interface desse projeto usava 92% do próprio limite de 256 MiB; isso não causou pressão de memória geral na fotografia consultada, mas reforça a necessidade de acompanhar carga antes de processar PDFs longos.
@@ -88,8 +88,8 @@ com preservação das credenciais. Os exports no Git permanecem `active=false`.
 4. **Criar backup útil e testar restauração.**
    Responsável: administrador da VPS. Crie o destino protegido, rode o script versionado para banco e volume de artefatos, copie o backup para um local fora da VPS, confira os hashes e restaure em ambiente isolado. O script sozinho não protege contra perda total do servidor.
 
-5. **Revogar a chave NVIDIA exposta.**
-   Responsável: administrador da conta NVIDIA. Revogue a chave comprometida. Se a avaliação continuar desejada, crie outra diretamente na credencial protegida do n8n e use somente o fixture sintético. Não envie documentos reais ao endpoint Trial.
+5. **Revogar a chave NVIDIA exposta e provisionar acesso correto.**
+   Responsável: administrador da conta NVIDIA. Revogue a chave compartilhada no chat e confirme a situação da chave exposta anteriormente. Para avaliação, use uma credencial substituta somente com o fixture sintético. Para documentos reais, confirme licença/assinatura NVIDIA NIM de produção e permissão expressa para dados governamentais; guarde a credencial no cofre n8n. Não use a chave Trial no PDF real.
 
 6. **Decidir a regra de envio para relatório sem evidência comprovada.**
    Responsável: responsável pelo produto/aceite operacional. O PRD atual permite referências pendentes sem bloquear a solicitação de envio. O teste sintético com 0/6 referências mostra o risco prático. Registre a decisão no LOG.md e, somente se o requisito mudar, atualize o PRD e os critérios de aceite. Até lá, não trate “referência pendente” como garantia de qualidade.
@@ -97,7 +97,7 @@ com preservação das credenciais. Os exports no Git permanecem `active=false`.
 ### P1 — fazer o caminho operacional funcionar de ponta a ponta
 
 7. **Triar os 9 documentos já registrados.**
-   Responsáveis: operador e responsável técnico. Examine pelo protocolo os 3 aguardando_envio e os 6 em erro. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. A segunda tentativa local do PDF extenso foi interrompida por decisão do usuário e ficou em erro na etapa do Ollama. Antes de nova tentativa, configure um provedor de produção autorizado ou escolha retomar o processamento local; não use a credencial Trial da NVIDIA para documento real.
+   Responsáveis: operador e responsável técnico. Examine pelo protocolo os 3 aguardando_envio e os 6 em erro. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. A segunda tentativa local do PDF extenso foi interrompida por decisão do usuário e ficou em erro na etapa do Ollama. Antes de nova tentativa, configure um provedor de produção autorizado ou escolha retomar o processamento local. A API Catalog Trial não pode receber o PDF governamental; a integração NVIDIA NIM de produção ainda não existe.
 
 8. **Ativar envio manual e reconciliação.**
    Responsável: administrador do n8n. Importe/publice os exports correspondentes, associe credenciais protegidas, confirme o workflow de erro e valide uma falha controlada. Faça primeiro envio para destinatário de homologação aprovado. Confirme status enviado/concluido, histórico de tentativa e download oficial. Não ative a reconciliação antes de provar que ela não cria execuções repetidas.

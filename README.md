@@ -4,7 +4,7 @@ Solução interna da **DB Tecnologia** para transformar PDFs regulatórios em re
 
 ## Em palavras simples
 
-Uma pessoa envia um PDF. O sistema guarda o arquivo, transforma cada página em texto, pede ao Ollama para organizar os fatos, confere se as páginas e citações existem no texto e prepara um relatório em Markdown e PDF. Um operador decide manualmente se deve enviar o relatório por e-mail.
+Uma pessoa envia um PDF. O sistema guarda o arquivo, transforma cada página em texto, pede ao modelo configurado para organizar os fatos, confere se as páginas e citações existem no texto e prepara um relatório em Markdown e PDF. Hoje o ambiente usa Ollama local. O projeto prevê NVIDIA NIM para documentos reais somente por endpoint de produção autorizado e com termos compatíveis; um operador decide manualmente se deve enviar o relatório por e-mail.
 
 A IA ajuda na leitura. Ela não toma decisões regulatórias, jurídicas ou médicas e não substitui um profissional habilitado.
 
@@ -38,7 +38,7 @@ A conferência humana é opcional no fluxo de negócio. Mesmo assim, o operador 
 1. **Entrada:** a landing recebe o PDF, calcula seu SHA-256 e cria um protocolo no PostgreSQL.
 2. **Leitura:** o conversor local cria um Markdown com um marcador para cada página.
 3. **Busca por regras:** o gateway procura termos regulatórios conhecidos e números de processo no Markdown salvo, preservando página e trecho e ligando números repetidos entre páginas.
-4. **Análise:** o n8n envia todos os lotes, um de cada vez, ao modelo local qwen2.5:3b, executado pelo Ollama. Os vínculos encontrados por regras são entregues à síntese como contexto adicional.
+4. **Análise:** o ambiente atualmente ativo envia todos os lotes, um de cada vez, ao modelo local qwen2.5:3b pelo Ollama. Uma integração NVIDIA NIM de produção ainda precisa ser configurada e homologada; os vínculos encontrados por regras são entregues à síntese como contexto adicional.
 5. **Conferência técnica:** o gateway compara as páginas e citações do relatório com o Markdown guardado.
 6. **Relatório:** o sistema grava o Markdown final e gera o PDF.
 7. **Entrega:** o documento aguarda a solicitação manual do operador; o Gmail só conclui o envio se confirmar a entrega.
@@ -50,19 +50,18 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - PDF escaneado ou sem texto extraível termina com erro. OCR não está incluído.
 - O relatório é apoio documental, não um parecer definitivo.
 - Uma citação marcada como pendente não bloqueia, pelas regras atuais, a criação ou a solicitação de envio. Isso não significa que o conteúdo esteja correto.
-- A avaliação NVIDIA usa somente um texto artificial e não pode receber documentos reais.
+- A NVIDIA API Trial/Developer Catalog recebe somente fixture sintético. Documento real só poderá ser enviado a endpoint de produção se os termos permitirem expressamente aquele tipo de dado e houver autorização específica. A chave enviada no chat está comprometida e não foi configurada.
 - RAG, embeddings e treinamento de modelo estão fora do caminho ativo.
 - A leitura por regras é lexical e não usa embeddings; ela localiza termos, mas não interpreta o efeito do ato. A IA ainda analisa todos os lotes nesta versão.
 - O envio de e-mail exige uma ação manual e o workflow de envio precisa estar ativo no n8n.
 
 ## Situação operacional verificada em 26/10/2026
 
-O repositório e a VPS estão no commit 38f5358 da branch main. Os seis containers do Automação Miller estavam saudáveis: n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor de PDF, renderizador e gateway.
+Na verificação de 26/10/2026, a VPS continuava no commit 38f5358. O repositório local e `origin/main` receberam atualizações documentais posteriores, ainda não implantadas na VPS. Os seis containers do Automação Miller estavam saudáveis: n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor de PDF, renderizador e gateway.
 
-Depois dessa consulta, o incremento de contexto determinístico foi enviado ao
-`origin/main` no commit `96d485d`. Ele ainda não foi implantado: a VPS permanece
-no commit `38f5358` e precisa de reconstrução do gateway e atualização controlada
-do workflow antes da homologação.
+O incremento de contexto determinístico e as atualizações documentais ainda não
+foram implantados: a VPS permanece no commit `38f5358` e precisa de reconstrução
+do gateway e atualização controlada do workflow antes da homologação.
 
 **A instalação continua em homologação.** Na verificação:
 
@@ -70,6 +69,7 @@ do workflow antes da homologação.
 - Os workflows de processamento interno e tratamento de erros estão ativos. Envio manual e reconciliação estão desativados; a avaliação sintética NVIDIA também está desativada.
 - O registro do proprietário do n8n não tem e-mail nem senha definidos. Não há login administrativo utilizável até completar a configuração.
 - O banco contém 3 documentos em “Aguardando envio”, 6 em “Erro” e nenhum em processamento.
+- A tentativa 2 do PDF oficial terminou em erro na etapa do Ollama depois que a execução local foi interrompida. Não há relatório v2 nem credencial NVIDIA configurada; consulte o ROADMAP.md para os próximos passos.
 - O gateway está somente na rede Docker. Não foi encontrada uma entrada HTTP/HTTPS publicada para a landing.
 - O diretório configurado para backups não existe e não há restauração testada confirmada.
 - A VPS também hospeda o projeto Ideia Saúde Agent Test. No momento da consulta, havia 6,2 GiB de RAM disponíveis e 64 GiB livres em disco; o servidor tem 2 vCPU. Isso é uma fotografia do momento, não uma garantia de desempenho durante uma análise longa.

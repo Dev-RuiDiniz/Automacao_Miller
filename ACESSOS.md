@@ -83,6 +83,13 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 - **Ação:** revogar no portal da NVIDIA a chave enviada no chat e confirmar também a situação da chave exposta anteriormente. Se a avaliação sintética continuar desejada, gerar uma substituta e guardá-la somente no cofre do n8n. Não usar credencial Trial com documento real.
 - **Proibição:** não transmitir PDFs reais, dados pessoais, informações confidenciais ou documentos governamentais ao endpoint Trial.
 
+### NVIDIA NIM de produção
+
+- **Uso previsto:** análise de documentos reais somente após confirmação de uma licença/assinatura de produção e de que os termos do endpoint permitem expressamente o tipo de documento e os dados nele contidos.
+- **Situação:** nenhum endpoint/licença de produção ou credencial NVIDIA está configurado ou verificado na VPS. O proprietário do n8n ainda não foi inicializado.
+- **Credencial:** criar e guardar somente no cofre do n8n após configurar o proprietário. A chave enviada pelo chat não pode ser reutilizada; revogue-a.
+- **Condição antes do primeiro documento real:** testar o endpoint com fixture sintético, revisar retenção/uso dos dados e registrar autorização do destino.
+
 ## 8. INLABS / Diário Oficial da União
 
 - **Uso:** coleta opcional para staging protegido; não participa do fluxo principal.
@@ -110,4 +117,4 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 | 26/10/2026 | n8n | Proprietário sem e-mail/senha; workflows de envio e reconciliação inativos |
 | 26/10/2026 | Landing | Sem entrada pública HTTPS verificada |
 | 26/10/2026 | Backup | Diretório esperado ausente; restauração não testada |
-| 26/10/2026 | NVIDIA | Revogar a chave exposta; usar apenas teste sintético se substituída |
+| 26/10/2026 | NVIDIA | Revogar a chave enviada no chat; Trial só para fixture; produção exige licença e termos compatíveis |

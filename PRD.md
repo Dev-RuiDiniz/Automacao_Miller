@@ -11,7 +11,7 @@
 
 ## 2. Visão do produto
 
-O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker.
+O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker. A arquitetura também poderá integrar NVIDIA NIM; documentos reais só poderão usar um endpoint de produção cuja licença e termos permitam o tipo de dado processado.
 
 O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
@@ -80,9 +80,10 @@ Responsável por:
 Componentes definidos para o projeto:
 
 - **n8n:** automação e orquestração do workflow;
-- **Ollama:** execução local padrão do modelo de IA;
-- **NVIDIA NIM API Trial:** provedor externo limitado a avaliações com conteúdo
-  sintético, usando credencial protegida no n8n;
+- **Ollama:** execução local atualmente implantada do modelo de IA;
+- **NVIDIA NIM:** provedor externo planejado, condicionado a endpoint/licença de
+  produção, autorização para os dados e credencial protegida no n8n. A API
+  Developer/API Catalog Trial segue limitada a fixture sintético;
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
 - **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
@@ -163,19 +164,25 @@ O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermed
 
 ### RF-03 — Conversão obrigatória para Markdown
 
-Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao Ollama. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
+Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao provedor de IA selecionado. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
 
 ### RF-04 — Análise por IA
 
-A análise de documentos reais deve usar Ollama local por padrão, com o Markdown
-persistido como única fonte documental. O endpoint gratuito de trial da NVIDIA
-pode ser chamado somente pelo workflow manual de avaliação, separado e inativo,
-com fixture sintético sem dados reais. Esse workflow exige credencial protegida
-no n8n e valida estrutura, página e evidência do fixture; não processa uploads
-nem substitui o Ollama no fluxo real. Não deve haver fallback automático entre
-provedores. A adoção de qualquer serviço externo para documentos reais exige
-revisão específica dos termos, privacidade e autorização aplicáveis antes do
-envio.
+A análise usa o Markdown persistido como única fonte documental. Ollama local é
+o provedor atualmente implantado. O projeto passa a prever uma integração
+opcional com NVIDIA NIM para documentos reais somente quando o endpoint tiver
+licença de produção e seus termos permitirem expressamente o tipo de dado
+enviado, incluindo informação governamental. Antes do envio, o responsável deve
+autorizar o documento e o destino e registrar as condições de retenção, uso dos
+dados e proteção aplicáveis. O provedor e o modelo precisam ficar identificados
+na tentativa; não há fallback automático entre provedores.
+
+A NVIDIA API Trial/Developer Catalog continua exclusiva para o workflow manual
+de avaliação com fixture sintético, separado e inativo. Os termos atuais do
+Trial limitam o uso a teste/avaliação, restringem o envio de informação
+governamental sem permissão específica do serviço e permitem uso de conteúdo
+para melhoria de produtos/modelos. O endpoint Trial não processa uploads reais.
+Uma credencial exposta deve ser revogada e substituída antes de qualquer uso.
 
 No fluxo interno atual, a análise semântica por IA continua ocorrendo em todos
 os lotes. A leitura determinística descrita no RF-20 complementa essa análise,
@@ -436,12 +443,14 @@ O ambiente deve ser executável em servidor Linux utilizando Docker.
 
 ### RNF-02 — Privacidade operacional
 
-A análise de documentos reais ocorre localmente por Ollama. A avaliação com a
-API Trial gratuita da NVIDIA usa apenas um texto artificial fixo, sem documento
-real, identificador interno ou dado pessoal. O workflow de avaliação é manual,
-separado e inativo por padrão; sua credencial fica somente no armazenamento
-protegido do n8n. O endpoint de trial não pode ser usado para processar o PDF
-governamental recebido.
+A análise local por Ollama permanece disponível. Uma integração NVIDIA para
+documentos reais depende de licença/assinatura de produção e de termos que
+permitam o dado governamental específico; a autorização do usuário, por si só,
+não substitui essa permissão. Antes da integração, confirme retenção, uso para
+treinamento/melhoria, controles de acesso e localização do processamento. A API
+Trial gratuita usa somente fixture artificial e nunca recebe documentos,
+identificadores internos ou dados pessoais/governamentais sem permissão expressa
+do endpoint. Credenciais devem ficar no cofre n8n, nunca no export ou Git.
 
 ### RNF-03 — Manutenibilidade
 
@@ -581,7 +590,8 @@ O MVP poderá ser considerado entregue quando:
 4. o Markdown possuir metadados, hash e marcadores de página;
 5. o Markdown for persistido e associado ao PDF de origem;
 6. a análise usar somente o Markdown paginado persistido como fonte documental;
-7. o Ollama processar o conteúdo localmente;
+7. o provedor aprovado para o ambiente processar o conteúdo; se for NVIDIA,
+   comprovar licença de produção e permissão para o tipo de dado;
 8. todas as páginas forem analisadas e os achados temporários forem consolidados;
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;

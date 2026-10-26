@@ -90,13 +90,22 @@ flowchart TD
 - **Concluído:** o Gmail confirmou o envio.
 - **Com erro:** uma etapa técnica não terminou. O motivo deve aparecer no histórico do protocolo.
 
-## Uma avaliação separada
+## Provedor NVIDIA
 
-O workflow NVIDIA é um ensaio isolado: recebe apenas um texto inventado, é iniciado manualmente e não se conecta à entrada de documentos reais. Ele não substitui o Ollama, não envia PDFs à NVIDIA e deve ficar inativo depois do teste. A chave fica guardada somente nas credenciais protegidas do n8n.
+O workflow NVIDIA Trial continua sendo um ensaio isolado com texto inventado,
+acionamento manual e sem conexão com uploads. Ele não recebe documentos reais.
+
+O projeto agora prevê um caminho NVIDIA NIM de produção: depois da conversão,
+somente o Markdown paginado seria enviado em lotes. Esse caminho ainda não está
+implementado nem ativo. Antes de usá-lo, o endpoint e a licença precisam permitir
+expressamente dados governamentais; a autorização do usuário não substitui os
+termos do serviço. A credencial deve ficar protegida no n8n e o relatório deve
+registrar provedor/modelo. Não há fallback automático para Ollama.
 
 ## Onde cada peça mora
 
 - **PostgreSQL:** protocolos, estados, tentativas, entregas e erros.
 - **Volume privado Docker:** PDF original, Markdown paginado e relatórios Markdown/PDF.
-- **n8n:** sequência de trabalho e integração com Ollama e Gmail.
+- **n8n:** sequência de trabalho e integração atual com Ollama/Gmail, além do
+  futuro endpoint NVIDIA NIM de produção após homologação.
 - **Gateway:** entrada, login, painel, visualização e controle de download.

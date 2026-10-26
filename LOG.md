@@ -2782,3 +2782,52 @@ aprovados.
 Impacto:
 Nenhuma credencial exposta foi reutilizada ou instalada. A chave enviada deve
 ser substituída antes de qualquer teste futuro.
+
+## 2026-10-26 — Planeja integração NVIDIA NIM de produção
+
+Data: 2026-10-26
+Tipo: REGRA DE NEGÓCIO / PRIVACIDADE / INTEGRAÇÃO
+Status: regra documental atualizada; endpoint externo não configurado
+
+Contexto:
+O usuário pediu para alterar as regras do projeto e adotar a NVIDIA API para
+processar o PDF oficial selecionado. O ambiente só tem um workflow NVIDIA Trial
+manual, inativo e sem credencial. A chave enviada pelo chat está comprometida.
+
+Decisão/Ação:
+O PRD e os guias passam a prever uma integração NVIDIA NIM de produção para
+documentos reais, condicionada a endpoint e licença/assinatura apropriados,
+permissão expressa para o tipo de dado, revisão de privacidade e autorização do
+documento/destino. O processamento local por Ollama permanece como a
+implementação atualmente implantada; a integração externa ainda não existe.
+
+Os termos oficiais do NVIDIA API Trial (seções 2.6 e 4.3) restringem informação
+governamental, confidencial e sensível sem permissão específica do serviço. A
+seção 3.3 informa que conteúdo de usuário pode ser usado para melhoria de
+produtos e modelos. A FAQ do NIM diferencia o acesso Developer para prototipagem
+da licença NVIDIA AI Enterprise voltada à produção. Alterar regras locais não
+altera esses termos. Por isso, a chave do chat não foi reutilizada, salva ou
+chamada contra a API; nenhum conteúdo do PDF foi transmitido.
+
+Fontes consultadas: [termos oficiais da NVIDIA API Trial](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) e [FAQ oficial do NVIDIA NIM](https://docs.api.nvidia.com/nim/docs/product).
+
+Arquivos afetados:
+`AGENTS.md`, `PRD.md`, `README.md`, `ROADMAP.md`, `FLUXOGRAMA.md`, `ACESSOS.md`,
+`workflows/README.md` e `LOG.md`.
+
+Testes e verificações:
+Foram revisados os termos oficiais da API Trial e a FAQ do NIM, e o diff
+documental foi conferido. Não foram executados testes de aplicação, chamadas à
+NVIDIA, alterações na VPS ou processamento de documento.
+
+Pendências:
+Revogar a chave enviada no chat. Configurar o proprietário do n8n e provisionar
+um endpoint/licença NVIDIA de produção cujos termos permitam o documento
+governamental. Guardar a nova credencial no cofre n8n, validar primeiro com
+fixture sintético e só então retomar o processamento autorizado do PDF. Não
+usar API Trial para esse documento.
+
+Impacto:
+O projeto agora permite como objetivo uma integração externa NVIDIA de produção
+com condições explícitas de privacidade e licença. O caminho real continua
+local enquanto o endpoint não estiver configurado e homologado.

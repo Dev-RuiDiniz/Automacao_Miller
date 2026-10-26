@@ -241,9 +241,18 @@ Para executar:
    PDF recebido: mede uma requisição curta com texto artificial e não prova o
    tempo ou a precisão do processamento real de 142 páginas.
 
-A NVIDIA oferece o endpoint para prototipação e teste, com limites/créditos
-dependentes da conta. Os termos da API Trial proíbem conteúdo governamental,
-confidencial e dados pessoais/financeiros/de saúde sem permissão expressa; também
-preveem coleta de conteúdo para melhoria de produtos/modelos e logs de segurança.
-Não envie o PDF `do1` a esse serviço gratuito. Uso em produção requer a licença
-NVIDIA AI Enterprise segundo a FAQ oficial do NIM.
+A NVIDIA API Catalog/Developer é um endpoint de prototipação e teste, com
+limites/créditos dependentes da conta. Os termos do Trial restringem informação
+governamental, confidencial, pessoal, financeira ou de saúde sem permissão
+expressa do serviço e permitem o uso de conteúdo para melhoria de produtos e
+modelos, além de logs de segurança. Não envie PDF real a esse endpoint.
+
+O projeto passa a prever um workflow separado para NVIDIA NIM de produção,
+condicionado a licença/assinatura apropriada e a termos que permitam
+expressamente o tipo de dado. Esse workflow ainda não foi implementado nem
+configurado. Faça primeiro o teste sintético, guarde a credencial de produção
+somente no cofre do n8n e registre provedor/modelo em cada tentativa. A chave
+enviada no chat está comprometida e deve ser revogada; não foi instalada no
+n8n.
+
+Fontes: [termos oficiais da NVIDIA API Trial](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) e [FAQ oficial do NVIDIA NIM](https://docs.api.nvidia.com/nim/docs/product).

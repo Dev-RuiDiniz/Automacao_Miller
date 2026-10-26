@@ -59,6 +59,11 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 
 O repositório e a VPS estão no commit 38f5358 da branch main. Os seis containers do Automação Miller estavam saudáveis: n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor de PDF, renderizador e gateway.
 
+Depois dessa consulta, o incremento de contexto determinístico foi enviado ao
+`origin/main` no commit `96d485d`. Ele ainda não foi implantado: a VPS permanece
+no commit `38f5358` e precisa de reconstrução do gateway e atualização controlada
+do workflow antes da homologação.
+
 **A instalação continua em homologação.** Na verificação:
 
 - O n8n está acessível apenas no próprio servidor, em 127.0.0.1:25678.

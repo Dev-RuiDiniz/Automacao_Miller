@@ -13,7 +13,7 @@ A base do produto existe e os seis containers do Miller estão saudáveis. A ent
 
 ### Repositório
 
-- No início desta avaliação, a branch local, o remoto origin/main e o checkout da VPS estavam sincronizados no commit 38f5358.
+- O código local e o remoto origin/main estão no commit 96d485d. A VPS continua no commit 38f5358; este incremento ainda não foi implantado.
 - A suíte local foi executada em 26/10/2026: 89 testes passaram. Isso valida o checkout local, não o comportamento da VPS.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 

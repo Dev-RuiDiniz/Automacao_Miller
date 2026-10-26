@@ -2746,3 +2746,39 @@ Impacto:
 A análise local atual foi interrompida sem apagar entradas ou artefatos. O
 processamento externo continua bloqueado até haver acesso NVIDIA de produção
 configurado e autorizado; a rota Trial permanece restrita a conteúdo sintético.
+
+## 2026-10-26 — Chave NVIDIA compartilhada no chat
+
+Data: 2026-10-26
+Tipo: SEGURANÇA / CREDENCIAL
+Status: chave não utilizada; revogação pendente no portal NVIDIA
+
+Contexto:
+O usuário enviou uma chave NVIDIA pelo chat e pediu que fosse configurada no
+projeto. O segredo ficou exposto no histórico da conversa.
+
+Decisão/Ação:
+A chave foi tratada como comprometida. Não foi copiada para arquivos, logs,
+VPS ou credenciais do n8n e não foi usada para chamar a API. O valor não é
+registrado neste histórico. A finalidade informada está relacionada à API
+NVIDIA; o workflow disponível na VPS segue inativo e é restrito a fixture
+sintético. Nenhum documento real foi transmitido.
+
+Arquivos afetados:
+`ACESSOS.md` e `LOG.md`.
+
+Testes e verificações:
+Não houve chamada à API NVIDIA nem alteração na VPS. Foi conferido somente o
+estado Git e atualizado o registro de acesso sem incluir o segredo.
+
+Pendências:
+Revogar no portal NVIDIA a chave enviada pelo chat e confirmar se a chave
+registrada como exposta em 03/10/2026 também segue ativa. Se for necessário
+testar a API, gerar outra credencial e guardá-la diretamente no cofre n8n após
+configurar o proprietário. Usar a API Trial apenas com fixture sintético; o
+processamento de documentos reais depende de endpoint e acesso de produção
+aprovados.
+
+Impacto:
+Nenhuma credencial exposta foi reutilizada ou instalada. A chave enviada deve
+ser substituída antes de qualquer teste futuro.

@@ -79,8 +79,8 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 
 - **Uso permitido:** avaliação manual com o fixture artificial versionado no projeto.
 - **Onde fica a credencial substituta:** somente no cofre de credenciais do n8n.
-- **Situação:** uma chave foi exposta e precisa ser revogada. O workflow está inativo e não há motivo para enviar documento real ao serviço Trial.
-- **Ação:** revogar a chave exposta. Se a avaliação ainda for desejada, criar outra, associá-la apenas ao workflow sintético, executar o fixture e deixar o workflow inativo.
+- **Situação:** uma chave NVIDIA já havia sido registrada como exposta. A chave enviada pelo chat em 26/10/2026 para configuração não foi copiada para a VPS nem armazenada no n8n e deve ser considerada comprometida. O workflow continua inativo.
+- **Ação:** revogar no portal da NVIDIA a chave enviada no chat e confirmar também a situação da chave exposta anteriormente. Se a avaliação sintética continuar desejada, gerar uma substituta e guardá-la somente no cofre do n8n. Não usar credencial Trial com documento real.
 - **Proibição:** não transmitir PDFs reais, dados pessoais, informações confidenciais ou documentos governamentais ao endpoint Trial.
 
 ## 8. INLABS / Diário Oficial da União

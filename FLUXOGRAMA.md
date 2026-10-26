@@ -7,12 +7,19 @@ Pense numa esteira:
 1. A pessoa coloca um PDF na entrada.
 2. A esteira confere se o arquivo é válido e dá um número de protocolo.
 3. O sistema transforma cada página em texto e guarda o original.
-4. A IA lê o texto em partes pequenas.
-5. Uma etapa confere se as páginas e as citações existem mesmo.
-6. O sistema monta o relatório e o PDF.
-7. O trabalho fica esperando um operador.
-8. O operador decide se e para quem enviar.
-9. O sistema só libera o download oficial depois que o Gmail confirma o envio.
+4. Uma regra procura termos conhecidos e liga números de processo repetidos entre páginas.
+5. A IA lê todas as páginas em partes pequenas e usa essas ligações como contexto.
+6. Uma etapa confere se as páginas e citações existem mesmo.
+7. O sistema monta o relatório e o PDF.
+8. O trabalho fica esperando um operador.
+9. O operador decide se e para quem enviar.
+10. O sistema só libera o download oficial depois que o Gmail confirma o envio.
+
+A leitura por regras registra palavras literais e trechos com páginas. Ela não
+decide se um ato foi aprovado, negado ou cancelado; a repetição de um número de
+processo é apenas uma pista de ligação. A lista de termos não cobre toda forma
+possível de escrever um ato. Neste primeiro passo, a IA ainda analisa todos os
+lotes; o sistema não limita chamadas de IA somente a casos ambíguos.
 
 ## Fluxo principal
 
@@ -35,11 +42,13 @@ flowchart TD
     K --> L{Conversão e cobertura de páginas estão completas?}
     L -- Não --> X[Registrar erro técnico<br/>Não criar relatório parcial]
     L -- Sim --> M[Guardar Markdown e metadados]
-    M --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
+    M --> M1[Gateway relê o Markdown persistido<br/>Varre termos e identificadores literais]
+    M1 --> M2[Liga identificadores de processo<br/>repetidos em páginas diferentes]
+    M2 --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
     N --> O[Enviar um lote por vez ao Ollama local]
     O --> P{Todos os lotes terminaram?}
     P -- Não --> X
-    P -- Sim --> Q[Consolidar achados temporários]
+    P -- Sim --> Q[Consolidar achados e vínculos literais entre páginas]
     Q --> R[Gerar relatório em Markdown]
     R --> S[Conferir páginas e trechos contra o Markdown original]
     S --> T{Todas as páginas foram analisadas?}

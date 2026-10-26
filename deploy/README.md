@@ -99,6 +99,12 @@ e Gmail, configure os webhooks `N8N_SUBMISSION_WEBHOOK_URL` e
 `N8N_REPORT_EMAIL_WEBHOOK_URL` e valide uma execução completa antes de ativar os
 workflows. Os exports que usam Drive devem permanecer inativos como histórico.
 
+O export atualizado do processamento chama a rota interna de contexto
+determinístico no gateway. Ela usa `INTERNAL_API_TOKEN` e o Markdown já salvo;
+não requer serviço, modelo ou variável adicional. Após atualizar o código,
+reconstrua o gateway e valide o nó com o fixture sintético antes de importar ou
+ativar o workflow no n8n.
+
 O processamento termina em `aguardando_envio`. O operador confere os artefatos
 no painel, escolhe os destinatários e solicita o envio. O download oficial fica
 bloqueado até o workflow registrar a confirmação do Gmail e `concluido`.

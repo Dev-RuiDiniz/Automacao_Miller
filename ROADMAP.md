@@ -13,8 +13,8 @@ A base do produto existe e os seis containers do Miller estão saudáveis. A ent
 
 ### Repositório
 
-- A branch local, o remoto origin/main e o checkout da VPS estavam sincronizados no commit 38f5358.
-- O conjunto automatizado mais recente registrado no LOG.md passou com 77 testes em 08/10/2026. Essa suíte não foi executada novamente nesta atualização documental.
+- No início desta avaliação, a branch local, o remoto origin/main e o checkout da VPS estavam sincronizados no commit 38f5358.
+- A suíte local foi executada em 26/10/2026: 89 testes passaram. Isso valida o checkout local, não o comportamento da VPS.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 
 ### VPS
@@ -50,6 +50,26 @@ A cobertura de páginas e a localização literal das citações são checagens 
 - Exports separados para processamento, envio, reconciliação, erro e avaliação sintética.
 - Scripts de backup e migração no repositório.
 
+## Incremento de contexto determinístico — testado localmente
+
+O gateway agora relê o Markdown persistido, confere seu SHA-256 e localiza um
+conjunto fixo de termos regulatórios e formatos conhecidos de número de
+processo. Ele mantém página e trecho de cada ocorrência e liga números
+exatamente iguais encontrados em páginas diferentes. O relatório lista essas
+menções sem classificá-las como decisões; a síntese recebe os vínculos como
+pistas e deve preservar contradições.
+
+O workflow versionado usa o prompt v6, que declara texto e evidências do PDF
+como dados não confiáveis e instrui o modelo a ignorar comandos embutidos. A IA
+ainda analisa todos os lotes; ainda não existe seleção automática de páginas
+ambíguas nem modo sem IA. A lista de termos é limitada e não substitui a leitura
+integral nem garante cobertura semântica.
+
+O incremento foi testado localmente com o fixture sintético e a suíte completa
+(89 testes aprovados em 26/10/2026). Ele ainda não foi implantado na VPS: o
+gateway precisa ser reconstruído e o export atualizado precisa ser importado
+com preservação das credenciais. Os exports no Git permanecem `active=false`.
+
 ## Plano de execução
 
 ### P0 — fechar segurança e recuperação
@@ -80,11 +100,11 @@ A cobertura de páginas e a localização literal das citações são checagens 
 8. **Ativar envio manual e reconciliação.**
    Responsável: administrador do n8n. Importe/publice os exports correspondentes, associe credenciais protegidas, confirme o workflow de erro e valide uma falha controlada. Faça primeiro envio para destinatário de homologação aprovado. Confirme status enviado/concluido, histórico de tentativa e download oficial. Não ative a reconciliação antes de provar que ela não cria execuções repetidas.
 
-9. **Blindar o prompt contra comandos escritos dentro de PDFs.**
-   Responsável: responsável técnico. O PRD exige tratar o texto do documento como dado não confiável, mas o prompt ativo v5 não instrui explicitamente a ignorar comandos embutidos. Atualize o prompt/workflow e valide com o fixture sintético que pede para revelar uma chave. O aceite exige ignorar o comando e continuar a extração factual sem usar ferramentas ou revelar segredos.
+9. **Confirmar a proteção do prompt contra comandos dentro de PDFs.**
+   Responsável: responsável técnico. O workflow versionado agora usa o prompt v6, que instrui o modelo a tratar documento, evidências e contexto entre páginas como dados não confiáveis. Falta executar a avaliação comportamental com o fixture sintético no Ollama autorizado e confirmar que o modelo ignora o pedido de revelar uma chave sem deixar de extrair os fatos. A alteração do prompt, sozinha, não comprova esse comportamento.
 
 10. **Executar um teste sintético ponta a ponta.**
-    Responsáveis: responsável técnico e operador. Use um PDF curto artificial pela landing e confirme protocolo, conversão, análise, cobertura, referências, Markdown, PDF e estado aguardando_envio. Não envie e-mail real sem autorização do responsável.
+    Responsáveis: responsável técnico e operador. Depois de implantar este incremento em homologação, use um PDF artificial curto pela landing. Inclua o mesmo número de processo em duas páginas com menções de status diferentes e confirme que o relatório preserva as duas páginas e trechos sem unir os status. Confirme protocolo, hash do Markdown, conversão, análise, cobertura, referências, Markdown, PDF e estado aguardando_envio. Não envie e-mail real sem autorização do responsável.
 
 11. **Executar a matriz de falhas e retomada.**
     Responsáveis: responsável técnico e operador. Teste PDF inválido/sem texto, falha do conversor, falha de lote Ollama, falha de validação, renderização, armazenamento, Gmail, duplicidade, reenvio e recuperação de processo parado. Confirme que erro não vira “informação ausente”, que tentativa repetida não duplica trabalho e que download oficial só abre após envio confirmado.

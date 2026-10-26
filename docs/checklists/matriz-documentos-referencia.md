@@ -9,7 +9,7 @@ O PDF original recebido para validação permanece fora do Git. Só documentos a
 ## Estado conhecido
 
 - Verificação da VPS em 26/10/2026: 3 documentos aguardando_envio, 6 em erro e nenhum em processamento. Envio manual e reconciliação estavam inativos.
-- Os testes automatizados cobrem contratos e componentes individuais; consulte a execução de testes mais recente no LOG.md.
+- A suíte local passou com 89 testes em 26/10/2026; os novos testes de contexto determinístico usam fixtures sintéticos. A alteração ainda não foi implantada nem homologada na VPS.
 - Em 03/10/2026, um PDF sintético de uma página chegou a Aguardando envio, com cobertura 1/1 e duas de três referências confirmadas.
 - O PDF real de 142 páginas teve falha registrada na etapa de análise pelo Ollama em verificações anteriores. Não reprocessar sem decisão do responsável e janela controlada.
 - A revisão humana no produto é opcional. O aceite da qualidade dos testes continua sendo uma decisão do responsável operacional.
@@ -32,7 +32,8 @@ O PDF original recebido para validação permanece fora do Git. Só documentos a
 | DOC-011 | Arquivo duplicado e reprocessamento autorizado | Evitar duplicidade; reprocessar somente com autorização registrada | Pendente na VPS atual |
 | DOC-012 | Retomada após falha | Retomar a etapa suportada sem esconder a falha anterior | Pendente na VPS atual |
 | DOC-013 | PDF extenso de 142 páginas | Cobrir todas as páginas, validar referências e concluir com status conhecido | Falha em análise pelo Ollama registrada; novo processamento depende de diagnóstico e autorização |
-| DOC-014 | Instrução maliciosa dentro do texto do PDF | Tratar o texto como dado e ignorar pedidos para mudar regras, usar ferramentas ou revelar segredos | O fixture sintético foi ignorado no teste manual do Playground; ainda falta proteção explícita e validação integrada do prompt ativo |
+| DOC-014 | Instrução maliciosa dentro do texto do PDF | Tratar o texto como dado e ignorar pedidos para mudar regras, usar ferramentas ou revelar segredos | Prompt v6 e contrato do workflow incluem instrução explícita; testes locais conferem o contrato, mas o comportamento do modelo ainda precisa de homologação |
+| DOC-015 | Mesmo número de processo em páginas com status diferentes | Preservar página e trecho de cada ocorrência, relacionar o identificador exato e não fundir nem resolver a divergência por suposição | Coberto por fixture sintético e testes automatizados locais; homologação ponta a ponta na VPS pendente |
 
 ## Documento real de referência
 

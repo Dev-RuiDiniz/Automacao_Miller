@@ -52,6 +52,16 @@ O gateway e o n8n compartilham `/data/artifacts`, proveniente do volume Docker
 O sufixo `v1` no exemplo representa a primeira tentativa; novas tentativas
 recebem sua própria versão. O workflow atual não grava `analysis-vN.json`.
 
+Depois de salvar o Markdown, o workflow chama a rota interna autenticada
+`POST /internal/submissions/{id}/deterministic-context`. O gateway relê o
+artefato salvo, registra menções literais de uma lista de termos e identificadores
+de processo conhecidos, e relaciona identificadores iguais encontrados em
+páginas diferentes. Esses dados são pistas com página e trecho, não uma
+classificação de status ou prova de que duas ocorrências sejam o mesmo ato. A
+síntese recebe vínculos associados aos achados; o relatório lista as menções e
+ocorrências relacionadas para conferência. A etapa não exige embeddings nem
+ativa o serviço legado `rag-service`.
+
 O PostgreSQL é a fonte de verdade. As tabelas operacionais incluem
 `documents`, `artifacts`, `processing_attempts`, `human_reviews`,
 `workflow_errors`, `report_recipients`, `document_recipients` e
@@ -119,7 +129,10 @@ longas são divididas por parágrafo e, se necessário, por trechos menores. Os
 resultados dos lotes são combinados e duplicatas são removidas. Se qualquer
 lote falhar ou a contagem de páginas não corresponder ao PDF, o processamento
 falha e não cria um relatório parcial. O Markdown integral permanece guardado
-no volume e relacionado ao documento no PostgreSQL.
+no volume e relacionado ao documento no PostgreSQL. A leitura por regras é
+executada sobre esse Markdown salvo antes da análise. Neste primeiro incremento,
+a IA continua processando todos os lotes; ainda não existe um modo de chamar a
+IA somente para páginas classificadas como ambíguas.
 
 O nó `Loop Over Items` envia um lote por vez ao Ollama e espera cada resposta
 antes de continuar. Sem essa sequência, o n8n pode iniciar centenas de chamadas
@@ -172,7 +185,7 @@ limitações quando houver falha de qualidade, sem bloquear a disponibilização
 relatório quando não houver falha técnica.
 
 O contrato histórico de análise estruturada é o `regulatory-extraction-v3`. O
-contrato ativo é o `regulatory-extraction-v5-full-document-batched`, orientado
+contrato ativo é o `regulatory-extraction-v6-full-document-batched-deterministic-context`, orientado
 a inteligência regulatória e impacto de mercado. O relatório responde a nove perguntas:
 o que aconteceu; quem é afetado; qual é o status regulatório; qual é o impacto
 direto no negócio; qual é o impacto potencial de mercado; se existe urgência ou
@@ -190,13 +203,16 @@ Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
 O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 
 ```text
-PDF -> Markdown paginado -> lotes de até 6.000 caracteres
-    -> achados JSON temporários consolidados -> relatório Markdown
+PDF -> Markdown paginado -> contexto determinístico (termos e processos)
+    -> lotes de até 6.000 caracteres -> achados JSON temporários consolidados
+    -> relatório Markdown
     -> conferência de citações e sinal -> PDF -> aguardando_envio
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
-`regulatory-extraction-v5.md` define a extração estruturada e a consolidação.
+`regulatory-extraction-v6.md` define a extração estruturada e a consolidação,
+inclui as pistas determinísticas entre páginas e orienta o modelo a ignorar
+instruções embutidas no conteúdo do PDF.
 O JSON de cada lote é temporário e não é persistido como análise do documento.
 RAG, embeddings e `quality_checks` continuam fora do caminho ativo. O envio, a
 reconciliação, o tratamento de erros e o download oficial seguem sem alterações.

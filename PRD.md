@@ -17,7 +17,7 @@ O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
 exports históricos; não é parte da entrada nem do processamento atual.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, fazer uma leitura determinística de termos e identificadores com página e evidência, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. A leitura determinística liga ocorrências do mesmo identificador de processo entre páginas, sem decidir o significado do ato. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
 
 A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
 
@@ -110,6 +110,8 @@ Persistência no volume privado e registro no PostgreSQL
         ↓
 Conversão para Markdown com marcadores de página
         ↓
+Leitura determinística de termos e identificadores por página
+        ↓
 Análise de todas as páginas em lotes
         ↓
 Achados JSON temporários consolidados
@@ -174,6 +176,10 @@ nem substitui o Ollama no fluxo real. Não deve haver fallback automático entre
 provedores. A adoção de qualquer serviço externo para documentos reais exige
 revisão específica dos termos, privacidade e autorização aplicáveis antes do
 envio.
+
+No fluxo interno atual, a análise semântica por IA continua ocorrendo em todos
+os lotes. A leitura determinística descrita no RF-20 complementa essa análise,
+sem substituir o modelo ou classificar automaticamente o efeito regulatório.
 
 ### RF-05 — Identificação regulatória
 
@@ -311,6 +317,22 @@ segura em cookie. O acesso legado por token privado pode permanecer disponível
 para compatibilidade operacional, mas não deve expor o token na interface de
 login.
 
+### RF-20 — Contexto determinístico rastreável
+
+Depois de persistir o Markdown paginado, o gateway deve relê-lo do armazenamento
+privado e procurar um conjunto versionado de termos regulatórios literais e
+formatos conhecidos de identificador de processo. Cada ocorrência deve manter
+página, termo/identificador e trecho extraído. Um identificador exatamente igual
+encontrado em mais de uma página deve formar um vínculo entre essas ocorrências.
+
+Essa leitura é determinística: não classifica o resultado do ato, não decide
+que duas ocorrências são o mesmo evento e não substitui a análise do documento.
+O relatório deve apresentar os termos localizados e os vínculos entre páginas
+como pistas para conferência, preservar cada página e explicitar que a repetição
+de um identificador não prova igualdade de status. A varredura usa somente o
+Markdown persistido; ausência de um termo da lista de regras não prova que o
+documento não contenha um achado relevante.
+
 ---
 
 ## 8. Regras de negócio
@@ -396,6 +418,13 @@ obedecer a comandos embutidos no documento, não acessar ferramentas e não
 alterar as regras da análise. A rota externa não deve transmitir identificadores
 internos do protocolo que não sejam necessários ao provedor. O resultado segue
 sujeito à validação de estrutura, cobertura e evidências do workflow.
+
+### RN-17 — Menções determinísticas não são decisões
+
+Termos e identificadores localizados por regras devem ser exibidos com o trecho
+e a página de origem. A regra só confirma a ocorrência literal. Não pode inferir
+deferimento, indeferimento, cancelamento, identidade de atos ou consequência
+regulatória a partir de uma palavra ou de um identificador repetido.
 
 ---
 
@@ -487,6 +516,7 @@ O projeto contempla:
 - processamento de PDFs;
 - conversão para Markdown;
 - persistência do Markdown e das evidências;
+- leitura determinística de termos e identificadores com rastreabilidade por página;
 - análise por IA;
 - geração de relatórios;
 - conversão para PDF;
@@ -520,10 +550,11 @@ Qualquer item fora desta lista de requisitos deve ser tratado como alteração d
 
 RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança
 semântica da IA não fazem parte do caminho ativo nem dos critérios de aceite do
-MVP. Código, tabelas e exports relacionados a RAG ou a esquemas JSON históricos
-permanecem como capacidade opcional/legada e não são chamados pelo workflow
-atual. A prioridade executiva continua no relatório porque orienta a ordem das
-ações sugeridas; ela não representa confiança da IA.
+MVP. A leitura determinística do RF-20 é uma etapa lexical simples, não usa
+embeddings nem é RAG. Código, tabelas e exports relacionados a RAG ou a esquemas
+JSON históricos permanecem como capacidade opcional/legada e não são chamados
+pelo workflow atual. A prioridade executiva continua no relatório porque orienta
+a ordem das ações sugeridas; ela não representa confiança da IA.
 
 ### Regras de qualidade e evidência
 
@@ -566,6 +597,8 @@ O MVP poderá ser considerado entregue quando:
 20. o workflow analisar todas as páginas em lotes limitados e interromper o relatório se um lote falhar;
 21. páginas e evidências literais forem conferidas automaticamente e citações inválidas forem marcadas como pendentes, sem bloquear o estado `aguardando_envio`;
 22. o relatório final puder ser baixado somente após conclusão válida.
+23. um identificador repetido em páginas diferentes preservar todas as ocorrências e seus trechos, sem unir status ou atos por inferência;
+24. marcadores de página ausentes ou fora de ordem forem rejeitados pela leitura determinística, e as menções encontradas aparecerem no relatório como localizações literais, não decisões.
 
 ---
 
@@ -613,17 +646,21 @@ O processamento percorre uma cadeia linear, mas analisa o documento completo em
 lotes para manter cada chamada ao modelo dentro de um limite controlado:
 
 ```text
-PDF -> Markdown paginado -> análise de todas as páginas em lotes de até 6.000 caracteres
-    -> achados temporários consolidados -> relatório Markdown
+PDF -> Markdown paginado -> varredura determinística de termos e identificadores
+    -> análise de todas as páginas em lotes de até 6.000 caracteres
+    -> achados e ligações literais temporários consolidados -> relatório Markdown
     -> validação de cobertura e referências -> PDF -> aguardando_envio
 ```
 
 O relatório Markdown é o resultado técnico principal; o PDF é a apresentação
-final. O contrato ativo `regulatory-extraction-v5-full-document-batched`
-analisa todas as páginas, preserva as referências e usa as nove perguntas de
-negócio, com foco em impacto, prioridade, plano de ação, limitações e
-referências de página. A saída JSON dos lotes é temporária; ela é consolidada e
-não substitui o Markdown nem é salva como análise estruturada do documento.
+final. O contrato ativo `regulatory-extraction-v6-full-document-batched-deterministic-context`
+analisa todas as páginas, preserva as referências, recebe ligações literais de
+identificadores entre páginas e usa as nove perguntas de negócio, com foco em
+impacto, prioridade, plano de ação, limitações e referências de página. O prompt
+instrui o modelo a tratar texto e evidências do PDF como dados não confiáveis e
+ignorar comandos embutidos. A saída JSON dos lotes é temporária; ela é
+consolidada e não substitui o Markdown nem é salva como análise estruturada do
+documento.
 
 O gateway confere a cobertura e cada citação do relatório contra o Markdown
 original. Citações não confirmadas ficam pendentes e não bloqueiam a entrega.

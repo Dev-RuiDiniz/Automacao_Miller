@@ -37,10 +37,11 @@ A conferência humana é opcional no fluxo de negócio. Mesmo assim, o operador 
 
 1. **Entrada:** a landing recebe o PDF, calcula seu SHA-256 e cria um protocolo no PostgreSQL.
 2. **Leitura:** o conversor local cria um Markdown com um marcador para cada página.
-3. **Análise:** o n8n envia todos os lotes, um de cada vez, ao modelo local qwen2.5:3b, executado pelo Ollama.
-4. **Conferência técnica:** o gateway compara as páginas e citações do relatório com o Markdown guardado.
-5. **Relatório:** o sistema grava o Markdown final e gera o PDF.
-6. **Entrega:** o documento aguarda a solicitação manual do operador; o Gmail só conclui o envio se confirmar a entrega.
+3. **Busca por regras:** o gateway procura termos regulatórios conhecidos e números de processo no Markdown salvo, preservando página e trecho e ligando números repetidos entre páginas.
+4. **Análise:** o n8n envia todos os lotes, um de cada vez, ao modelo local qwen2.5:3b, executado pelo Ollama. Os vínculos encontrados por regras são entregues à síntese como contexto adicional.
+5. **Conferência técnica:** o gateway compara as páginas e citações do relatório com o Markdown guardado.
+6. **Relatório:** o sistema grava o Markdown final e gera o PDF.
+7. **Entrega:** o documento aguarda a solicitação manual do operador; o Gmail só conclui o envio se confirmar a entrega.
 
 O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado do Docker guarda os PDFs e relatórios. O Google Drive é apenas parte de exports históricos e não participa do fluxo atual.
 
@@ -51,6 +52,7 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - Uma citação marcada como pendente não bloqueia, pelas regras atuais, a criação ou a solicitação de envio. Isso não significa que o conteúdo esteja correto.
 - A avaliação NVIDIA usa somente um texto artificial e não pode receber documentos reais.
 - RAG, embeddings e treinamento de modelo estão fora do caminho ativo.
+- A leitura por regras é lexical e não usa embeddings; ela localiza termos, mas não interpreta o efeito do ato. A IA ainda analisa todos os lotes nesta versão.
 - O envio de e-mail exige uma ação manual e o workflow de envio precisa estar ativo no n8n.
 
 ## Situação operacional verificada em 26/10/2026

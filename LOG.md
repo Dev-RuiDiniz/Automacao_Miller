@@ -2667,3 +2667,31 @@ Seguir os itens P0 e P1 do ROADMAP.md: rotacionar/revogar credenciais expostas, 
 
 Impacto:
 A documentação deixa explícito que a stack saudável ainda não equivale a uma operação pronta. O caminho esperado, os bloqueios atuais, os riscos de qualidade e a ordem de execução agora podem ser entendidos sem consultar senhas ou tratar registros históricos como estado atual.
+
+## 2026-10-26 — Adiciona contexto determinístico ao processamento
+
+Data: 2026-10-26
+Tipo: FUNCIONAL / CONTEXTO / EVIDÊNCIAS
+Status: implementado e testado localmente; ainda não implantado na VPS
+
+Contexto:
+O usuário decidiu avançar com uma camada determinística para preservar contexto entre páginas e pediu implementação e testes.
+
+Decisão/Ação:
+Foi adicionado `build_deterministic_context`, que varre o Markdown paginado, localiza termos regulatórios de uma lista controlada e identificadores de processo em formatos conhecidos, mantendo trecho e página. Identificadores exatamente iguais encontrados em mais de uma página são agrupados como pistas de contexto; nenhuma classificação ou decisão regulatória é inferida pelo código.
+
+O gateway passou a oferecer a rota interna autenticada `POST /internal/submissions/{id}/deterministic-context`. A rota lê a versão mais recente do Markdown no volume, confere o SHA-256 registrado e rejeita marcadores ausentes, repetidos ou fora de ordem. O workflow versionado chama a rota depois de persistir o Markdown, associa ligações literais aos achados, apresenta menções e ocorrências no relatório e valida suas citações contra o Markdown original.
+
+O prompt foi atualizado para v6 e instrui explicitamente a IA a tratar o PDF, as evidências e as relações entre páginas como dados não confiáveis e ignorar comandos embutidos. A IA ainda analisa todos os lotes; a seleção de páginas ambíguas e o modo sem IA continuam pendentes. A lista de regras é limitada, não substitui a leitura integral e não comprova correção semântica.
+
+Arquivos afetados:
+`infra/regulatory_analysis/deterministic_context.py`, `infra/upload_gateway/app.py`, `workflows/automacao-regulatoria-internal-v1.json`, `prompts/regulatory-extraction-v6.md`, testes de análise regulatória, gateway e contrato de workflow, além de `PRD.md`, `README.md`, `AGENTS.md`, `ROADMAP.md`, `FLUXOGRAMA.md`, `workflows/README.md` e `deploy/README.md`.
+
+Testes e verificações:
+`python -m pytest -q` passou com 89 testes. O conjunto cobriu termos literais, processo repetido entre páginas, conteúdo repetido em páginas diferentes, marcadores inválidos, autenticação da rota interna, hash ausente/inválido/divergente, seleção da versão mais recente do Markdown, composição do workflow e inclusão das citações determinísticas no relatório. Foram usados somente fixtures sintéticos; não foram processados documentos reais, não foi chamada uma instância Ollama e não houve mudança na VPS. A suíte emitiu dois avisos de depreciação preexistentes do evento `on_event` do FastAPI.
+
+Pendências:
+Atualizar a VPS após backup, reconstruir o gateway, importar o export inativo preservando credenciais, validar o workflow de três páginas em homologação e confirmar com o fixture que o Ollama ignora comandos embutidos. Depois de medir a qualidade, decidir se deve existir um modo sem IA e se as chamadas ao modelo podem ser limitadas a passagens ambíguas.
+
+Impacto:
+O relatório passa a expor ocorrências de termos e identificadores com página e citação, e a síntese ganha ligações entre páginas sem aumentar paralelismo ou habilitar embeddings. O fluxo remoto permanece inalterado até homologação e implantação controladas.

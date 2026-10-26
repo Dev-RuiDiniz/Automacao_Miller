@@ -74,6 +74,7 @@ Antes de alterar um workflow:
 5. confira caminhos de sucesso, erro, retry e retomada;
 6. não marque sucesso antes do fim de todas as etapas obrigatórias;
 7. teste o caso sintético antes de usar documento real.
+8. leia o contexto determinístico apenas do Markdown já persistido; preserve a página e o trecho de cada menção e não interprete termos ou identificadores como decisão regulatória.
 
 Os exports versionados ficam inativos por segurança. A ativação é uma ação do ambiente n8n e precisa ser verificada separadamente.
 

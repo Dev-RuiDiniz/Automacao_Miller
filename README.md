@@ -73,15 +73,17 @@ A configuração de implantação está em [deploy/README.md](deploy/README.md).
 
 ## Situação conhecida do projeto
 
-A última observação da VPS registrada nos documentos é de **3 de outubro de 2026**. Naquele momento, os seis serviços padrão estavam saudáveis; o fluxo sintético de uma página gerou Markdown e PDF e chegou a **Aguardando envio**. Duas de três referências foram confirmadas. Não foi enviado e-mail nesse teste.
+**Verificada em 26 de outubro de 2026:** a VPS `srv1728832.hstgr.cloud` está com os seis serviços do Automação Miller saudáveis. O n8n 2.30.5 fica acessível apenas por `127.0.0.1:25678`; o gateway não publica a porta na Internet. O Ollama está instalado com `qwen2.5:3b`.
 
-Também havia uma execução em andamento de um PDF real de 142 páginas. O resultado final dessa execução não consta dos registros posteriores disponíveis. Portanto, o estado atual da VPS e desse protocolo precisa ser confirmado antes de iniciar outro processamento ou anunciar a entrada em produção.
+Na instância n8n, apenas os workflows de processamento interno e tratamento de erros estão publicados. A lógica deles corresponde aos exports do repositório; as referências às credenciais são específicas dessa instalação. Os workflows de envio e reconciliação não estão publicados. O cadastro de proprietário do n8n está incompleto: não há e-mail nem senha definidos para entrar no painel.
 
-O workflow e a documentação não provam, sozinhos, que os fluxos estão ativos na VPS. Os exports versionados ficam inativos para evitar acionamento acidental.
+O PostgreSQL registra três documentos em **Aguardando envio**, seis em **Erro** e nenhum em processamento. O PDF de 142 páginas, com cerca de 26,6 MiB, terminou em erro na etapa de análise pelo Ollama. Nenhum reprocessamento foi iniciado nesta verificação.
+
+A instalação continua em homologação, não em produção. A lista de pendências atualizada, os riscos de capacidade e a situação dos demais projetos hospedados na mesma VPS estão em [ROADMAP.md](ROADMAP.md).
 
 ## O que falta antes de produção
 
-As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem verificar a execução do PDF longo, revogar uma chave NVIDIA que foi exposta, concluir a validação com documentos autorizados, testar recuperação de falhas e confirmar a segurança e o aceite operacional.
+As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem rotacionar o acesso administrativo exposto, criar o usuário proprietário do n8n, revogar uma chave NVIDIA que foi exposta, tratar a falha do PDF longo, validar envio e recuperação e confirmar o aceite operacional.
 
 ## Infraestrutura de referência
 

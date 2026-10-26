@@ -2520,3 +2520,104 @@ Impacto:
 A documentação agora separa visão comercial, requisitos, execução, estado,
 fluxo e tratamento de acessos. Nenhum segredo foi incluído e nenhuma mudança de
 requisito ou configuração remota foi feita nesta tarefa.
+
+## 2026-10-23 — Verificação do login n8n e exposição de credencial SSH
+
+Data: 2026-10-23
+Tipo: Acesso / Segurança
+Contexto: Foi solicitado identificar o usuário e a senha do n8n. O endereço
+fornecido foi acessado com a chave SSH já configurada no computador, sem usar a
+senha root compartilhada na conversa.
+
+Decisão/Ação:
+O host respondeu como `srv1728832.hstgr.cloud`. O container
+`automacao-miller-n8n-1` estava saudável. A consulta somente de leitura ao banco
+usado pelo n8n encontrou um registro sem e-mail e sem senha; portanto, não há
+credencial de login recuperável nessa conta. Nenhuma senha, hash ou segredo foi
+copiado para este registro, e nenhuma credencial do n8n foi alterada.
+
+A senha administrativa root foi exposta na conversa e deve ser considerada
+comprometida. Ela não foi repetida nem usada. A rotação ainda está pendente para
+ser feita e guardada no cofre aprovado; o acesso SSH por chave foi validado.
+
+Arquivos afetados:
+ACESSOS.md e LOG.md.
+
+Testes:
+Acesso SSH somente por chave com verificação estrita do host; estado do
+container n8n; consulta SQL somente de leitura dos indicadores de e-mail e senha
+configurados. Nenhum teste de aplicação foi executado.
+
+Pendências:
+Rotacionar a senha root e guardá-la no cofre aprovado. Configurar um usuário
+proprietário do n8n pelo fluxo de configuração suportado, caso a tela de
+configuração inicial esteja disponível.
+
+Impacto:
+O usuário e a senha solicitados não podem ser fornecidos porque não há uma
+credencial de proprietário configurada no registro consultado. O valor root
+compartilhado não é uma credencial do n8n e requer rotação.
+
+## 2026-10-26 — Verificação e sincronização do repositório e da VPS
+
+Data: 2026-10-26
+Tipo: Operação / Sincronização / Estado de homologação
+Contexto: O usuário pediu para verificar atualizações no Git remoto e na VPS,
+sincronizar o projeto e resumir o estado e as oportunidades de melhoria.
+
+Decisão/Ação:
+O `origin/main` não tinha commits novos em relação ao checkout local, que estava
+em `911d0ef`. A VPS respondeu como `srv1728832.hstgr.cloud`; o checkout estava
+um commit atrás (`5862ee2`). Os dois exports de workflow com mudanças locais na
+VPS eram idênticos aos arquivos do commit remoto, então foram preservados e o
+checkout foi avançado para `origin/main` após a atualização documental.
+
+A instância tem seis serviços do Automação Miller saudáveis. O export das
+versões publicadas mostrou somente os workflows de processamento e erro; a
+lógica de nós, parâmetros e conexões corresponde ao repositório. As diferenças
+observadas estão nas referências às credenciais da instalação, que não devem
+ser copiadas entre ambientes. Os workflows de envio e reconciliação continuam
+sem publicação. Não houve importação de workflows nem reinicialização de
+serviços.
+
+No PostgreSQL havia três documentos em `aguardando_envio`, seis em `erro` e
+nenhum em `em_processamento`. O único PDF acima de 25 MB, correspondente ao
+documento de 142 páginas citado em outubro, está em erro na etapa
+`Ollama - Analyze each batch`, categoria `infraestrutura`; não há execução em
+andamento. A conta proprietária do n8n segue sem e-mail e senha configurados.
+
+O servidor tem 2 vCPU, 7,8 GiB de RAM e 99 GiB de disco. Durante a consulta,
+havia 2,4 GiB de memória disponível, 724 MiB de swap usados e 58 GiB livres em
+disco. Um Ollama de outro projeto usava 2,93 GiB de seu limite de 4 GiB. Também
+foram observados containers de `ideia-saude-agent-test`, `brandriot-socialsuite`
+e uma stack Supabase; `atendimento` e `rtk-renata`, citados em agosto, não
+apareceram no `docker ps` desta verificação.
+
+O `.env` da VPS estava com permissão 600. O diretório esperado para backups,
+`/opt/backups/automacao-miller`, não existe. A senha root exposta em conversa
+continua pendente de rotação; o acesso por chave SSH foi validado.
+
+Arquivos afetados:
+README.md, ROADMAP.md, ACESSOS.md e LOG.md.
+
+Testes/Verificações:
+Fetch do `origin`; comparação do checkout da VPS e das versões publicadas dos
+workflows; SSH com verificação estrita do host; estado dos seis containers;
+consultas agregadas de status do banco; permissões do `.env`, uso de recursos e
+existência do diretório de backups. `git diff --check` e checagem dos links
+Markdown locais. Nenhum teste de aplicação foi executado, pois o código da
+aplicação e os workflows em execução não foram alterados. A última suíte local
+registrada passou com 77 testes em 08/10/2026.
+
+Pendências:
+Rotacionar a senha root e guardá-la no cofre aprovado; configurar o usuário
+proprietário do n8n; revogar a chave NVIDIA exposta; investigar a falha e decidir
+sobre o reprocessamento controlado do PDF longo; homologar envio e reconciliação
+Gmail; criar e testar backup/restauração; validar proteção contra instruções
+embutidas em PDFs antes de produção.
+
+Impacto:
+O checkout local, o remoto e o código versionado na VPS ficaram sincronizados.
+As execuções ativas do n8n não foram reiniciadas ou modificadas, porque os
+workflows publicados já correspondiam à lógica do repositório e suas
+credenciais são específicas da instalação.

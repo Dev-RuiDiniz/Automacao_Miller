@@ -9,16 +9,16 @@ Guarde os valores reais no cofre aprovado, no arquivo de ambiente protegido do s
 - **Uso:** administrar a VPS.
 - **Onde fica:** a chave privada permanece no computador autorizado; a chave pública é instalada no servidor. Senhas administrativas ficam no cofre aprovado.
 - **Chave padrão deste computador:** C:\Users\Administrador\.ssh\Dev.RuiDiniz_ed25519.
-- **Última situação registrada:** VPS acessada em auditoria anterior. Registros antigos pedem confirmar rotação da senha administrativa e hardening. A situação atual não foi verificada neste trabalho.
-- **Ação pendente:** confirmar usuário administrativo e rotação da senha. Antes de autorizar uma chave SSH, conferir o fingerprint por um canal confiável.
+- **Última situação registrada:** em 26/10/2026, o acesso SSH por chave foi confirmado no servidor `srv1728832.hstgr.cloud`. A senha administrativa exposta em conversa ainda não foi rotacionada e deve ser considerada comprometida.
+- **Ação pendente:** rotacionar a senha root e guardá-la no cofre aprovado; manter o acesso por chave validado. Antes de autorizar qualquer chave nova, conferir o fingerprint por um canal confiável.
 
 ## 2. n8n
 
 - **Uso:** acompanhar execuções e configurar workflows e integrações.
-- **Acesso ao painel:** na última observação, o n8n estava disponível localmente em 127.0.0.1:25678. Acesse pela VPS ou por túnel SSH; não publique essa porta na Internet.
+- **Acesso ao painel:** em 26/10/2026, o n8n estava disponível localmente em 127.0.0.1:25678. Acesse por túnel SSH; não publique essa porta na Internet.
 - **Onde ficam as credenciais:** login no cofre aprovado; credenciais PostgreSQL, Gmail e eventual NVIDIA no cofre de credenciais do próprio n8n.
-- **Última situação registrada:** versão 2.30.5 observada em 03/10/2026. A configuração atual não foi verificada.
-- **Ação pendente:** confirmar login, associação de credenciais e status de cada workflow na instalação.
+- **Última situação registrada:** versão 2.30.5; somente os workflows de processamento interno e erro estão publicados. A lógica publicada corresponde aos exports atuais, mas as referências de credenciais são específicas da VPS. O cadastro do proprietário não tem e-mail nem senha definidos; não há login utilizável para o painel.
+- **Ação pendente:** criar o usuário proprietário pelo fluxo inicial do n8n e confirmar as credenciais PostgreSQL/Gmail e o status dos workflows. Os workflows de envio e reconciliação continuam sem publicação.
 
 ## 3. Landing e gateway
 
@@ -34,8 +34,8 @@ Guarde os valores reais no cofre aprovado, no arquivo de ambiente protegido do s
 - **Uso:** registrar protocolos, tentativas, estados, erros, destinatários e entregas; guardar PDFs e relatórios no volume privado.
 - **Onde ficam os valores:** senha do banco no .env protegido da VPS; credencial PostgreSQL correspondente dentro do n8n.
 - **Variáveis principais:** POSTGRES_PASSWORD, N8N_ENCRYPTION_KEY, ARTIFACT_STORAGE_DIR e ARTIFACTS_GID.
-- **Última situação registrada:** a stack foi validada em 03/10/2026. A senha e sua rotação não são registradas neste arquivo.
-- **Ação pendente:** confirmar que a credencial do n8n corresponde ao ambiente, e conferir permissões e backup, sem exibir os valores.
+- **Última situação registrada:** em 26/10/2026, os seis serviços estavam saudáveis e o `.env` tinha permissão 600. O PostgreSQL registra 3 documentos aguardando envio e 6 em erro. O diretório de backup `/opt/backups/automacao-miller` não existe nesta VPS.
+- **Ação pendente:** confirmar que a credencial do n8n corresponde ao ambiente, provisionar e testar backup e restauração, sem exibir os valores.
 
 ## 5. Gmail
 

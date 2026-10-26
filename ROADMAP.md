@@ -1,39 +1,42 @@
 # ROADMAP.md — O que falta para concluir o projeto
 
-**Atualizado em:** 8 de outubro de 2026
+**Atualizado em:** 26 de outubro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
-**Regra de leitura:** as últimas informações confirmadas da VPS são de 3 de outubro de 2026. A VPS não foi consultada durante esta atualização. “Último estado conhecido” não significa “estado atual”.
+**Regra de leitura:** este snapshot foi confirmado por SSH em 26 de outubro de 2026. Estados de execução e consumo de recursos podem mudar depois da consulta.
 
 ## 1. Em que ponto estamos
 
 O caminho principal do produto está implementado no repositório: envio pela landing, protocolo, armazenamento privado, conversão de PDF para Markdown, análise local em lotes, relatório Markdown/PDF, fila de envio e entrega manual pelo Gmail.
 
-A última observação registrada da VPS informa:
+Estado confirmado na VPS `srv1728832.hstgr.cloud`:
 
-- Os seis serviços padrão do Docker estavam saudáveis.
-- O n8n 2.30.5 estava publicado no host somente em 127.0.0.1:25678; o gateway permanecia na rede interna.
-- O Ollama usava qwen2.5:3b. O serviço RAG estava fora do perfil padrão.
-- Os workflows de processamento e erro foram publicados. Os de envio e reconciliação ainda não estavam habilitados para o teste então registrado.
-- Um PDF sintético de uma página terminou em Aguardando envio; foram confirmadas 2 de 3 referências. O teste de PDF inválido terminou em erro. Nenhum e-mail foi enviado nessa validação.
-- Uma execução com PDF real de 142 páginas ainda estava em processamento quando foi observada. Seu resultado posterior não está registrado aqui. Consulte primeiro o protocolo e não inicie outro processamento igual até saber o estado daquela execução.
-- O workflow de avaliação NVIDIA foi importado inativo e sem credencial vinculada. Duas chamadas feitas no Playground com o fixture sintético levaram aproximadamente 16 e 19 segundos; uma resposta falhou a checagem de evidência e a outra não era JSON válido. Uma chave foi exposta e precisa ser revogada. Nenhum documento real foi enviado à NVIDIA.
+- Os seis serviços do Automação Miller estavam saudáveis: n8n 2.30.5, Ollama 0.32.1, PostgreSQL, conversor, renderizador e gateway. O n8n só escuta em `127.0.0.1:25678`; o gateway fica interno ao Docker.
+- O modelo instalado é `qwen2.5:3b`. Os dois workflows publicados são o processamento interno e o tratamento de erros. A lógica corresponde aos exports do Git; os IDs das credenciais são específicos do n8n da VPS. Envio manual e reconciliação ainda não estão publicados.
+- O usuário proprietário do n8n não está configurado: o registro não contém e-mail nem senha. A equipe não consegue entrar no painel até concluir a configuração inicial.
+- O banco tem 3 documentos em `aguardando_envio`, 6 em `erro` e nenhum em `em_processamento`. O único arquivo acima de 25 MB, correspondente ao PDF de 142 páginas de aproximadamente 26,6 MiB, está em erro na etapa `Ollama - Analyze each batch`, categoria `infraestrutura`. Não há execução desse documento em andamento.
+- O servidor tem 2 vCPU, 7,8 GiB de RAM e 99 GiB de disco; na consulta havia 2,4 GiB de memória disponível, 724 MiB de swap em uso e 58 GiB livres em disco. Outro projeto na VPS mantinha um segundo Ollama usando 2,93 GiB de seu limite de 4 GiB.
+- A VPS é compartilhada com os containers dos projetos `ideia-saude-agent-test`, `brandriot-socialsuite` e uma stack Supabase. Os projetos `atendimento` e `rtk-renata`, citados no registro de agosto, não apareceram no `docker ps` desta consulta.
+- O `.env` está com permissão 600. O diretório configurado `/opt/backups/automacao-miller` não existe; não há backup nem teste de restauração confirmado nesse local.
+- A senha root compartilhada em conversa ainda não foi rotacionada. O acesso por chave SSH foi confirmado. A chave NVIDIA exposta permanece com revogação pendente conforme o último registro; não foi feita nova chamada à API.
 
-O histórico detalhado está em [LOG.md](LOG.md). A situação da instalação n8n/VPS precisa ser reconfirmada antes de qualquer ativação ou decisão de produção.
+O checkout da VPS foi avançado para o mesmo `main` do remoto depois de preservar a comparação dos exports. Não foi necessário reconstruir containers nem reimportar workflows: a lógica publicada já correspondia ao código; reimportar os exports inativos poderia alterar o estado dos workflows e as referências às credenciais.
+
+O histórico detalhado está em [LOG.md](LOG.md). Este ambiente segue em homologação, não em produção.
 
 ## 2. Ordem de execução
 
-### P0 — Resolver o estado da execução longa
+### P0 — Tratar a falha do PDF longo
 
 **Responsável:** responsável técnico.
-**Estado:** precisa de consulta à VPS.
+**Estado:** situação confirmada; o PDF de 142 páginas terminou em erro na etapa do Ollama. Não há processamento em andamento.
 
-1. Consultar o n8n e o PostgreSQL pelo protocolo do PDF de 142 páginas citado no LOG.md.
-2. Confirmar se a execução terminou, falhou ou continua ativa.
-3. Se terminou, conferir cobertura, relatório, citações, erros e artefatos.
-4. Se continua ativa, decidir se deve ser mantida ou interrompida; não criar uma execução concorrente.
-5. Registrar o resultado no LOG.md e atualizar este roadmap.
+1. Conferir o evento e a mensagem da tentativa encerrada, sem expor conteúdo do documento.
+2. Confirmar se há artefatos parciais que precisam ser mantidos ou limpos conforme o procedimento do projeto.
+3. Avaliar a capacidade da VPS compartilhada e definir uma janela de reprocessamento controlado.
+4. Só reprocessar o mesmo documento depois da decisão do responsável; a falha não pode ser declarada como ausência de informação.
+5. Registrar diagnóstico e resultado no LOG.md.
 
-**Concluído quando:** a execução tem estado final conhecido, ou existe decisão registrada para a execução ainda ativa.
+**Concluído quando:** a causa foi diagnosticada, a decisão de reprocessar ou encerrar foi registrada e, se reprocessado, o relatório foi conferido.
 
 ### P0 — Revogar e substituir a chave NVIDIA exposta
 
@@ -52,14 +55,24 @@ O teste NVIDIA não faz parte do processamento de PDFs reais e não é condiçã
 ### P0 — Confirmar a segurança do acesso à VPS
 
 **Responsável:** administrador da VPS.
-**Estado:** precisa ser confirmado; registros antigos mencionam rotação de acesso administrativo pendente.
+**Estado:** acesso SSH por chave confirmado; rotação da senha root continua pendente após exposição em conversa.
 
-1. Confirmar quem administra o servidor e qual conta tem privilégios.
-2. Confirmar a rotação da senha administrativa e o uso de acesso SSH por chave.
-3. Antes de instalar uma chave, conferir o fingerprint com o responsável.
-4. Confirmar firewall, proxy HTTPS da landing e que o n8n não está exposto diretamente à Internet.
-5. Confirmar que o arquivo .env e os backups têm permissões restritas.
-6. Registrar apenas a situação, nunca os valores dos segredos, em [ACESSOS.md](ACESSOS.md).
+1. Rotacionar a senha root e guardá-la no cofre aprovado; não a enviar por chat.
+2. Manter o acesso por chave validado e conferir fingerprint antes de autorizar qualquer chave nova.
+3. Confirmar firewall e HTTPS da landing; o n8n deve continuar restrito ao loopback.
+4. Manter `.env` protegido; a permissão observada foi 600.
+5. Registrar a situação, nunca valores de segredos, em [ACESSOS.md](ACESSOS.md).
+
+### P0 — Configurar o proprietário do n8n
+
+**Responsável:** administrador do n8n.
+**Estado:** pendente; o registro de usuário não tem e-mail nem senha.
+
+1. Abrir o painel pelo túnel SSH e concluir a configuração inicial com o e-mail aprovado.
+2. Guardar a senha no cofre aprovado, nunca no Git ou no chat.
+3. Confirmar que o operador autorizado consegue entrar e que as credenciais dos workflows continuam associadas.
+
+**Concluído quando:** o proprietário entra no painel sem expor segredos e consegue administrar os workflows publicados.
 
 ### P1 — Homologar o fluxo atual com documentos autorizados
 
@@ -109,7 +122,7 @@ Uma falha técnica deve terminar como erro identificável. Uma citação pendent
 ### P1 — Confirmar credenciais e operação de envio
 
 **Responsáveis:** administrador do n8n e operador autorizado.
-**Estado:** não confirmado para a versão implantada mais recente.
+**Estado:** processamento e erro publicados; envio e reconciliação não publicados. O usuário proprietário do n8n ainda precisa ser configurado.
 
 1. Conferir as credenciais PostgreSQL e Gmail guardadas dentro do n8n.
 2. Confirmar os destinatários padrão pelo painel.

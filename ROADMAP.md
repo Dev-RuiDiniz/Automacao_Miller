@@ -13,20 +13,22 @@ A base do produto existe e os seis containers do Miller estão saudáveis. A ent
 
 ### Repositório
 
-- O código local e o remoto origin/main estão no commit 96d485d. A VPS continua no commit 38f5358; este incremento ainda não foi implantado.
+- O código local e o remoto origin/main estão no commit d3316e6. A VPS continua no commit 38f5358; este incremento ainda não foi implantado.
 - A suíte local foi executada em 26/10/2026: 89 testes passaram. Isso valida o checkout local, não o comportamento da VPS.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 
 ### VPS
 
-Verificação somente de leitura por SSH em 26/10/2026:
+Verificação por SSH em 26/10/2026:
 
 - O projeto Automação Miller tem 6 containers saudáveis: n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor PDF, renderizador PDF e gateway.
 - O n8n escuta apenas em 127.0.0.1:25678. Use túnel SSH para abrir o painel.
 - O gateway publica a porta apenas dentro da rede Docker. Não foi encontrado listener HTTP/HTTPS na VPS; a landing ainda não tem uma entrada pública verificada.
 - Estão ativos somente os workflows de processamento interno e tratamento de erros. Envio manual e reconciliação estão desativados. A avaliação sintética NVIDIA está desativada.
 - Existe um registro proprietário no banco do n8n, mas e-mail e senha estão vazios; ainda não há login administrativo utilizável.
-- O banco tinha 3 documentos em aguardando_envio, 6 em erro e nenhum em processamento. Os erros estavam nas etapas de conversor, análise pelo Ollama, consolidação dos lotes e validação do relatório.
+- O banco tem 3 documentos em `aguardando_envio`, 6 em `erro` e nenhum em processamento. Os erros estão nas etapas de conversor, análise pelo Ollama, consolidação dos lotes e validação do relatório.
+- A segunda tentativa autorizada para o PDF extenso foi interrompida quando o usuário escolheu avaliar o uso da NVIDIA API. O n8n registrou a execução 16 como erro em `Ollama - Analyze each batch`; o Ollama foi reativado e está saudável. PDF original, Markdown v1 e artefatos anteriores foram preservados. Não foi gerado relatório v2 nem enviado e-mail.
+- Não há credencial NVIDIA configurada na VPS. O único workflow NVIDIA é a avaliação sintética, inativa e sem credencial. O endpoint Developer/API Catalog é para prototipagem; o PRD permite o Trial apenas com fixture artificial. Não transmitir o PDF real ao Trial. Para prosseguir com uma API NVIDIA em produção, provisionar primeiro endpoint e assinatura/licença apropriados, confirmar as condições de privacidade e configurar o acesso no cofre do n8n. A licença da conta NVIDIA não foi verificada.
 - A senha administrativa root foi exposta anteriormente e sua rotação continua pendente. A chave de API NVIDIA exposta também precisa ser revogada.
 - O diretório /opt/backups/automacao-miller não existe. O script de backup está no repositório, mas ainda não há backup/restauração operacional confirmados.
 - A VPS tem 2 vCPU e 7,8 GiB de RAM. Na consulta havia 6,2 GiB disponíveis, 330 MiB de swap em uso e 64 GiB livres em disco. Ela é compartilhada com o projeto Ideia Saúde Agent Test, que mantém 5 containers. O container de interface desse projeto usava 92% do próprio limite de 256 MiB; isso não causou pressão de memória geral na fotografia consultada, mas reforça a necessidade de acompanhar carga antes de processar PDFs longos.
@@ -95,13 +97,13 @@ com preservação das credenciais. Os exports no Git permanecem `active=false`.
 ### P1 — fazer o caminho operacional funcionar de ponta a ponta
 
 7. **Triar os 9 documentos já registrados.**
-   Responsáveis: operador e responsável técnico. Examine pelo protocolo os 3 aguardando_envio e os 6 em erro. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. O PDF extenso anteriormente citado falhou em análise local; reprocessá-lo exige decisão e janela controlada.
+   Responsáveis: operador e responsável técnico. Examine pelo protocolo os 3 aguardando_envio e os 6 em erro. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. A segunda tentativa local do PDF extenso foi interrompida por decisão do usuário e ficou em erro na etapa do Ollama. Antes de nova tentativa, configure um provedor de produção autorizado ou escolha retomar o processamento local; não use a credencial Trial da NVIDIA para documento real.
 
 8. **Ativar envio manual e reconciliação.**
    Responsável: administrador do n8n. Importe/publice os exports correspondentes, associe credenciais protegidas, confirme o workflow de erro e valide uma falha controlada. Faça primeiro envio para destinatário de homologação aprovado. Confirme status enviado/concluido, histórico de tentativa e download oficial. Não ative a reconciliação antes de provar que ela não cria execuções repetidas.
 
 9. **Confirmar a proteção do prompt contra comandos dentro de PDFs.**
-   Responsável: responsável técnico. O workflow versionado agora usa o prompt v6, que instrui o modelo a tratar documento, evidências e contexto entre páginas como dados não confiáveis. Falta executar a avaliação comportamental com o fixture sintético no Ollama autorizado e confirmar que o modelo ignora o pedido de revelar uma chave sem deixar de extrair os fatos. A alteração do prompt, sozinha, não comprova esse comportamento.
+   Responsável: responsável técnico. O workflow versionado agora usa o prompt v6, que instrui o modelo a tratar documento, evidências e contexto entre páginas como dados não confiáveis. Falta executar a avaliação comportamental com o fixture sintético no Ollama autorizado e confirmar que o modelo ignora o pedido de revelar uma chave sem deixar de extrair os fatos. Se for provisionado um endpoint NVIDIA de produção, avaliar o mesmo fixture nele antes de processar documento real. A alteração do prompt, sozinha, não comprova esse comportamento.
 
 10. **Executar um teste sintético ponta a ponta.**
     Responsáveis: responsável técnico e operador. Depois de implantar este incremento em homologação, use um PDF artificial curto pela landing. Inclua o mesmo número de processo em duas páginas com menções de status diferentes e confirme que o relatório preserva as duas páginas e trechos sem unir os status. Confirme protocolo, hash do Markdown, conversão, análise, cobertura, referências, Markdown, PDF e estado aguardando_envio. Não envie e-mail real sem autorização do responsável.
@@ -115,7 +117,7 @@ com preservação das credenciais. Os exports no Git permanecem `active=false`.
 ### P2 — melhorar segurança e desempenho depois da estabilidade
 
 13. **Medir o desempenho com carga controlada.**
-    O modelo qwen2.5:3b executa em CPU numa VPS compartilhada de 2 vCPU. Um teste anterior de 142 páginas avançou muito lentamente e foi interrompido; uma execução sequencial protege a memória, mas pode demorar. Meça tempo e RAM em PDFs curtos e longos. Só então compare um modelo local menor/mais rápido ou uma VPS dedicada. Não aumente paralelismo sem medição: chamadas simultâneas já causaram pressão de memória no histórico.
+    O modelo qwen2.5:3b executa em CPU numa VPS compartilhada de 2 vCPU. A segunda tentativa do PDF de 142 páginas foi interrompida após cerca de 26 minutos, ainda na análise por lotes. Uma execução sequencial protege a memória, mas pode demorar muitas horas. Meça tempo e RAM em PDFs curtos e longos. Depois de provisionar e aprovar um endpoint NVIDIA de produção, compare qualidade, duração e custo usando primeiro o fixture sintético. Não envie documento real à API Trial nem aumente paralelismo sem medição.
 
 14. **Reduzir exposição da landing.**
     Avalie remover o token legado aceito por URL, adicionar limitação de tentativas no login/upload/envio, proteção CSRF e níveis de acesso quando houver necessidade operacional. Preserve o túnel local do n8n.

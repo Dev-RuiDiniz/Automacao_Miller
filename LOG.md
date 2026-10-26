@@ -2695,3 +2695,54 @@ Atualizar a VPS após backup, reconstruir o gateway, importar o export inativo p
 
 Impacto:
 O relatório passa a expor ocorrências de termos e identificadores com página e citação, e a síntese ganha ligações entre páginas sem aumentar paralelismo ou habilitar embeddings. O fluxo remoto permanece inalterado até homologação e implantação controladas.
+
+## 2026-10-26 — Interrompe tentativa local e avalia NVIDIA API
+
+Data: 2026-10-26
+Tipo: OPERAÇÃO / INTEGRAÇÃO / BLOQUEIO
+Status: tentativa local encerrada; processamento externo não iniciado
+
+Contexto:
+Durante o reprocessamento controlado de um PDF oficial, o usuário escolheu usar
+a NVIDIA API em vez de aguardar a análise local. O PRD vigente restringe a
+NVIDIA API Trial a testes com conteúdo artificial.
+
+Decisão/Ação:
+Foi verificado que a VPS não tem credencial NVIDIA configurada. O único workflow
+NVIDIA disponível é a avaliação sintética, inativa e sem credencial; o registro
+de proprietário do n8n continua sem e-mail e senha utilizáveis. A documentação
+oficial da NVIDIA descreve os endpoints do NVIDIA Developer Program/API Catalog
+como destinados a prototipagem e limita o acesso Trial a teste e avaliação; o
+uso em produção depende de assinatura/licença apropriada. A licença da conta
+NVIDIA do usuário não foi verificada. Nenhum PDF real foi enviado à NVIDIA e
+nenhum requisito do PRD foi alterado.
+
+A parada individual da execução não estava disponível sem sessão autenticada do
+n8n. Como havia apenas uma execução n8n ativa, o contêiner Ollama do Miller foi
+parado para interromper essa tentativa e em seguida reativado. O n8n registrou a
+execução 16 como erro em `Ollama - Analyze each batch`. O PDF original, o
+Markdown v1 e os artefatos anteriores foram preservados. Não foi gerado relatório
+v2 nem enviado e-mail.
+
+Arquivos afetados:
+`ROADMAP.md` e `LOG.md`.
+
+Testes e verificações:
+Consultas operacionais confirmaram a execução 16 em erro, 3 documentos em
+`aguardando_envio`, 6 em `erro`, nenhum em processamento e o contêiner Ollama
+saudável após reinício. Foram conferidos os metadados de workflows e credenciais
+sem ler ou exibir valores secretos. Não foram executados testes de aplicação nem
+chamadas à API NVIDIA.
+
+Pendências:
+Configurar o proprietário do n8n por acesso administrativo seguro. Se o usuário
+quiser seguir com NVIDIA, provisionar endpoint e assinatura/licença apropriados
+para produção, revisar as condições de privacidade e guardar a credencial no
+n8n. Executar primeiro o fixture sintético aprovado. Só então decidir se o PRD
+deve mudar e reprocessar o PDF real. A chave Trial exposta anteriormente ainda
+precisa ser revogada.
+
+Impacto:
+A análise local atual foi interrompida sem apagar entradas ou artefatos. O
+processamento externo continua bloqueado até haver acesso NVIDIA de produção
+configurado e autorizado; a rota Trial permanece restrita a conteúdo sintético.

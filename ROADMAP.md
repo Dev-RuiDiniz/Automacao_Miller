@@ -13,7 +13,7 @@ A base do produto existe, mas a homologação ainda está incompleta. A última 
 
 ### Repositório
 
-- O checkout de trabalho contém mudanças locais na branch `codex/duas-passagens-python-ia`; elas ainda não foram commitadas nem publicadas em `origin/main`.
+- O commit `daf93a0` com o fluxo híbrido, testes e documentação foi publicado em `origin/main` em 27/10/2026. A VPS não foi atualizada; a última consulta remota disponível é de 26/10/2026.
 - A nova versão híbrida possui um export inativo v2 e mudanças no gateway Python. A validação atual cobre somente fixtures sintéticos locais; não valida a VPS.
 - A suíte completa da mudança híbrida passou localmente em 27/10/2026: 94 testes aprovados. Isso valida este checkout com fixtures, não o comportamento da VPS. Foram exibidos dois avisos de depreciação do evento `on_event` do FastAPI.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
@@ -97,12 +97,12 @@ estão no repositório. Isso não significa que a IA foi removida: ela continua
 auditando todos os lotes e interpreta o relatório. A checagem do Python confirma
 somente a localização da citação, não a correção semântica do candidato.
 
-**Situação:** versão local ainda em revisão. O v2 não foi importado nem ativado
-na VPS. A última verificação remota disponível continua sendo 26/10/2026 e
-indicava a versão v1 ativa. Antes de qualquer implantação, executar a suíte de
-testes, revisar o diff, fazer backup, importar o export inativo com as
-credenciais preservadas e homologar com fixture sintético. Não reprocessar o PDF
-oficial como parte desta tarefa.
+**Situação:** o v2 foi revisado, testado, commitado e publicado em `origin/main`
+como `daf93a0`. Ele não foi importado nem ativado na VPS. A última verificação
+remota disponível continua sendo 26/10/2026 e indicava a versão v1 ativa. Antes
+de qualquer implantação, fazer backup, importar o export inativo preservando as
+credenciais e homologar com fixture sintético. Não reprocessar o PDF oficial
+como parte desta tarefa.
 
 **Validação local em 27/10:** `python -m pytest -q` — 94 testes aprovados, com
 dois avisos de depreciação preexistentes do FastAPI. O JSON do export v2 foi

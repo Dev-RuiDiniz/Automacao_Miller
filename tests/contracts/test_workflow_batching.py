@@ -163,6 +163,8 @@ process.stdout.write(JSON.stringify(result[0].json.report_markdown));
 def test_hybrid_workflow_only_synthesizes_python_validated_candidates() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v2-hybrid.json").read_text(encoding="utf-8"))
     nodes = {node["name"]: node for node in workflow["nodes"]}
+    assert len(workflow["id"]) <= 36
+    assert len(workflow["versionId"]) <= 36
     assert workflow["active"] is False
     assert workflow["connections"]["Merge batch findings and prepare report"]["main"][0][0]["node"] == "Gateway - Validate AI audit candidates"
     assert workflow["connections"]["Gateway - Validate AI audit candidates"]["main"][0][0]["node"] == "Prepare validated report prompt"

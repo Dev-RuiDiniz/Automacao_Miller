@@ -1,6 +1,6 @@
 {
   "name": "Automação Regulatória - Duas Passagens",
-  "id": "automacao-regulatoria-internal-v2-hybrid",
+  "id": "d07f47e3-4203-4cbc-87e2-6fb51465b490",
   "active": false,
   "settings": {
     "executionOrder": "v1",
@@ -848,5 +848,5 @@
       ]
     }
   },
-  "versionId": "automacao-regulatoria-internal-v2-hybrid"
+  "versionId": "c6a371b8-7786-415a-8b51-31eed2663599"
 }

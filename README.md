@@ -4,7 +4,7 @@ Solução interna da **DB Tecnologia** para transformar PDFs regulatórios em re
 
 ## Em palavras simples
 
-Uma pessoa envia um PDF. O sistema guarda o arquivo, transforma cada página em texto, pede ao modelo configurado para organizar os fatos, confere se as páginas e citações existem no texto e prepara um relatório em Markdown e PDF. Hoje o ambiente usa Ollama local. O projeto prevê NVIDIA NIM para documentos reais somente por endpoint de produção autorizado e com termos compatíveis; um operador decide manualmente se deve enviar o relatório por e-mail.
+Uma pessoa envia um PDF. O sistema guarda o arquivo, transforma cada página em texto e faz uma varredura por regras simples. Depois, a IA procura fatos que as regras possam ter deixado passar. Python confere se cada citação da IA existe na página indicada. Outra chamada de IA organiza as observações e citações aceitas em um relatório Markdown e PDF. Hoje a VPS continua usando o workflow v1 com Ollama; a nova versão híbrida está apenas no repositório e ainda precisa ser implantada e homologada.
 
 A IA ajuda na leitura. Ela não toma decisões regulatórias, jurídicas ou médicas e não substitui um profissional habilitado.
 
@@ -37,11 +37,11 @@ A conferência humana é opcional no fluxo de negócio. Mesmo assim, o operador 
 
 1. **Entrada:** a landing recebe o PDF, calcula seu SHA-256 e cria um protocolo no PostgreSQL.
 2. **Leitura:** o conversor local cria um Markdown com um marcador para cada página.
-3. **Busca por regras:** o gateway procura termos regulatórios conhecidos e números de processo no Markdown salvo, preservando página e trecho e ligando números repetidos entre páginas.
-4. **Análise:** o ambiente atualmente ativo envia todos os lotes, um de cada vez, ao modelo local qwen2.5:3b pelo Ollama. Uma integração NVIDIA NIM de produção ainda precisa ser configurada e homologada; os vínculos encontrados por regras são entregues à síntese como contexto adicional.
-5. **Conferência técnica:** o gateway compara as páginas e citações do relatório com o Markdown guardado.
-6. **Relatório:** o sistema grava o Markdown final e gera o PDF.
-7. **Entrega:** o documento aguarda a solicitação manual do operador; o Gmail só conclui o envio se confirmar a entrega.
+3. **Primeira leitura:** Python procura identificadores, termos, datas e durações em formatos conhecidos e salva a página e a linha original onde apareceram.
+4. **Auditoria de lacunas:** no desenho híbrido, a IA percorre todos os lotes e propõe apenas fatos que podem não estar nas observações das regras. A IA ainda precisa ler todas as páginas; o ganho esperado é reduzir o trabalho de localizar padrões simples, não eliminar a IA.
+5. **Validação dos candidatos:** Python aceita para síntese somente candidatos com página válida e trecho literal encontrado naquela página e no lote correspondente.
+6. **Interpretação e relatório:** a IA recebe observações determinísticas e candidatos aceitos. Ela escreve o relatório; a checagem Python comprova a citação, não a interpretação.
+7. **Conferência final e entrega:** o gateway confere cobertura e referências do relatório. O documento aguarda solicitação manual; Gmail só conclui o envio quando confirmar a entrega.
 
 O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado do Docker guarda os PDFs e relatórios. O Google Drive é apenas parte de exports históricos e não participa do fluxo atual.
 
@@ -52,16 +52,18 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - Uma citação marcada como pendente não bloqueia, pelas regras atuais, a criação ou a solicitação de envio. Isso não significa que o conteúdo esteja correto.
 - A NVIDIA API Trial/Developer Catalog recebe somente fixture sintético. Documento real só poderá ser enviado a endpoint de produção se os termos permitirem expressamente aquele tipo de dado e houver autorização específica. A chave enviada no chat está comprometida e não foi configurada.
 - RAG, embeddings e treinamento de modelo estão fora do caminho ativo.
-- A leitura por regras é lexical e não usa embeddings; ela localiza termos, mas não interpreta o efeito do ato. A IA ainda analisa todos os lotes nesta versão.
+- A versão híbrida ainda usa IA em todos os lotes para procurar lacunas e para escrever o relatório. A leitura por regras pode deixar passar formas de escrita que não conhece; a validação da citação não prova a interpretação semântica.
 - O envio de e-mail exige uma ação manual e o workflow de envio precisa estar ativo no n8n.
 
 ## Situação operacional verificada em 26/10/2026
 
 Na verificação de 26/10/2026, a VPS continuava no commit 38f5358. O repositório local e `origin/main` receberam atualizações documentais posteriores, ainda não implantadas na VPS. Os seis containers do Automação Miller estavam saudáveis: n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor de PDF, renderizador e gateway.
 
-O incremento de contexto determinístico e as atualizações documentais ainda não
-foram implantados: a VPS permanece no commit `38f5358` e precisa de reconstrução
-do gateway e atualização controlada do workflow antes da homologação.
+O incremento anterior de contexto determinístico não havia sido implantado na
+consulta de 26/10. A nova versão híbrida também está apenas no checkout local,
+no export inativo `workflows/automacao-regulatoria-internal-v2-hybrid.json`;
+ela ainda precisa de revisão, implantação controlada e homologação antes de
+entrar em uso. A VPS permanece no commit `38f5358` conforme a última consulta.
 
 **A instalação continua em homologação.** Na verificação:
 

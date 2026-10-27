@@ -1,11 +1,11 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 26 de outubro de 2026
+**Atualizado em:** 27 de outubro de 2026
 **Estado:** homologação incompleta; não está pronta para produção.
 
 ## Leitura em um minuto
 
-A base do produto existe e os seis containers do Miller estão saudáveis. A entrada pública, o acesso administrativo do n8n, o envio de e-mail, a reconciliação automática e a recuperação por backup ainda não estão prontos ou validados. Há 9 documentos parados no banco: 3 aguardando envio e 6 com erro.
+A base do produto existe, mas a homologação ainda está incompleta. A última consulta da VPS foi em 26/10/2026: naquela data os seis containers do Miller estavam saudáveis. A entrada pública, o acesso administrativo do n8n, o envio de e-mail, a reconciliação automática e a recuperação por backup ainda não estavam prontos ou validados. Havia 9 documentos parados: 3 aguardando envio e 6 com erro. Em 27/10 foi implementada localmente uma nova versão híbrida, ainda não implantada nem testada na VPS.
 
 **Não envie documentos reais nem declare o projeto concluído antes de fechar os itens P0 e P1 e obter o aceite operacional.**
 
@@ -13,8 +13,9 @@ A base do produto existe e os seis containers do Miller estão saudáveis. A ent
 
 ### Repositório
 
-- O código local e o remoto origin/main receberam atualizações documentais após a última verificação. A VPS continua no commit 38f5358; este incremento ainda não foi implantado.
-- A suíte local foi executada em 26/10/2026: 89 testes passaram. Isso valida o checkout local, não o comportamento da VPS.
+- O checkout de trabalho contém mudanças locais na branch `codex/duas-passagens-python-ia`; elas ainda não foram commitadas nem publicadas em `origin/main`.
+- A nova versão híbrida possui um export inativo v2 e mudanças no gateway Python. A validação atual cobre somente fixtures sintéticos locais; não valida a VPS.
+- A suíte completa da mudança híbrida passou localmente em 27/10/2026: 94 testes aprovados. Isso valida este checkout com fixtures, não o comportamento da VPS. Foram exibidos dois avisos de depreciação do evento `on_event` do FastAPI.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 
 ### VPS
@@ -40,7 +41,7 @@ Um relatório temporário de teste sintético produziu afirmações sem apoio no
 
 A cobertura de páginas e a localização literal das citações são checagens mecânicas. Elas não garantem que a interpretação da IA esteja correta.
 
-## O que já está implementado
+## Base já existente no repositório
 
 - Entrada privada de PDFs, protocolo, hash SHA-256 e bloqueio de duplicidade.
 - Armazenamento privado de PDFs e relatórios; metadados e estados no PostgreSQL.
@@ -52,6 +53,10 @@ A cobertura de páginas e a localização literal das citações são checagens 
 - Exports separados para processamento, envio, reconciliação, erro e avaliação sintética.
 - Scripts de backup e migração no repositório.
 
+Esses itens descrevem a base versionada. O estado da VPS e dos workflows ativos
+é uma fotografia separada, indicada acima; exports no Git ficam inativos e não
+confirmam o estado implantado.
+
 ## Incremento de contexto determinístico — testado localmente
 
 O gateway agora relê o Markdown persistido, confere seu SHA-256 e localiza um
@@ -61,16 +66,47 @@ exatamente iguais encontrados em páginas diferentes. O relatório lista essas
 menções sem classificá-las como decisões; a síntese recebe os vínculos como
 pistas e deve preservar contradições.
 
-O workflow versionado usa o prompt v6, que declara texto e evidências do PDF
-como dados não confiáveis e instrui o modelo a ignorar comandos embutidos. A IA
-ainda analisa todos os lotes; ainda não existe seleção automática de páginas
-ambíguas nem modo sem IA. A lista de termos é limitada e não substitui a leitura
-integral nem garante cobertura semântica.
+Registro histórico da versão v1 em 26/10: o workflow usava o prompt v6, que
+declara texto e evidências do PDF como dados não confiáveis e instrui o modelo a
+ignorar comandos embutidos. A IA analisava todos os lotes e a primeira passagem
+determinística era apenas contexto adicional. A lista de termos era limitada e
+não garantia cobertura semântica.
 
-O incremento foi testado localmente com o fixture sintético e a suíte completa
-(89 testes aprovados em 26/10/2026). Ele ainda não foi implantado na VPS: o
-gateway precisa ser reconstruído e o export atualizado precisa ser importado
-com preservação das credenciais. Os exports no Git permanecem `active=false`.
+Esse incremento da versão v1 foi testado localmente com fixture sintético e 89
+testes em 26/10/2026. Ele não havia sido implantado na VPS na consulta daquela
+data. Os exports do repositório permanecem `active=false`.
+
+## Nova arquitetura híbrida — 27/10/2026
+
+Foi implementada no checkout local uma versão v2 inativa com duas passagens:
+
+1. Python lê todo o Markdown já persistido e localiza identificadores, termos,
+   datas e durações em formatos conhecidos, preservando página e linha de
+   evidência. O resultado registra a versão do conjunto de regras.
+2. A IA audita todos os lotes à procura de fatos relevantes que não aparecem
+   nas observações determinísticas e propõe candidatos com página e citação.
+3. O gateway Python valida a página, o lote de origem e a existência exata do
+   trecho citado no Markdown. Candidatos inválidos ficam pendentes e não entram
+   na síntese.
+4. A IA interpreta as observações e somente os candidatos aceitos para redigir
+   o relatório final.
+
+O código do gateway, o export
+`workflows/automacao-regulatoria-internal-v2-hybrid.json`, o prompt e o schema
+estão no repositório. Isso não significa que a IA foi removida: ela continua
+auditando todos os lotes e interpreta o relatório. A checagem do Python confirma
+somente a localização da citação, não a correção semântica do candidato.
+
+**Situação:** versão local ainda em revisão. O v2 não foi importado nem ativado
+na VPS. A última verificação remota disponível continua sendo 26/10/2026 e
+indicava a versão v1 ativa. Antes de qualquer implantação, executar a suíte de
+testes, revisar o diff, fazer backup, importar o export inativo com as
+credenciais preservadas e homologar com fixture sintético. Não reprocessar o PDF
+oficial como parte desta tarefa.
+
+**Validação local em 27/10:** `python -m pytest -q` — 94 testes aprovados, com
+dois avisos de depreciação preexistentes do FastAPI. O JSON do export v2 foi
+validado. Não houve acesso à VPS, chamada a modelo nem processamento de PDF real.
 
 ## Plano de execução
 

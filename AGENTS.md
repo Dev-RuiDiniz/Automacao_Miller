@@ -77,6 +77,7 @@ Antes de alterar um workflow:
 6. não marque sucesso antes do fim de todas as etapas obrigatórias;
 7. teste o caso sintético antes de usar documento real.
 8. leia o contexto determinístico apenas do Markdown já persistido; preserve a página e o trecho de cada menção e não interprete termos ou identificadores como decisão regulatória.
+9. no fluxo híbrido, valide em Python a página, o lote e a citação literal de cada candidato da IA; envie à síntese final somente candidatos aceitos e deixe explícito que a validação não confirma a interpretação semântica.
 
 Os exports versionados ficam inativos por segurança. A ativação é uma ação do ambiente n8n e precisa ser verificada separadamente.
 

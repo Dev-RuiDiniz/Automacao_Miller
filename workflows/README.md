@@ -9,6 +9,28 @@ Por isso, um relatório pode chegar a aguardando_envio, mas a solicitação de e
 
 Os exports do Git continuam com active=false de propósito. Não os use como prova do estado remoto e não reimporte workflows em produção sem backup, preservação dos vínculos de credenciais e teste controlado.
 
+## Versão híbrida v2 — trabalho local de 27/10/2026
+
+`automacao-regulatoria-internal-v2-hybrid.json` é um export novo e inativo. Ele
+preserva o v1 e propõe esta sequência: o gateway Python varre o Markdown
+persistido e registra observações literais; a IA audita cada lote à procura de
+lacunas; Python confere a página, o lote e a citação de cada candidato; e a IA
+redige o relatório usando somente os candidatos aceitos e as observações. O
+prompt da auditoria está em `prompts/regulatory-gap-audit-v1.md`, com contrato
+em `prompts/regulatory-gap-audit-v1.schema.json`.
+
+A rota autenticada
+`POST /internal/submissions/{id}/validate-ai-audit` relê o Markdown salvo e
+faz essa conferência. Ela só verifica localização de evidência; não prova que a
+conclusão proposta pela IA está correta. Candidatos rejeitados ficam pendentes e
+fora do prompt de síntese. A versão continua usando IA em todos os lotes e para
+interpretar o relatório.
+
+Este export ainda não foi importado nem ativado na VPS. A última consulta
+remota, em 26/10/2026, mostrava o v1 ativo. Antes de implantação, faça backup,
+revise diff e credenciais, teste com fixture sintético e homologue em ambiente
+controlado. Não use o documento oficial como fixture de teste.
+
 
 ## Fluxo ativo
 
@@ -123,16 +145,21 @@ snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
 
 ## Documentos extensos
 
-O workflow analisa todas as páginas do Markdown convertido em lotes de até
+No workflow v1, as páginas do Markdown convertido são analisadas em lotes de até
 6.000 caracteres. Cada lote preserva os números das páginas; páginas muito
 longas são divididas por parágrafo e, se necessário, por trechos menores. Os
 resultados dos lotes são combinados e duplicatas são removidas. Se qualquer
 lote falhar ou a contagem de páginas não corresponder ao PDF, o processamento
 falha e não cria um relatório parcial. O Markdown integral permanece guardado
 no volume e relacionado ao documento no PostgreSQL. A leitura por regras é
-executada sobre esse Markdown salvo antes da análise. Neste primeiro incremento,
-a IA continua processando todos os lotes; ainda não existe um modo de chamar a
-IA somente para páginas classificadas como ambíguas.
+executada sobre esse Markdown salvo antes da análise. O v1 envia todos os lotes
+diretamente para extração por IA.
+
+No v2 híbrido local, a IA também percorre todos os lotes, mas para procurar
+lacunas nas observações do Python. Cada sugestão retorna página e trecho. O
+gateway valida essas citações no Markdown persistido antes da síntese final.
+Isso reduz o que a síntese precisa considerar, mas não reduz a auditoria a
+apenas páginas ambíguas e não elimina chamadas de IA.
 
 O nó `Loop Over Items` envia um lote por vez ao Ollama e espera cada resposta
 antes de continuar. Sem essa sequência, o n8n pode iniciar centenas de chamadas
@@ -198,15 +225,19 @@ regulatório definitivo e a conferência humana é opcional.
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
 
-## Fluxo de análise integral vigente
+## Fluxo de análise integral no v1 e proposta do v2
 
 O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 
 ```text
-PDF -> Markdown paginado -> contexto determinístico (termos e processos)
-    -> lotes de até 6.000 caracteres -> achados JSON temporários consolidados
-    -> relatório Markdown
-    -> conferência de citações e sinal -> PDF -> aguardando_envio
+V1: PDF -> Markdown paginado -> contexto determinístico (termos e processos)
+    -> lotes de até 6.000 caracteres analisados pela IA
+    -> consolidação -> relatório -> validação -> PDF -> aguardando_envio
+
+V2 local: PDF -> Markdown paginado -> observações determinísticas em Python
+    -> todos os lotes auditados pela IA -> validação Python de página/citação
+    -> síntese IA somente com observações e candidatos aceitos
+    -> validação do relatório -> PDF -> aguardando_envio
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt

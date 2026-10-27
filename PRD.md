@@ -17,7 +17,7 @@ O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
 exports históricos; não é parte da entrada nem do processamento atual.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, fazer uma leitura determinística de termos e identificadores com página e evidência, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. A leitura determinística liga ocorrências do mesmo identificador de processo entre páginas, sem decidir o significado do ato. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, fazer uma primeira leitura determinística de menções literais com página e evidência, pedir à IA que procure achados não capturados pelas regras em todas as páginas e validar em Python cada citação proposta pela IA contra o Markdown salvo. A IA que escreve o relatório final recebe as observações determinísticas e somente os candidatos cuja página e citação foram localizadas. Essa validação comprova onde o trecho aparece; não comprova se a interpretação do fato está correta. O PostgreSQL mantém metadados e estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório.
 
 A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
 
@@ -81,6 +81,7 @@ Componentes definidos para o projeto:
 
 - **n8n:** automação e orquestração do workflow;
 - **Ollama:** execução local atualmente implantada do modelo de IA;
+- **Python no gateway:** leitura determinística do Markdown persistido e validação das páginas e citações propostas pela IA;
 - **NVIDIA NIM:** provedor externo planejado, condicionado a endpoint/licença de
   produção, autorização para os dados e credencial protegida no n8n. A API
   Developer/API Catalog Trial segue limitada a fixture sintético;
@@ -111,13 +112,15 @@ Persistência no volume privado e registro no PostgreSQL
         ↓
 Conversão para Markdown com marcadores de página
         ↓
-Leitura determinística de termos e identificadores por página
+Leitura determinística de menções literais por página
         ↓
-Análise de todas as páginas em lotes
+IA audita todos os lotes em busca de achados não capturados pelas regras
         ↓
-Achados JSON temporários consolidados
+Python valida página e citação literal dos candidatos
         ↓
-Relatório Markdown e validação de páginas/evidências
+IA interpreta observações e candidatos aceitos para escrever o relatório
+        ↓
+Validação final da cobertura e das referências do relatório
         ↓
 Geração e armazenamento do PDF
         ↓
@@ -184,9 +187,19 @@ governamental sem permissão específica do serviço e permitem uso de conteúdo
 para melhoria de produtos/modelos. O endpoint Trial não processa uploads reais.
 Uma credencial exposta deve ser revogada e substituída antes de qualquer uso.
 
-No fluxo interno atual, a análise semântica por IA continua ocorrendo em todos
-os lotes. A leitura determinística descrita no RF-20 complementa essa análise,
-sem substituir o modelo ou classificar automaticamente o efeito regulatório.
+Depois da leitura determinística, a IA deve auditar todos os lotes do Markdown
+em busca de fatos relevantes não localizados pelas regras. Ela deve devolver
+candidatos com página e citação literal. Python deve verificar se a página
+existe, se pertence ao lote analisado e se a citação está na página indicada do
+Markdown persistido. A etapa de redação final recebe as observações
+determinísticas e somente os candidatos aceitos. Candidatos rejeitados ficam
+fora da síntese e são contabilizados como pendentes. Falha em qualquer lote da
+auditoria impede a geração de um relatório apresentado como completo.
+
+Essa arquitetura continua usando IA para procurar lacunas e interpretar o
+relatório. A primeira passagem reduz a dependência de IA para localizar padrões
+simples, mas não torna o processamento sem IA nem garante que as regras cubram
+todo achado relevante.
 
 ### RF-05 — Identificação regulatória
 
@@ -334,11 +347,23 @@ encontrado em mais de uma página deve formar um vínculo entre essas ocorrênci
 
 Essa leitura é determinística: não classifica o resultado do ato, não decide
 que duas ocorrências são o mesmo evento e não substitui a análise do documento.
-O relatório deve apresentar os termos localizados e os vínculos entre páginas
-como pistas para conferência, preservar cada página e explicitar que a repetição
-de um identificador não prova igualdade de status. A varredura usa somente o
-Markdown persistido; ausência de um termo da lista de regras não prova que o
-documento não contenha um achado relevante.
+Além de identificadores e termos regulatórios, o conjunto versionado pode
+localizar datas e durações em formatos conhecidos, sempre mantendo a linha
+original como evidência. O relatório deve apresentar as observações e os
+vínculos entre páginas como pistas para conferência, preservar cada página e
+explicitar que a repetição de um identificador não prova igualdade de status.
+A varredura usa somente o Markdown persistido; ausência de um termo da lista
+de regras não prova que o documento não contenha um achado relevante.
+
+### RF-21 — Auditoria de lacunas e validação em Python
+
+A IA deve revisar todas as páginas em lotes para propor fatos que não estejam
+representados nas observações determinísticas. Cada candidato precisa trazer
+fato, categoria, página e trecho literal. O gateway deve aceitar o candidato
+para a síntese somente se a página existir, pertencer ao lote de origem e
+contiver o trecho citado. Candidato sem evidência válida fica pendente e não
+entra no prompt do relatório final. Essa validação mecânica não confirma a
+correção semântica do fato nem substitui a conferência profissional.
 
 ---
 
@@ -432,6 +457,14 @@ Termos e identificadores localizados por regras devem ser exibidos com o trecho
 e a página de origem. A regra só confirma a ocorrência literal. Não pode inferir
 deferimento, indeferimento, cancelamento, identidade de atos ou consequência
 regulatória a partir de uma palavra ou de um identificador repetido.
+
+### RN-18 — Candidatos da IA precisam de citação verificável
+
+Nenhum candidato proposto pela IA pode entrar na síntese final sem passar pela
+validação Python da página e do trecho literal contra o Markdown persistido.
+Essa checagem atesta apenas a localização da citação, não a verdade ou a
+interpretação do candidato. Itens rejeitados permanecem identificados como
+pendentes e não podem ser reaproveitados na redação final.
 
 ---
 
@@ -609,6 +642,11 @@ O MVP poderá ser considerado entregue quando:
 22. o relatório final puder ser baixado somente após conclusão válida.
 23. um identificador repetido em páginas diferentes preservar todas as ocorrências e seus trechos, sem unir status ou atos por inferência;
 24. marcadores de página ausentes ou fora de ordem forem rejeitados pela leitura determinística, e as menções encontradas aparecerem no relatório como localizações literais, não decisões.
+25. a primeira passagem Python processar todas as páginas do Markdown salvo e registrar a versão do conjunto de regras;
+26. a IA auditar todos os lotes e a falta de resposta de qualquer lote impedir um relatório apresentado como completo;
+27. candidatos com evidência inexistente, página errada ou página fora do lote forem excluídos da síntese e contabilizados como pendentes;
+28. a síntese final receber apenas candidatos aceitos pelo validador Python e as observações determinísticas;
+29. observações de datas e durações preservarem a evidência original e não inferirem o efeito jurídico ou regulatório do texto.
 
 ---
 
@@ -650,7 +688,11 @@ servir a uma futura capacidade opcional de RAG e à fila de candidatos, mas não
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
 
-## Decisão vigente sobre o fluxo operacional — 2026-10-02
+## Decisão histórica sobre o fluxo da versão v1 — 2026-10-02
+
+Esta seção registra o desenho da versão v1, anterior à arquitetura híbrida
+descrita no RF-21. A v1 continua sendo a versão observada na VPS na consulta de
+26/10/2026; o export v2 híbrido permanece inativo no repositório.
 
 O processamento percorre uma cadeia linear, mas analisa o documento completo em
 lotes para manter cada chamada ao modelo dentro de um limite controlado:
@@ -684,3 +726,23 @@ esse sinal nem expressa certeza semântica.
 Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros, envio autenticado e download somente após
 `concluido` continuam obrigatórios.
+
+## Decisão de arquitetura híbrida — 2026-10-27
+
+O fluxo alvo passa a separar leitura mecânica, busca de lacunas e interpretação:
+
+```text
+Markdown persistido
+  -> Python registra observações literais para todas as páginas
+  -> IA audita todos os lotes e propõe fatos que podem faltar
+  -> Python confere página, lote e citação dos candidatos
+  -> IA interpreta observações e candidatos aceitos no relatório final
+  -> validação do relatório, PDF e aguardando_envio
+```
+
+A versão local está representada em
+`workflows/automacao-regulatoria-internal-v2-hybrid.json` e foi criada inativa.
+O endpoint de validação usa o Markdown persistido e seu hash. Nenhum documento
+real foi usado para a alteração nem para os testes sintéticos. Essa decisão
+define o comportamento esperado do produto; não significa que o workflow já
+esteja ativo na VPS.

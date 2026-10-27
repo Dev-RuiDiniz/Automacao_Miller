@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegulatoryGapAuditV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidatos"],
+  "properties": {
+    "candidatos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["titulo", "fato", "categoria", "pagina", "evidencia"],
+        "properties": {
+          "titulo": {"type": "string", "minLength": 1},
+          "fato": {"type": "string", "minLength": 1},
+          "categoria": {"type": "string", "minLength": 1},
+          "pagina": {"type": "integer", "minimum": 1},
+          "evidencia": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

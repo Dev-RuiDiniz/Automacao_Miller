@@ -11,7 +11,7 @@ ROOT = Path(__file__).parents[2]
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js é necessário para testar o código do nó n8n")
 def test_workflow_batches_every_page_and_splits_long_pages() -> None:
-    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v1.json").read_text(encoding="utf-8"))
+    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v2-hybrid.json").read_text(encoding="utf-8"))
     code = next(node["parameters"]["jsCode"] for node in workflow["nodes"] if node["name"] == "Prepare analysis batches")
     source = {
         "submission_id": "local-test",
@@ -24,20 +24,28 @@ def test_workflow_batches_every_page_and_splits_long_pages() -> None:
             + "\n## Página 3\nPágina final."
         ),
     }
+    deterministic = {
+        "page_count": 3,
+        "pages_processed": [1, 2, 3],
+        "observations": [
+            {"page": 2, "category": "termo_regulatorio_literal", "value": "cancelado", "evidence": "ATO_LONGO cancelado."},
+        ],
+    }
     harness = r"""
 const fs = require('fs');
 const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
-const lookup = () => ({ item: { json: payload.source } });
+const lookup = (name) => ({ item: { json: name === 'Gateway - Build deterministic context' ? payload.deterministic : payload.source } });
 const result = new Function('$', payload.code)(lookup);
 process.stdout.write(JSON.stringify(result.map(item => ({
   pages: item.json.batch_pages,
-  markdown: item.json.batch_markdown
+  markdown: item.json.batch_markdown,
+  prompt: item.json.batch_prompt
 }))));
 """
 
     completed = subprocess.run(
         ["node", "-e", harness],
-        input=json.dumps({"code": code, "source": source}),
+        input=json.dumps({"code": code, "source": source, "deterministic": deterministic}),
         text=True,
         encoding="utf-8",
         capture_output=True,
@@ -50,6 +58,7 @@ process.stdout.write(JSON.stringify(result.map(item => ({
     assert all(len(batch["markdown"]) <= 6000 for batch in batches)
     assert {page for batch in batches for page in batch["pages"]} == {1, 2, 3}
     assert any("EVIDENCIA_APOS_7000" in batch["markdown"] for batch in batches)
+    assert any('"value":"cancelado"' in batch["prompt"] for batch in batches if 2 in batch["pages"])
     page_two = [batch["markdown"] for batch in batches if "## Página 2" in batch["markdown"]]
     assert len(page_two) > 1
     assert sum(text.count("X") for text in page_two) == 12500
@@ -148,3 +157,54 @@ process.stdout.write(JSON.stringify(result[0].json.report_markdown));
     assert "Menções literais localizadas por regras" in report_markdown
     assert "Identificadores de processo repetidos em páginas diferentes" in report_markdown
     assert f"- Página: 2\n- Evidência literal: \"Processo {identifier}: cancelado.\"" in report_markdown
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js é necessário para testar o código do nó n8n")
+def test_hybrid_workflow_only_synthesizes_python_validated_candidates() -> None:
+    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v2-hybrid.json").read_text(encoding="utf-8"))
+    nodes = {node["name"]: node for node in workflow["nodes"]}
+    assert workflow["active"] is False
+    assert workflow["connections"]["Merge batch findings and prepare report"]["main"][0][0]["node"] == "Gateway - Validate AI audit candidates"
+    assert workflow["connections"]["Gateway - Validate AI audit candidates"]["main"][0][0]["node"] == "Prepare validated report prompt"
+    assert workflow["connections"]["Prepare validated report prompt"]["main"][0][0]["node"] == "Ollama - Generate report Markdown"
+    assert "/validate-ai-audit' }}" in nodes["Gateway - Validate AI audit candidates"]["parameters"]["url"]
+
+    merged = {
+        "submission_id": "fixture-sintetico",
+        "report_context": {"page_count": 2, "batch_count": 1, "type": "python_deterministic_then_ai_gap_audit"},
+        "deterministic_context": {"observations": [], "cross_page_links": []},
+    }
+    validation = {
+        "validated_candidates": [{
+            "titulo": "Prazo indicado",
+            "fato": "O documento informa prazo de 30 dias.",
+            "categoria": "prazo",
+            "pagina": 1,
+            "evidencia": "O prazo é de 30 dias.",
+        }],
+        "pending_candidates": [{
+            "fato": "AFIRMACAO_INVENTADA_NAO_DEVE_IR_A_SINTESE",
+            "pagina": 9,
+            "evidencia": "trecho inexistente",
+        }],
+    }
+    harness = r"""
+const fs = require('fs');
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+const lookup = (name) => ({ item: { json: name === 'Merge batch findings and prepare report' ? payload.merged : payload.validation } });
+const result = new Function('$', '$json', payload.code)(lookup, payload.validation);
+process.stdout.write(JSON.stringify(result[0].json));
+"""
+    completed = subprocess.run(
+        ["node", "-e", harness],
+        input=json.dumps({"code": nodes["Prepare validated report prompt"]["parameters"]["jsCode"], "merged": merged, "validation": validation}, ensure_ascii=False),
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=True,
+        cwd=ROOT,
+    )
+    result = json.loads(completed.stdout)
+    assert result["structured_findings"] == validation["validated_candidates"]
+    assert "O documento informa prazo de 30 dias." in result["report_prompt"]
+    assert "AFIRMACAO_INVENTADA_NAO_DEVE_IR_A_SINTESE" not in result["report_prompt"]

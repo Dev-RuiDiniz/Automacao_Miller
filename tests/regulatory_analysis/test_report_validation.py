@@ -1,4 +1,4 @@
-from infra.regulatory_analysis.report_validation import validate_report_references
+from infra.regulatory_analysis.report_validation import validate_ai_audit_candidates, validate_report_references
 
 
 SOURCE = "## Página 1\nAto publicado: produto A deferido.\n## Página 2\nExigência para produto B."
@@ -60,3 +60,45 @@ def test_marks_invalid_legacy_table_reference_as_pending_in_the_report() -> None
     assert result["references"]["pending"][0]["code"] == "page_not_found"
     assert "Referência pendente (não comprovada)" in result["validated_report_markdown"]
     assert "| 99 | trecho inventado |" not in result["validated_report_markdown"]
+
+
+def test_accepts_only_ai_candidates_with_source_quote_on_the_reported_page() -> None:
+    candidates = [
+        {
+            "titulo": "Ato publicado",
+            "fato": "O ato foi publicado.",
+            "categoria": "ato",
+            "pagina": 1,
+            "evidencia": "Ato publicado: produto A deferido.",
+            "lote_paginas": [1],
+        },
+        {
+            "fato": "Produto C foi aprovado.",
+            "categoria": "produto",
+            "pagina": 1,
+            "evidencia": "Produto C foi aprovado.",
+            "lote_paginas": [1],
+        },
+        {
+            "fato": "Exigência do produto B.",
+            "categoria": "exigência",
+            "pagina": 2,
+            "evidencia": "Exigência do produto B.",
+            "lote_paginas": [1],
+        },
+        {
+            "fato": "Produto A foi deferido.",
+            "categoria": "produto",
+            "pagina": 1,
+            "evidencia": "produto A deferido",
+        },
+    ]
+
+    result = validate_ai_audit_candidates(candidates, SOURCE)
+
+    assert result["validated_count"] == 1
+    assert result["validated_candidates"][0]["pagina"] == 1
+    assert result["pending_count"] == 3
+    assert result["pending_candidates"][0]["reason"] == "evidência não localizada na página indicada"
+    assert result["pending_candidates"][1]["reason"] == "página não pertence ao lote enviado à IA"
+    assert result["pending_candidates"][2]["reason"] == "lote de origem ausente ou inválido"

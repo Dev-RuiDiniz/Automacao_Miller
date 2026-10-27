@@ -7,19 +7,22 @@ Pense numa esteira:
 1. A pessoa coloca um PDF na entrada.
 2. A esteira confere se o arquivo é válido e dá um número de protocolo.
 3. O sistema transforma cada página em texto e guarda o original.
-4. Uma regra procura termos conhecidos e liga números de processo repetidos entre páginas.
-5. A IA lê todas as páginas em partes pequenas e usa essas ligações como contexto.
-6. Uma etapa confere se as páginas e citações existem mesmo.
-7. O sistema monta o relatório e o PDF.
-8. O trabalho fica esperando um operador.
-9. O operador decide se e para quem enviar.
-10. O sistema só libera o download oficial depois que o Gmail confirma o envio.
+4. Python procura menções conhecidas no texto salvo e anota a página e a linha onde aparecem.
+5. A IA percorre todas as páginas em blocos e procura informações que as regras podem ter deixado passar.
+6. Python confere a página e a citação de cada sugestão da IA; o que não comprovar fica de fora da síntese.
+7. A IA usa as observações e sugestões aceitas para escrever o relatório.
+8. O sistema confere as referências finais e gera o PDF.
+9. O trabalho fica esperando um operador, que decide se e para quem enviar.
+10. O download oficial só é liberado depois que o Gmail confirma o envio.
 
 A leitura por regras registra palavras literais e trechos com páginas. Ela não
 decide se um ato foi aprovado, negado ou cancelado; a repetição de um número de
 processo é apenas uma pista de ligação. A lista de termos não cobre toda forma
-possível de escrever um ato. Neste primeiro passo, a IA ainda analisa todos os
-lotes; o sistema não limita chamadas de IA somente a casos ambíguos.
+possível de escrever um ato. A versão híbrida ainda chama a IA em todos os
+lotes para procurar lacunas e também para escrever o relatório. A checagem
+Python confirma que uma citação aparece no texto, não que sua interpretação
+esteja correta. O export v2 está inativo e ainda não foi implantado na VPS; a
+última verificação de 26/10/2026 mostrava o workflow v1 ativo.
 
 ## Fluxo principal
 
@@ -43,14 +46,15 @@ flowchart TD
     L -- Não --> X[Registrar erro técnico<br/>Não criar relatório parcial]
     L -- Sim --> M[Guardar Markdown e metadados]
     M --> M1[Gateway relê o Markdown persistido<br/>Varre termos e identificadores literais]
-    M1 --> M2[Liga identificadores de processo<br/>repetidos em páginas diferentes]
+    M1 --> M2[Liga identificadores repetidos<br/>e guarda datas e durações literais]
     M2 --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
-    N --> O[Enviar um lote por vez ao Ollama local]
+    N --> O[IA audita cada lote em busca de lacunas]
     O --> P{Todos os lotes terminaram?}
     P -- Não --> X
-    P -- Sim --> Q[Consolidar achados e vínculos literais entre páginas]
-    Q --> R[Gerar relatório em Markdown]
-    R --> S[Conferir páginas e trechos contra o Markdown original]
+    P -- Sim --> Q[Python valida página e citação<br/>de cada candidato da IA]
+    Q --> Q1[Separar candidatos aceitos<br/>dos pendentes]
+    Q1 --> R[IA interpreta observações<br/>e candidatos aceitos]
+    R --> S[Conferir páginas e trechos do relatório<br/>contra o Markdown original]
     S --> T{Todas as páginas foram analisadas?}
     T -- Não --> X
     T -- Sim --> U[Marcar citações comprovadas e pendentes]
@@ -77,7 +81,8 @@ flowchart TD
 
 - **Arquivo duplicado:** o sistema mostra o protocolo que já existe; não inicia outro processamento automático.
 - **PDF inválido ou sem texto selecionável:** encerra com erro. Esta versão não faz OCR.
-- **Falha em qualquer lote ou página:** encerra como erro e não apresenta um relatório parcial como se estivesse completo.
+- **Falha em qualquer lote da auditoria:** encerra como erro e não apresenta um relatório parcial como se estivesse completo.
+- **Citação candidata inventada ou página errada:** Python marca como pendente e não passa o candidato para a IA que redige o relatório.
 - **Citação não encontrada, com página errada ou diferente do original:** ela aparece como pendente. Isso não impede por si só a criação do PDF nem o envio manual.
 - **Falha do Gmail:** a entrega fica registrada como falha. O operador pode pedir nova tentativa controlada; o download oficial só abre após um envio confirmado.
 - **Dúvida sobre o conteúdo:** o operador pode abrir o PDF original e conferir. Essa revisão é opcional para cada relatório.

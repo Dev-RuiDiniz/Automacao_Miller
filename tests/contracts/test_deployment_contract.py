@@ -9,11 +9,12 @@ def test_remote_vps_status_is_dated_and_not_presented_as_current() -> None:
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     log = (ROOT / "LOG.md").read_text(encoding="utf-8")
 
-    assert "**Atualizado em:** 26 de outubro de 2026" in roadmap
-    assert "Verificação somente de leitura por SSH em 26/10/2026" in roadmap
+    assert "**Atualizado em:** 27 de outubro de 2026" in roadmap
+    assert "A última consulta da VPS foi em 26/10/2026" in roadmap
+    assert "Verificação por SSH em 26/10/2026" in roadmap
     assert "**Estado:** homologação incompleta" in roadmap
     assert "n8n 2.30.5" in roadmap
-    assert "O banco tinha 3 documentos em aguardando_envio, 6 em erro e nenhum em processamento" in roadmap
+    assert "O banco tem 3 documentos em `aguardando_envio`, 6 em `erro` e nenhum em processamento" in roadmap
     assert "A senha administrativa root foi exposta anteriormente" in roadmap
     assert "A chave de API NVIDIA exposta também precisa ser revogada" in roadmap
     assert "## 2026-10-26 — Verificação e sincronização" in log
@@ -28,8 +29,8 @@ def test_product_docs_match_active_markdown_report_flow() -> None:
     assert "a saída persistida do MVP é o" in prd
     assert "RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança" in prd
     assert "prioridade das ações, não uma medida de confiança" in prd
-    assert "A leitura por regras é lexical e não usa embeddings" in readme
-    assert "A IA ainda analisa todos os lotes nesta versão" in readme
+    assert "A leitura por regras pode deixar passar formas de escrita que não conhece" in readme
+    assert "A versão híbrida ainda usa IA em todos os lotes" in readme
     assert "RAG, embeddings e treinamento de modelo estão fora do caminho ativo" in readme
     assert "analysis-v1.json" not in workflows
     assert "o fluxo atual não grava análise estruturada" in workflows

@@ -49,6 +49,22 @@ def test_synthetic_fixture_finds_deadline_without_treating_document_text_as_inst
     assert all("status" not in item for item in result["anchors"])
 
 
+def test_deterministic_pass_records_literal_dates_and_durations_without_interpreting_them() -> None:
+    markdown = (
+        "## Página 1\n"
+        "Em 3 de março de 2026, foi publicado o ato. O prazo de renovação passa de 90 para 120 dias."
+    )
+
+    result = build_deterministic_context(markdown)
+
+    observations = result["observations"]
+    assert result["rule_set_version"] == "regulatory-rules-v1"
+    assert {item["value"] for item in observations if item["category"] == "data_literal"} == {"3 de março de 2026"}
+    assert {item["value"] for item in observations if item["category"] == "duracao_literal"} == {"90", "120 dias"}
+    assert all(item["page"] == 1 and item["value"] in item["evidence"] for item in observations)
+    assert all("status" not in item for item in observations)
+
+
 @pytest.mark.parametrize(
     "markdown",
     [

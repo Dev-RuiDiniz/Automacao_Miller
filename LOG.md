@@ -2831,3 +2831,56 @@ Impacto:
 O projeto agora permite como objetivo uma integração externa NVIDIA de produção
 com condições explícitas de privacidade e licença. O caminho real continua
 local enquanto o endpoint não estiver configurado e homologado.
+
+## 2026-10-27 — Implementa processamento híbrido determinístico e auditoria por IA
+
+Data: 2026-10-27
+Tipo: ARQUITETURA / IMPLEMENTAÇÃO / TESTE / DOCUMENTAÇÃO
+Status: implementado localmente; ainda não implantado na VPS
+
+Contexto:
+Foi escolhida uma primeira passagem em Python sem IA, seguida por uma auditoria
+da IA para procurar lacunas e uma síntese interpretativa final. A meta é
+registrar observações com evidência rastreável e impedir que citações inventadas
+entrem na síntese sem conferência mecânica.
+
+Decisão/Ação:
+O contexto determinístico passou a registrar identificadores, termos, datas e
+durações literais em formatos conhecidos, incluindo a linha de origem e a
+versão das regras. O gateway recebeu a rota autenticada
+`POST /internal/submissions/{id}/validate-ai-audit`, que relê o Markdown
+persistido, confere o hash e separa candidatos aceitos de pendentes conforme a
+página, lote e citação literal. O workflow v2 inativo audita todos os lotes com
+IA e envia para a síntese final apenas as observações e candidatos aceitos.
+Candidatos pendentes são excluídos do prompt final.
+
+O fluxo continua usando IA para procurar lacunas em todos os lotes e para
+interpretar o relatório. A validação Python localiza citações; não comprova a
+correção semântica dos fatos ou da interpretação. O export v1 foi preservado,
+nenhum workflow foi ativado e nenhum documento oficial foi processado.
+
+Arquivos afetados:
+`infra/regulatory_analysis/deterministic_context.py`,
+`infra/regulatory_analysis/report_validation.py`,
+`infra/upload_gateway/app.py`, testes de análise, API e contrato n8n,
+`workflows/automacao-regulatoria-internal-v2-hybrid.json`,
+`prompts/regulatory-gap-audit-v1.md`,
+`prompts/regulatory-gap-audit-v1.schema.json`, `PRD.md`, `README.md`,
+`AGENTS.md`, `ROADMAP.md`, `FLUXOGRAMA.md`, `workflows/README.md` e `LOG.md`.
+
+Testes e verificações:
+`python -m pytest -q`: 94 testes aprovados. O teste foi realizado com fixtures
+sintéticos; nenhum PDF real foi enviado a modelo ou serviço externo. O JSON do
+workflow v2 foi validado. A execução exibiu dois avisos de depreciação do
+evento `on_event` do FastAPI. Não houve acesso à VPS.
+
+Pendências:
+Revisar o diff e depois planejar backup, importação do export v2 preservando as
+credenciais, e homologação com fixture sintético em ambiente controlado. A
+última verificação disponível da VPS, em 26/10/2026, indicava v1 ativo; o v2
+permanece apenas local e inativo. Não processar o PDF oficial nesta etapa.
+
+Impacto:
+O Python cobre a primeira passagem de menções conhecidas e valida as citações
+dos candidatos produzidos pela IA. A cobertura das regras é limitada; a
+auditoria por IA continua necessária e a revisão humana continua disponível.

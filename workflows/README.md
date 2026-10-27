@@ -1,18 +1,19 @@
 # Workflows n8n
 Visão do fluxo em [FLUXOGRAMA.md](../FLUXOGRAMA.md); locais seguros de credenciais em [ACESSOS.md](../ACESSOS.md). Confirme o estado dos workflows na VPS: os arquivos exportados no Git ficam inativos por segurança.
 
-## Estado observado na VPS em 26/10/2026
+## Estado observado na VPS em 27/10/2026
 
-O n8n tinha cinco workflows registrados. Estavam ativos somente Automação Regulatória - Repositório Interno e Automação Regulatória - Erros Internos. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM estavam inativos.
+O n8n tem seis workflows registrados. Estão publicados Automação Regulatória - Duas Passagens e Automacao Regulatoria - Erros Internos. Automacao Regulatoria - Repositorio Interno (v1) foi despublicado. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM continuam inativos.
 
-Por isso, um relatório pode chegar a aguardando_envio, mas a solicitação de envio não está operacional até que o workflow de Gmail seja publicado, configurado e testado. A reconciliação também não recupera documentos ou entregas parados enquanto estiver inativa. Este estado é uma fotografia da consulta; confira novamente no n8n antes de operar.
+Por isso, um relatório pode chegar a `aguardando_envio`, mas a solicitação de envio não está operacional até que o workflow de Gmail seja publicado, configurado e testado. A reconciliação também não recupera documentos ou entregas parados enquanto estiver inativa. Este estado é uma fotografia de 27/10/2026; confira novamente no n8n antes de operar.
 
 Os exports do Git continuam com active=false de propósito. Não os use como prova do estado remoto e não reimporte workflows em produção sem backup, preservação dos vínculos de credenciais e teste controlado.
 
-## Versão híbrida v2 — trabalho local de 27/10/2026
+## Versão híbrida v2 — implantada em 27/10/2026
 
-`automacao-regulatoria-internal-v2-hybrid.json` é um export novo e inativo. Ele
-preserva o v1 e propõe esta sequência: o gateway Python varre o Markdown
+`automacao-regulatoria-internal-v2-hybrid.json` permanece um export inativo no
+Git, mas foi importado e publicado na VPS após backup. Ele preserva o export v1
+para rollback. O fluxo ativo usa esta sequência: o gateway Python varre o Markdown
 persistido e registra observações literais; a IA audita cada lote à procura de
 lacunas; Python confere a página, o lote e a citação de cada candidato; e a IA
 redige o relatório usando somente os candidatos aceitos e as observações. O
@@ -26,21 +27,35 @@ conclusão proposta pela IA está correta. Candidatos rejeitados ficam pendentes
 fora do prompt de síntese. A versão continua usando IA em todos os lotes e para
 interpretar o relatório.
 
-Este export ainda não foi importado nem ativado na VPS. A última consulta
-remota, em 26/10/2026, mostrava o v1 ativo. Antes de implantação, faça backup,
-revise diff e credenciais, teste com fixture sintético e homologue em ambiente
-controlado. Não use o documento oficial como fixture de teste.
+O painel autenticado confirmou o v2 publicado e o v1 despublicado em
+27/10/2026. O workflow de erros continua publicado. Não use o documento oficial
+como fixture de teste.
+
+### Resultado da homologação sintética em 27/10/2026
+
+Um PDF artificial de duas páginas percorreu upload, conversão, análise local
+com `qwen2.5:3b`, validação e renderização. O protocolo terminou em
+`aguardando_envio`, com cobertura de páginas 2/2, zero erros e zero entregas de
+e-mail. Foram gerados Markdown convertido, relatório Markdown e PDF.
+
+O teste técnico passou, mas o relatório falhou em qualidade: descreveu como
+inexistente uma contradição/alteração entre a concessão da página 1 e o
+cancelamento da página 2, recomendou planejar renovação após o cancelamento e
+ordenou as seções incorretamente. A validação confirmou 8 de 10 referências e
+deixou duas pendentes por formato não reconhecido. O PDF também mostrou âncoras
+Markdown sem resolução. O texto malicioso de teste não levou à revelação de
+segredos. Corrija prompt/validação e repita o fixture antes de processar
+documentos reais.
 
 
 ## Fluxo ativo
 
 A origem oficial de novos documentos é a landing privada. Os exports ficam
-inativos no repositório para evitar ativação acidental. Na homologação local,
-importe os workflows de processamento e de erro interno, associe a credencial
-PostgreSQL aos dois e ative ambos. Mantenha o envio por e-mail e a reconciliação
-inativos no teste ponta a ponta:
+inativos no repositório para evitar ativação acidental. Na VPS, o workflow v2 e
+o workflow de erro estão publicados e associados à credencial PostgreSQL. O
+envio por e-mail e a reconciliação continuam inativos:
 
-1. `automacao-regulatoria-internal-v1.json` — recebe o protocolo, reivindica o
+1. `automacao-regulatoria-internal-v2-hybrid.json` — recebe o protocolo, reivindica o
    documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
    artefatos e deixa o documento em `aguardando_envio`, com alertas de qualidade
    e referências para conferência opcional;

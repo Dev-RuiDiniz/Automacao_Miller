@@ -2884,3 +2884,31 @@ Impacto:
 O Python cobre a primeira passagem de menções conhecidas e valida as citações
 dos candidatos produzidos pela IA. A cobertura das regras é limitada; a
 auditoria por IA continua necessária e a revisão humana continua disponível.
+
+## 2026-10-27 — Publica o v2 e executa homologação ponta a ponta
+
+Data: 2026-10-27
+Tipo: IMPLANTAÇÃO / TESTE / QUALIDADE
+Status: workflow v2 publicado; teste técnico concluído; qualidade do relatório reprovada para uso real
+
+Contexto:
+O usuário concluiu a criação do proprietário do n8n e confirmou a troca do workflow ativo e o teste sintético. O repositório local e a VPS estavam um commit atrás antes da atualização.
+
+Decisão/Ação:
+O commit `a5e036c` foi enviado para `main` e sincronizado na VPS. Foi feito backup protegido do PostgreSQL, do volume de artefatos e dos cinco workflows antes da importação. O proprietário foi criado no painel; a senha foi definida pelo usuário e não foi copiada para chat, Git ou documentação. O v1 foi despublicado e o v2 híbrido publicado; o workflow de erros permaneceu ativo. Envio manual e reconciliação continuaram inativos.
+
+Um PDF totalmente sintético de duas páginas foi enviado pelo gateway, processado pelo Ollama local `qwen2.5:3b` e concluído na execução n8n 18, protocolo `e6904fac-45c8-4321-a53b-cf296e4df23d`, estado `aguardando_envio`. A conversão cobriu as duas páginas; o registro da tentativa não tem erros; não houve entrega ou e-mail. A frase de injeção do fixture não levou à revelação de segredos.
+
+A validação das referências confirmou 8 de 10; duas ficaram pendentes por formato não reconhecido. O relatório não reconheceu a concessão seguida do cancelamento, recomendou cronograma de renovação depois do cancelamento e colocou as seções fora da ordem. O PDF mostra âncoras Markdown sem resolução. A homologação técnica passou, mas a qualidade do relatório não foi aprovada para uso real.
+
+Arquivos afetados:
+`docker-compose.yml`, `.env.example`, `ROADMAP.md`, `ACESSOS.md`, `workflows/README.md`, `LOG.md` e artefatos em `output/e2e-sintetico-20261027-e6904fac/`.
+
+Testes e verificações:
+`python -m pytest -q`: 94 aprovados, dois avisos de depreciação do FastAPI. `docker compose config --quiet` passou localmente e na VPS. Os seis containers Miller estavam saudáveis após o teste. O relatório PDF foi renderizado e conferido visualmente: legível e sem corte, mas com ordem e âncoras incorretas.
+
+Pendências:
+Corrigir a síntese e a validação estrutural do relatório, incluir regressões para mudança de status entre páginas, referência pendente e ordem das seções, e repetir este fixture antes de processar documento real. Confirmar a guarda da senha do proprietário, rotacionar a senha root exposta e revogar as chaves NVIDIA expostas. Testar restauração de backup, publicar a landing com HTTPS e homologar separadamente envio manual e reconciliação. Nenhum PDF real foi processado nesta tarefa.
+
+Impacto:
+O v2 está ativo na VPS; o v1 permanece disponível no repositório/backup para rollback. Os relatórios atuais devem ser tratados como rascunho sujeito a revisão, não como resultado aprovado.

@@ -1,11 +1,11 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
 **Atualizado em:** 27 de outubro de 2026
-**Estado:** homologação incompleta; não está pronta para produção.
+**Estado:** homologação parcial; não liberar documentos reais até corrigir a qualidade do relatório e concluir os itens críticos abaixo.
 
 ## Leitura em um minuto
 
-A base do produto existe, mas a homologação ainda está incompleta. A última consulta da VPS foi em 26/10/2026: naquela data os seis containers do Miller estavam saudáveis. A entrada pública, o acesso administrativo do n8n, o envio de e-mail, a reconciliação automática e a recuperação por backup ainda não estavam prontos ou validados. Havia 9 documentos parados: 3 aguardando envio e 6 com erro. Em 27/10 foi implementada localmente uma nova versão híbrida, ainda não implantada nem testada na VPS.
+A base do produto existe, mas a homologação ainda está incompleta. Em 27/10/2026 o repositório e a VPS foram sincronizados no commit `a5e036c`, o proprietário do n8n foi criado e o v2 híbrido foi publicado. Um PDF sintético percorreu o fluxo até `aguardando_envio`, sem e-mail. O teste técnico passou; a qualidade do relatório falhou ao omitir a sequência concessão/cancelamento e sugerir renovação após o cancelamento. O envio manual, a reconciliação, a landing pública e o teste de restauração continuam pendentes.
 
 **Não envie documentos reais nem declare o projeto concluído antes de fechar os itens P0 e P1 e obter o aceite operacional.**
 
@@ -13,31 +13,34 @@ A base do produto existe, mas a homologação ainda está incompleta. A última 
 
 ### Repositório
 
-- O commit `daf93a0` com o fluxo híbrido, testes e documentação foi publicado em `origin/main` em 27/10/2026. A VPS não foi atualizada; a última consulta remota disponível é de 26/10/2026.
-- A nova versão híbrida possui um export inativo v2 e mudanças no gateway Python. A validação atual cobre somente fixtures sintéticos locais; não valida a VPS.
-- A suíte completa da mudança híbrida passou localmente em 27/10/2026: 94 testes aprovados. Isso valida este checkout com fixtures, não o comportamento da VPS. Foram exibidos dois avisos de depreciação do evento `on_event` do FastAPI.
+- O commit `a5e036c` está em `origin/main` e foi sincronizado na VPS em 27/10/2026.
+- O export versionado do workflow permanece inativo no Git; o workflow v2 publicado no n8n foi verificado separadamente.
+- A suíte local passou em 27/10/2026: 94 testes aprovados e dois avisos de depreciação do evento `on_event` do FastAPI. O teste ponta a ponta da VPS está descrito abaixo.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 
 ### VPS
 
-Verificação por SSH em 26/10/2026:
+Verificação por SSH, gateway e painel autenticado do n8n em 27/10/2026:
 
 - O projeto Automação Miller tem 6 containers saudáveis: n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor PDF, renderizador PDF e gateway.
 - O n8n escuta apenas em 127.0.0.1:25678. Use túnel SSH para abrir o painel.
 - O gateway publica a porta apenas dentro da rede Docker. Não foi encontrado listener HTTP/HTTPS na VPS; a landing ainda não tem uma entrada pública verificada.
-- Estão ativos somente os workflows de processamento interno e tratamento de erros. Envio manual e reconciliação estão desativados. A avaliação sintética NVIDIA está desativada.
-- Existe um registro proprietário no banco do n8n, mas e-mail e senha estão vazios; ainda não há login administrativo utilizável.
-- O banco tem 3 documentos em `aguardando_envio`, 6 em `erro` e nenhum em processamento. Os erros estão nas etapas de conversor, análise pelo Ollama, consolidação dos lotes e validação do relatório.
+- Estão publicados o workflow v2 `Automação Regulatória - Duas Passagens` e o workflow de erros internos. O v1 está despublicado. Envio manual, reconciliação e avaliação sintética NVIDIA permanecem inativos.
+- O proprietário do n8n foi criado pelo responsável, que concluiu o login no painel. A senha não foi registrada neste repositório; o local onde o responsável a guardou não foi verificado.
+- O banco tem 10 documentos: 4 em `aguardando_envio` e 6 em `erro`. Um dos quatro aguardando envio é o fixture sintético desta homologação; os outros três já existiam. Não houve envio de e-mail.
+- Os seis containers do Miller estavam saudáveis na verificação, incluindo n8n 2.30.5, PostgreSQL, Ollama 0.32.1, conversor PDF, renderizador PDF e gateway.
 - A segunda tentativa autorizada para o PDF extenso foi interrompida quando o usuário escolheu avaliar o uso da NVIDIA API. O n8n registrou a execução 16 como erro em `Ollama - Analyze each batch`; o Ollama foi reativado e está saudável. PDF original, Markdown v1 e artefatos anteriores foram preservados. Não foi gerado relatório v2 nem enviado e-mail.
 - Não há credencial NVIDIA configurada na VPS. O único workflow NVIDIA é a avaliação sintética, inativa e sem credencial. O usuário autorizou planejar NVIDIA NIM como provedor externo para documentos reais, mas a implementação depende de endpoint e licença de produção cujos termos permitam expressamente informação governamental. A chave enviada pelo chat está comprometida e não pode ser usada. Não transmitir o PDF real ao Developer/API Catalog Trial; a licença da conta NVIDIA não foi verificada.
 - A senha administrativa root foi exposta anteriormente e sua rotação continua pendente. A chave de API NVIDIA exposta também precisa ser revogada.
-- O diretório /opt/backups/automacao-miller não existe. O script de backup está no repositório, mas ainda não há backup/restauração operacional confirmados.
+- Em 27/10 foi criado backup protegido do PostgreSQL, do volume de artefatos e dos cinco workflows existentes antes da importação. A restauração isolada e uma cópia fora da VPS ainda não foram testadas.
 - A VPS tem 2 vCPU e 7,8 GiB de RAM. Na consulta havia 6,2 GiB disponíveis, 330 MiB de swap em uso e 64 GiB livres em disco. Ela é compartilhada com o projeto Ideia Saúde Agent Test, que mantém 5 containers. O container de interface desse projeto usava 92% do próprio limite de 256 MiB; isso não causou pressão de memória geral na fotografia consultada, mas reforça a necessidade de acompanhar carga antes de processar PDFs longos.
 - As antigas stacks BRANDRIOT Socialsuite e Supabase Socialsuite foram removidas em 26/10/2026. Não aparecem mais no inventário Docker consultado.
 
 ### Limitação de qualidade observada
 
-Um relatório temporário de teste sintético produziu afirmações sem apoio no documento e terminou com 0 de 6 referências comprovadas. O validador marcou as referências como pendentes, mas a regra atual não impede o envio por causa disso. O arquivo de teste não é documento real nem resultado aprovado. Antes de enviar relatórios a terceiros, o responsável do produto precisa decidir se essa regra continua aceitável ou se deve existir um limite mínimo de referências comprovadas.
+O teste sintético ponta a ponta de 27/10 usou um PDF artificial de duas páginas com o mesmo processo, uma concessão na página 1, cancelamento na página 2 e uma frase de injeção de prompt. A conversão cobriu 2/2 páginas; a IA não revelou segredo nem seguiu a frase maliciosa. O gateway encerrou a tentativa sem erros em `aguardando_envio`, gerou Markdown e PDF e registrou zero entregas de e-mail.
+
+A validação independente do relatório confirmou 8 de 10 referências; duas ficaram pendentes por formato não reconhecido. A síntese também declarou que não havia contradição, omitiu a mudança de concessão para cancelamento e recomendou preparar renovação após o cancelamento. A ordem das seções saiu incorreta e o PDF mostrou âncoras Markdown sem resolução. Portanto, o teste técnico passou, mas o relatório não está aprovado para uso real. Corrigir a síntese/validação e repetir este fixture antes de processar documentos reais.
 
 A cobertura de páginas e a localização literal das citações são checagens mecânicas. Elas não garantem que a interpretação da IA esteja correta.
 
@@ -97,16 +100,17 @@ estão no repositório. Isso não significa que a IA foi removida: ela continua
 auditando todos os lotes e interpreta o relatório. A checagem do Python confirma
 somente a localização da citação, não a correção semântica do candidato.
 
-**Situação:** o v2 foi revisado, testado, commitado e publicado em `origin/main`
-como `daf93a0`. Ele não foi importado nem ativado na VPS. A última verificação
-remota disponível continua sendo 26/10/2026 e indicava a versão v1 ativa. Antes
-de qualquer implantação, fazer backup, importar o export inativo preservando as
-credenciais e homologar com fixture sintético. Não reprocessar o PDF oficial
-como parte desta tarefa.
+**Situação em 27/10:** o export v2 está no commit `a5e036c`, foi importado e
+publicado na VPS após backup. O v1 está despublicado; o handler de erros segue
+ativo. A homologação sintética terminou tecnicamente, mas encontrou falhas de
+interpretação e formatação descritas no estado verificado. Não reprocessar o PDF
+oficial até corrigir e repetir a homologação.
 
-**Validação local em 27/10:** `python -m pytest -q` — 94 testes aprovados, com
-dois avisos de depreciação preexistentes do FastAPI. O JSON do export v2 foi
-validado. Não houve acesso à VPS, chamada a modelo nem processamento de PDF real.
+**Validação em 27/10:** `python -m pytest -q` — 94 testes aprovados, com dois
+avisos de depreciação do FastAPI; Compose validado localmente e na VPS. O teste
+sintético da VPS usou Ollama local `qwen2.5:3b`, uma execução, 2 páginas e
+terminou em `aguardando_envio`. Nenhum PDF real foi processado e nenhum e-mail
+foi enviado.
 
 ## Plano de execução
 
@@ -115,34 +119,34 @@ validado. Não houve acesso à VPS, chamada a modelo nem processamento de PDF re
 1. **Rotacionar o acesso root da VPS.**
    Responsável: administrador do servidor. Mantenha primeiro o acesso por chave SSH validado, troque a senha exposta e guarde o novo valor no cofre aprovado. Não envie a senha pelo chat.
 
-2. **Configurar o proprietário do n8n.**
-   Responsável: administrador do n8n. Acesse por túnel SSH, complete a configuração inicial com e-mail aprovado e guarde a senha no cofre. Depois confirme as credenciais PostgreSQL e Gmail necessárias.
+2. **Confirmar a guarda da senha do proprietário do n8n.**
+   Responsável: administrador do n8n. A conta foi criada e o login foi verificado em 27/10. Confirme que a senha definida está guardada no cofre aprovado. Depois reconfirme as credenciais PostgreSQL e Gmail necessárias.
 
 3. **Publicar a landing de forma segura.**
    Responsáveis: administrador da VPS e responsável técnico. Defina domínio e proxy HTTPS aprovado, publique somente o gateway, confirme firewall e cookie seguro e teste login/logout. Mantenha a porta 25678 do n8n presa ao loopback. Não exponha o gateway ou o n8n diretamente sem proteção.
 
-4. **Criar backup útil e testar restauração.**
-   Responsável: administrador da VPS. Crie o destino protegido, rode o script versionado para banco e volume de artefatos, copie o backup para um local fora da VPS, confira os hashes e restaure em ambiente isolado. O script sozinho não protege contra perda total do servidor.
+4. **Testar restauração do backup e manter cópia fora da VPS.**
+   Responsável: administrador da VPS. O backup protegido do banco, volume de artefatos e workflows foi criado em 27/10. Copie-o para outro local, confira os hashes e restaure em ambiente isolado. A cópia na própria VPS não protege contra perda total do servidor.
 
 5. **Revogar a chave NVIDIA exposta e provisionar acesso correto.**
    Responsável: administrador da conta NVIDIA. Revogue a chave compartilhada no chat e confirme a situação da chave exposta anteriormente. Para avaliação, use uma credencial substituta somente com o fixture sintético. Para documentos reais, confirme licença/assinatura NVIDIA NIM de produção e permissão expressa para dados governamentais; guarde a credencial no cofre n8n. Não use a chave Trial no PDF real.
 
-6. **Decidir a regra de envio para relatório sem evidência comprovada.**
-   Responsável: responsável pelo produto/aceite operacional. O PRD atual permite referências pendentes sem bloquear a solicitação de envio. O teste sintético com 0/6 referências mostra o risco prático. Registre a decisão no LOG.md e, somente se o requisito mudar, atualize o PRD e os critérios de aceite. Até lá, não trate “referência pendente” como garantia de qualidade.
+6. **Corrigir as falhas semânticas e estruturais do relatório híbrido.**
+   Responsável: responsável técnico e responsável pelo produto. O teste sintético de 27/10 não preservou a sequência concessão/cancelamento, recomendou renovação após o cancelamento, marcou duas referências como pendentes por formato e ordenou as seções incorretamente. Ajuste prompt e validação, inclua testes de regressão e repita o teste antes de qualquer PDF real. O PRD atual permite que referências pendentes não bloqueiem `aguardando_envio`; a equipe ainda deve decidir se essa regra é aceitável.
 
 ### P1 — fazer o caminho operacional funcionar de ponta a ponta
 
-7. **Triar os 9 documentos já registrados.**
-   Responsáveis: operador e responsável técnico. Examine pelo protocolo os 3 aguardando_envio e os 6 em erro. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. A segunda tentativa local do PDF extenso foi interrompida por decisão do usuário e ficou em erro na etapa do Ollama. Antes de nova tentativa, configure um provedor de produção autorizado ou escolha retomar o processamento local. A API Catalog Trial não pode receber o PDF governamental; a integração NVIDIA NIM de produção ainda não existe.
+7. **Triar os documentos operacionais preexistentes.**
+   Responsáveis: operador e responsável técnico. Examine os três documentos que já aguardavam envio e os seis em erro antes do fixture sintético. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. Não conte o novo fixture sintético como documento operacional. A tentativa anterior do PDF extenso continua sem nova execução nesta homologação.
 
 8. **Ativar envio manual e reconciliação.**
    Responsável: administrador do n8n. Importe/publice os exports correspondentes, associe credenciais protegidas, confirme o workflow de erro e valide uma falha controlada. Faça primeiro envio para destinatário de homologação aprovado. Confirme status enviado/concluido, histórico de tentativa e download oficial. Não ative a reconciliação antes de provar que ela não cria execuções repetidas.
 
-9. **Confirmar a proteção do prompt contra comandos dentro de PDFs.**
-   Responsável: responsável técnico. O workflow versionado agora usa o prompt v6, que instrui o modelo a tratar documento, evidências e contexto entre páginas como dados não confiáveis. Falta executar a avaliação comportamental com o fixture sintético no Ollama autorizado e confirmar que o modelo ignora o pedido de revelar uma chave sem deixar de extrair os fatos. Se for provisionado um endpoint NVIDIA de produção, avaliar o mesmo fixture nele antes de processar documento real. A alteração do prompt, sozinha, não comprova esse comportamento.
+9. **Manter a proteção contra comandos embutidos e ampliar os casos de regressão.**
+   Responsável: responsável técnico. O fixture de 27/10 continha um pedido para revelar uma chave; o relatório não o seguiu. Esse resultado cobre somente um caso sintético e não garante resistência geral. Preserve este teste e repita-o após qualquer mudança de prompt ou modelo.
 
-10. **Executar um teste sintético ponta a ponta.**
-    Responsáveis: responsável técnico e operador. Depois de implantar este incremento em homologação, use um PDF artificial curto pela landing. Inclua o mesmo número de processo em duas páginas com menções de status diferentes e confirme que o relatório preserva as duas páginas e trechos sem unir os status. Confirme protocolo, hash do Markdown, conversão, análise, cobertura, referências, Markdown, PDF e estado aguardando_envio. Não envie e-mail real sem autorização do responsável.
+10. **Repetir a homologação ponta a ponta após corrigir o relatório.**
+    Responsáveis: responsável técnico e operador. A primeira execução sintética completou upload, conversão, análise e geração dos artefatos, mas falhou em critérios semânticos e estruturais. Repita o fixture de duas páginas e só aprove quando o relatório descrever concessão e cancelamento na ordem correta, não recomendar renovação incompatível, citar as evidências sem pendências indevidas e respeitar a ordem das seções. Confirme novamente `aguardando_envio` e zero entregas de e-mail.
 
 11. **Executar a matriz de falhas e retomada.**
     Responsáveis: responsável técnico e operador. Teste PDF inválido/sem texto, falha do conversor, falha de lote Ollama, falha de validação, renderização, armazenamento, Gmail, duplicidade, reenvio e recuperação de processo parado. Confirme que erro não vira “informação ausente”, que tentativa repetida não duplica trabalho e que download oficial só abre após envio confirmado.

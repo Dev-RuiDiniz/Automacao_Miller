@@ -4,17 +4,17 @@ Este arquivo explica **quem precisa acessar o quê e onde a credencial deve fica
 
 Guarde valores reais no cofre aprovado, no arquivo de ambiente protegido do servidor ou nas credenciais internas do serviço, conforme a seção. Registre aqui somente o estado, o local e as pendências.
 
-## Resumo do estado verificado em 26/10/2026
+## Resumo do estado verificado em 27/10/2026
 
 - O host é srv1728832.hstgr.cloud, acessado por SSH como root.
 - O acesso por chave SSH foi confirmado. A chave privada fica apenas no computador autorizado.
 - A senha root foi exposta anteriormente e a rotação ainda está pendente.
 - O n8n está acessível somente pelo loopback do servidor na porta 25678; use túnel SSH.
-- O registro de proprietário do n8n está incompleto: e-mail e senha não estão definidos. Não há login administrativo utilizável.
+- A conta proprietária do n8n foi criada e o login no painel foi verificado em 27/10. A senha foi definida pelo responsável e não foi registrada; onde ela está guardada não foi confirmado.
 - O gateway da landing está somente na rede Docker; ainda não há endereço público HTTPS verificado.
 - O arquivo /opt/automacao-miller/.env existe com permissão 600. Seu conteúdo não foi copiado para este documento.
-- O diretório esperado de backup /opt/backups/automacao-miller não existe.
-- O n8n tem ativos os workflows de processamento e erro. Envio manual, reconciliação e avaliação NVIDIA estão inativos.
+- Um backup protegido do PostgreSQL, artefatos e workflows foi criado em /opt/backups/automacao-miller em 27/10; restauração e cópia fora da VPS ainda não foram testadas.
+- O workflow v2 de processamento e o workflow de erros estão publicados; o v1 foi despublicado. Envio manual, reconciliação e avaliação NVIDIA continuam inativos.
 
 ## 1. Servidor Linux e SSH
 
@@ -36,10 +36,10 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 - **Uso:** administrar e acompanhar os workflows.
 - **Endereço local do servidor:** 127.0.0.1:25678; acesso por túnel SSH.
 - **Versão observada:** 2.30.5.
-- **Workflows ativos observados:** processamento interno e tratamento de erros.
+- **Workflows publicados observados em 27/10:** `Automação Regulatória - Duas Passagens` e `Automacao Regulatoria - Erros Internos`; o workflow v1 está despublicado.
 - **Workflows inativos observados:** envio manual, reconciliação e avaliação sintética NVIDIA.
-- **Login:** não existe uma credencial de proprietário utilizável no registro consultado; e-mail e senha estão vazios.
-- **Ação:** completar a configuração inicial de proprietário antes de tentar alterar os workflows.
+- **Login:** `rui.pdiniz@gmail.com`; proprietário criado e acesso ao painel confirmado em 27/10. A senha foi definida pelo responsável e não está registrada aqui.
+- **Guarda da senha:** o responsável precisa confirmar o armazenamento no cofre aprovado; a localização não foi verificada nesta sessão.
 - **Credenciais de integração:** PostgreSQL e Gmail devem ficar no cofre de credenciais do n8n, nunca nos exports JSON do repositório.
 
 ## 3. Landing e gateway de upload
@@ -57,7 +57,7 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 - **Uso:** registrar protocolos, estados, tentativas, destinatários, entregas e erros; guardar PDFs e relatórios no volume privado.
 - **Senha do banco:** no .env protegido da VPS. A cópia usada pelo n8n fica na credencial interna do serviço.
 - **Variáveis principais:** POSTGRES_PASSWORD, N8N_ENCRYPTION_KEY, ARTIFACT_STORAGE_DIR e ARTIFACTS_GID.
-- **Situação:** serviço saudável; existem 3 documentos aguardando envio e 6 em erro.
+- **Situação em 27/10:** serviço saudável; existem 10 documentos, sendo 4 em `aguardando_envio` e 6 em `erro`. Um dos quatro aguardando envio é o fixture sintético usado na homologação; nenhum e-mail foi enviado.
 - **Armazenamento:** volume Docker automacao_miller_artifacts_data, montado em /data/artifacts nos serviços autorizados.
 - **Ação:** não editar status nem apagar arquivos diretamente. Consulte o protocolo e registre qualquer reprocessamento.
 
@@ -65,15 +65,15 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 
 - **Script versionado:** deploy/backup/backup.sh.
 - **Destino configurado:** /opt/backups/automacao-miller.
-- **Situação em 26/10/2026:** diretório ausente; backup e restauração não estão comprovados.
-- **Ação:** preparar destino protegido, gerar backup conjunto de PostgreSQL e artefatos, copiar para fora da VPS e validar restauração isolada. Não considere uma cópia no mesmo servidor suficiente.
+- **Situação em 27/10/2026:** backup protegido do PostgreSQL, volume de artefatos e workflows pré-implantação criado em /opt/backups/automacao-miller. Restauração e cópia fora da VPS ainda não foram comprovadas.
+- **Ação:** copiar para um local fora da VPS e validar restauração isolada. Não considere uma cópia no mesmo servidor suficiente.
 
 ## 6. Gmail
 
 - **Uso:** enviar o PDF somente depois de solicitação manual do operador.
 - **Onde fica a autorização:** credencial OAuth no n8n; os destinatários são administrados pelo painel/PostgreSQL.
 - **Situação:** credencial atual não foi reconfirmada nesta verificação e o workflow de envio está inativo.
-- **Ação:** depois de configurar o proprietário do n8n, confirmar a credencial e os destinatários. Testar com destinatário de homologação autorizado.
+- **Ação:** confirmar a credencial e os destinatários. Testar com destinatário de homologação autorizado antes de ativar o envio manual.
 
 ## 7. NVIDIA API Trial — apenas teste sintético
 
@@ -86,8 +86,8 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 ### NVIDIA NIM de produção
 
 - **Uso previsto:** análise de documentos reais somente após confirmação de uma licença/assinatura de produção e de que os termos do endpoint permitem expressamente o tipo de documento e os dados nele contidos.
-- **Situação:** nenhum endpoint/licença de produção ou credencial NVIDIA está configurado ou verificado na VPS. O proprietário do n8n ainda não foi inicializado.
-- **Credencial:** criar e guardar somente no cofre do n8n após configurar o proprietário. A chave enviada pelo chat não pode ser reutilizada; revogue-a.
+- **Situação:** nenhum endpoint/licença de produção ou credencial NVIDIA está configurado ou verificado na VPS. O proprietário do n8n foi criado, mas a integração não foi configurada.
+- **Credencial:** criar e guardar somente no cofre do n8n após confirmar licença e termos. A chave enviada pelo chat não pode ser reutilizada; revogue-a.
 - **Condição antes do primeiro documento real:** testar o endpoint com fixture sintético, revisar retenção/uso dos dados e registrar autorização do destino.
 
 ## 8. INLABS / Diário Oficial da União
@@ -118,3 +118,5 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 | 26/10/2026 | Landing | Sem entrada pública HTTPS verificada |
 | 26/10/2026 | Backup | Diretório esperado ausente; restauração não testada |
 | 26/10/2026 | NVIDIA | Revogar a chave enviada no chat; Trial só para fixture; produção exige licença e termos compatíveis |
+| 27/10/2026 | n8n/VPS | Proprietário criado; v2 publicado, v1 despublicado; homologação sintética concluída com falhas de qualidade no relatório |
+| 27/10/2026 | Backup | Cópia protegida do banco, artefatos e workflows criada; restauração e cópia externa pendentes |

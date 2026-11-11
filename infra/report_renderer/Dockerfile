@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY infra/__init__.py /app/infra/__init__.py
 COPY infra/report_renderer /app/infra/report_renderer
+COPY prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt /app/prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt
 
 RUN useradd --create-home --uid 10002 appuser \
     && chown -R appuser:appuser /app

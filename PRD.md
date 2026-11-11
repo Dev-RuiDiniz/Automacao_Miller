@@ -77,6 +77,8 @@ Componentes definidos para o projeto:
 
 - **n8n:** automação e orquestração do workflow;
 - **Ollama:** execução local padrão do modelo de IA;
+- **OpenRouter + GPT-6.1 Terra:** opção explícita para o relatório Anvisa V8,
+  usando apenas Markdown autorizado e a chave protegida no servidor;
 - **NVIDIA NIM API Trial:** provedor externo limitado a avaliações com conteúdo
   sintético, usando credencial protegida no n8n;
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
@@ -151,6 +153,9 @@ O sistema deve receber PDFs exclusivamente pelo gateway privado da landing,
 validar o conteúdo, persistir o arquivo no volume interno e registrar um
 documento elegível no PostgreSQL. O Google Drive não é uma entrada ativa.
 
+O modo local de conversão do RF-20 é uma ferramenta separada para testes
+manuais; não é uma entrada operacional de documentos e não cria protocolo.
+
 ### RF-02 — Leitura de PDF
 
 O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermediário. Falhas de leitura devem ser classificadas como erro técnico.
@@ -159,17 +164,37 @@ O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermed
 
 Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao Ollama. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
 
+Nos layouts suportados, a sequência deve acompanhar a leitura visual: cada
+coluna antes da seguinte, respeitando cabeçalhos, regiões de largura inteira,
+tabelas e continuações entre páginas. A ordem interna dos objetos do PDF não
+é, por si só, evidência dessa sequência. A reorganização não deve inventar ou
+apagar conteúdo. Limitação detectada de ordem espacial deve produzir aviso
+identificado como nota da ferramenta, inclusive no Markdown da página; não
+pode ser apresentada como ausência de informação. Mudança de conversor gera
+novo artefato/hash e exige nova validação, preservando a fonte anterior para auditoria.
+
 ### RF-04 — Análise por IA
 
-A análise de documentos reais deve usar Ollama local por padrão, com o Markdown
-persistido como única fonte documental. O endpoint gratuito de trial da NVIDIA
+A análise de documentos reais usa Ollama local por padrão. A configuração
+`ANVISA_REPORT_PROVIDER=openrouter` seleciona o GPT-6.1 Terra (`openai/gpt-6.1-terra`)
+para análise Anvisa com o [V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt)
+inalterado. O Markdown paginado persistido é a única fonte documental em ambos
+os caminhos. No modo OpenRouter não são enviados o PDF bruto, o protocolo, o
+nome do arquivo ou credenciais no conteúdo da solicitação. A integração usa
+blocos de páginas, permite recuperar contexto e valida cobertura, evidências
+literais e reconciliação dos registros. Saída incompleta ou inválida bloqueia
+o relatório V8. A aplicação produz PDF com índice inicial clicável, resumo,
+fichas e pendências, bem como Markdown de consulta e ZIP interno da mesma
+revisão contendo PDF, JSONL, cobertura e verificação. A aprovação humana de um
+PDF anterior não homologa novas respostas do modelo ou da API.
+
+O endpoint gratuito de trial da NVIDIA
 pode ser chamado somente pelo workflow manual de avaliação, separado e inativo,
 com fixture sintético sem dados reais. Esse workflow exige credencial protegida
 no n8n e valida estrutura, página e evidência do fixture; não processa uploads
-nem substitui o Ollama no fluxo real. Não deve haver fallback automático entre
-provedores. A adoção de qualquer serviço externo para documentos reais exige
-revisão específica dos termos, privacidade e autorização aplicáveis antes do
-envio.
+nem substitui a análise no fluxo real. Não há fallback automático entre
+provedores. A habilitação do OpenRouter exige autorização para o material
+enviado e revisão dos termos e da privacidade antes do uso operacional.
 
 ### RF-05 — Identificação regulatória
 
@@ -305,6 +330,36 @@ segura em cookie. O acesso legado por token privado pode permanecer disponível
 para compatibilidade operacional, mas não deve expor o token na interface de
 login.
 
+### RF-20 — Gerar somente Markdown em testes locais
+
+O operador pode iniciar uma interface de conversão independente em
+`127.0.0.1:18080`, enviar um PDF textual de até 100 MiB e baixar o Markdown
+completo em UTF-8. Esse modo reutiliza o conversor versionado, preserva os
+marcadores de página e o corpo extraído, informa SHA-256 do PDF e do Markdown,
+versões e avisos, e não executa OCR ou análise regulatória.
+
+O exportador deve manter os avisos também no arquivo baixado, antes das
+páginas e identificados como notas da ferramenta, não como texto do PDF.
+Metadados devem ser escapados; conteúdo documental deve ser exibido como texto,
+sem executar HTML ou instruções. Texto não extraível, falha parcial e problemas
+visíveis na extração não podem ser apresentados como ausência de informação.
+
+Esse modo não chama n8n, Ollama ou APIs externas, não usa PostgreSQL/credenciais,
+não persiste documentos no volume operacional e não altera estados ou regras
+de download do relatório final. Não possui autenticação e deve permanecer
+restrito ao loopback, sem proxy, túnel ou exposição pública. Não deve registrar
+corpo de documento em logs; arquivos temporários de upload devem ser fechados.
+
+O download é uma fonte para teste manual, não um relatório final ou documento
+processado com sucesso no fluxo principal. Compartilhar o arquivo em qualquer
+serviço externo depende de autorização para aquele conteúdo e de conferência
+dos avisos e da fonte. A aplicação não faz esse compartilhamento. A integração
+futura com a API OpenAI e a escolha de modelo não fazem parte desta entrega.
+
+Aceite específico: upload/conversão/download funcionando no navegador; hashes
+e páginas verificáveis; avisos presentes no arquivo; erro de entrada não gera
+download; nenhuma chamada de IA ou dependência da stack operacional.
+
 ---
 
 ## 8. Regras de negócio
@@ -401,7 +456,10 @@ O ambiente deve ser executável em servidor Linux utilizando Docker.
 
 ### RNF-02 — Privacidade operacional
 
-A análise de documentos reais ocorre localmente por Ollama. A avaliação com a
+A análise ocorre localmente por Ollama por padrão. Quando selecionado o modo
+OpenRouter autorizado, somente o Markdown paginado é enviado ao Terra. A
+chave não passa pelo navegador nem pelo n8n; fica no ambiente do serviço que
+chama a API. A avaliação com a
 API Trial gratuita da NVIDIA usa apenas um texto artificial fixo, sem documento
 real, identificador interno ou dado pessoal. O workflow de avaliação é manual,
 separado e inativo por padrão; sua credencial fica somente no armazenamento
@@ -432,7 +490,9 @@ A conversão PDF → Markdown deve ser executada por serviço local versionado, 
 
 ## 10. Modelo mínimo do relatório regulatório
 
-O relatório em Markdown deve conter as seções fixas pedidas pelo prompt ativo:
+O relatório V8 usa o título e a ordem definidos no prompt aprovado: índice
+de assunto/página de origem, resumo, fichas por categoria e pendências. As
+seções abaixo continuam válidas para o relatório executivo do Ollama:
 
 1. resumo executivo;
 2. respostas às perguntas de negócio;
@@ -544,7 +604,8 @@ O MVP poderá ser considerado entregue quando:
 4. o Markdown possuir metadados, hash e marcadores de página;
 5. o Markdown for persistido e associado ao PDF de origem;
 6. a análise usar somente o Markdown paginado persistido como fonte documental;
-7. o Ollama processar o conteúdo localmente;
+7. o provedor configurado processar o conteúdo; na opção OpenRouter, usar
+   Terra, o V8 aprovado e apenas o Markdown documental autorizado;
 8. todas as páginas forem analisadas e os achados temporários forem consolidados;
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
@@ -601,7 +662,7 @@ servir a uma futura capacidade opcional de RAG e à fila de candidatos, mas não
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
 
-## Decisão vigente sobre o fluxo operacional — 2026-10-02
+## Fluxo operacional com Ollama — decisão de 2026-10-02
 
 O processamento percorre uma cadeia linear, mas analisa o documento completo em
 lotes para manter cada chamada ao modelo dentro de um limite controlado:

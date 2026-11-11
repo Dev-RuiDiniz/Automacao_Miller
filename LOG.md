@@ -2520,3 +2520,457 @@ Impacto:
 A documentação agora separa visão comercial, requisitos, execução, estado,
 fluxo e tratamento de acessos. Nenhum segredo foi incluído e nenhuma mudança de
 requisito ou configuração remota foi feita nesta tarefa.
+
+## 2026-10-29 — Modo local autorizado para gerar somente Markdown
+
+O usuário solicitou implementar a geração de arquivos .md para simulações
+manuais posteriores, após limpar os experimentos anteriores. Decisão: uma
+interface local de upload/conversão/download reutiliza o conversor existente,
+sem depender de n8n, PostgreSQL, Ollama, API de IA ou credencial. O serviço e
+Compose de teste ficam separados do caminho operacional; o workflow completo
+e os estados de documentos da landing não serão alterados.
+
+O arquivo exportado é texto-fonte paginado, não relatório regulatório nem
+análise concluída. Deve preservar o corpo convertido, SHA-256 do PDF, versão,
+metadados seguros e avisos explícitos antes das páginas. Não há OCR; falha ou
+ausência de texto não significa ausência de informação. A aplicação não envia
+nada ao ChatGPT: o operador decide sobre compartilhamento de material autorizado.
+Integração futura com API OpenAI e escolha de modelo permanecem fora desta etapa.
+
+O modo local não substitui a entrada oficial pela landing, não registra
+protocolos, não envia e-mail e não constitui novo painel administrativo.
+Publicação somente em 127.0.0.1:18080, sem volumes do ambiente operacional.
+Skill global karpathy-guidelines indisponível; aplicadas as regras do repositório.
+Implementação e testes em preparação; nenhum resultado histórico será tratado
+como validação atual. Não houve contratação, acesso remoto, commit ou push.
+
+## 2026-10-29 — Modo local Markdown implementado e validado
+
+Criados local_app.py e três recursos estáticos do conversor, Compose exclusivo
+em deploy/markdown-local e proteção .dockerignore contra envio de temporários,
+metadados Git e configurações locais ao contexto de build. O conversor legado
+e sua API, o Compose principal, os workflows e a landing não foram alterados.
+PRD RF-20, README, fluxo, roadmap e guia do conversor registram o novo caminho
+local separado, sem promover a API OpenAI ou qualquer modelo.
+
+Tela com upload até 100 MiB, conversão única por vez, prévia texto puro e
+download completo UTF-8. Arquivo contém metadados JSON-quoted, notas locais,
+avisos e corpo paginado preservado. PDF inválido/sem texto, excesso de tamanho,
+conversão concorrente ou falha interna não produz resultado válido. Uploads
+são fechados. Hosts/origens externos são rejeitados, sem CORS, telemetria,
+credenciais ou biblioteca de terceiros no navegador. Não é interface pública.
+
+Validação final: 115 testes Python passaram (37 novos de API local e um de
+isolamento do Compose), além de 21 testes JavaScript da interface. Três avisos
+de depreciação Starlette/AnyIO/FastAPI, sem falhas. O teste documental que fixava
+a manutenção do roadmap em 08/10 passou a conferir uma data explícita, mantendo
+as exigências da data histórica de consulta à VPS, que não foi consultada.
+Ambiente de teste temporário isolado em /tmp, Python 3.12, com requisitos dos
+serviços instalados, sem mudar o Python global. TestClient precisou sair da
+restrição de rede do sandbox; não acessou a VPS ou uma API externa.
+
+Build Docker, health check e configuração do Compose aprovados. Um PDF público
+local de uma página percorreu upload, conversão e download pelo navegador;
+hash do Markdown baixado conferido com o mostrado na tela. A extração herdada
+tem caracteres de controle no cabeçalho dessa fonte; por isso foi acrescentado
+um aviso explícito no exportador, sem remover ou corrigir texto silenciosamente.
+Três regressões verificam preservação do corpo/hash e ausência de mutação do
+resultado original. A imagem local foi reconstruída com esse aviso.
+
+Teste HTTP final com o DOU público local de 100 páginas: HTTP 200 em 49,449 s,
+1.314.196 bytes de Markdown, sequência de páginas 1–100, hashes do PDF e do
+Markdown conferidos, zero avisos nessa fonte. Não é homologação de fidelidade
+visual, de conteúdo regulatório, do documento do cliente ou da meta de 90 min;
+mede somente conversão/exportação local, sem IA, relatório ou PDF final.
+
+O contêiner exclusivo miller-markdown-local-markdown-local-1 ficou saudável em
+127.0.0.1:18080 para os testes do usuário. Não há volumes operacionais montados;
+outros serviços não foram reconfigurados ou parados. O arquivo de teste baixado
+pelo navegador ficou em Downloads. O encerramento documentado afeta somente
+esse projeto Compose. Nenhum documento enviado ao ChatGPT/NVIDIA/OpenAI, nenhum
+e-mail, segredo, serviço pago, commit ou push. git diff --check aprovado.
+
+## 2026-10-31 — Correção isolada dos scripts da entrega manual V5
+
+Após a auditoria da entrega manual, o usuário autorizou seguir ao próximo passo.
+Decisão: corrigir os scripts fornecidos no ZIP em cópia local isolada, adicionar
+regressões reais e sintéticas e gerar uma entrega reproduzível. Não integrar
+essas regras específicas da edição na aplicação, nem substituir o prompt ou
+workflow operacional. ZIP original e fonte preservados; nenhum envio externo.
+Skill PDF aplicada para renderização e revisão; karpathy-guidelines global
+indisponível, mantidas as regras pertinentes do repositório.
+
+Corrigidos pertencimento de composição por produto, vacinas, CNPJ em linhas
+separadas, rótulos de certificação com caixa variável, expedientes de AFE,
+fronteiras de artigo, escopo farmacêutico explícito e preservação de motivos,
+ausências e divergências. O validador agora reprova os erros conhecidos da V5
+original, além de composição com CNPJ e identidade explícita omitida ou no
+papel errado. A revisão independente encontrou essas duas classes adicionais
+antes da entrega; foram corrigidas e cobertas por regressões. Não foram
+completados dados por suposição nem ajustados nomes de empresas na regra.
+
+Execução final: 144 testes aprovados, sem skips, com um aviso de depreciação do
+ReportLab. G1–G8 aprovadas; 710 eventos incluídos e 320 excluídos; preservadas
+310 apresentações. PDF de 304 páginas, 919721 bytes, 710 links distintos
+reconciliados e 7118 campos conferidos na própria ficha. Revisão visual
+assistida por IA em 13 páginas críticas sem cortes/sobreposições nas amostras.
+Reextração independente igual ao JSONL publicado, sem os objetos internos de
+linhas. Hashes dos oito scripts, fonte, dados e PDF conferidos com o recibo.
+
+SHA-256 da fonte Markdown:
+a4a5cfce74a2950c04404d559990eefdf4122eb4639234e3961564cec5c2ad30.
+SHA-256 do PDF final:
+33964c39de4fbcd9e196e7dab480a6c82306c4cc9c42d451c5d277beee9dc874.
+As saídas e o pacote são artefatos locais não versionados em output/pdf;
+código experimental e resultados intermediários ficam em tmp/anvisa-v5-corrigida.
+Nenhum documento privado ou artefato deve ser incluído em commit.
+
+Limites: parser baseado nos formatos desta edição do DOU de 01/06/2026, fonte
+de análise exclusivamente Markdown, sem OCR nem conferência visual integral
+contra o PDF original. Avisos de tabelas nas páginas-fonte 122/123 mantidos.
+Casos conhecidos aprovados não significam homologação individual dos 710
+eventos. Há refinamentos não bloqueantes de apresentação; aceite do cliente
+e revisão do original continuam pendentes.
+
+O pipeline local levou 68,952 segundos, já partindo do Markdown e incluindo
+testes/verificações/renderização. Não mede conversão do PDF original, IA, API,
+Ollama, VPS, n8n ou cumprimento da meta operacional de 90 minutos. Não houve
+acesso remoto, mudança da aplicação/infraestrutura, uso de credenciais,
+contratação, commit ou push nesta etapa. ROADMAP registra a validação limitada
+e o próximo aceite, sem alterar requisitos do PRD.
+
+Pacote final com 37 arquivos, manifesto de hashes e integridade ZIP conferida.
+Após extração em outro diretório temporário, os mesmos 144 testes passaram
+novamente em 24,70 segundos, usando somente o runtime local já disponível.
+Nenhum ambiente virtual, segredo ou resultado intermediário foi empacotado.
+git diff --check aprovado; alterações locais anteriores preservadas.
+
+## 2026-10-31 — Esclarecimento do objetivo e prompt manual Anvisa V6
+
+O usuário esclareceu que precisa melhorar e testar o prompt para depois
+adicionar a camada de IA, não corrigir os scripts gerados na rodada V5. A
+entrega anterior corrigiu scripts, mas não corrigiu nem validou o prompt para
+esse objetivo. O histórico e os artefatos anteriores foram preservados como
+experimento separado, sem apresentá-los como avaliação de um modelo/prompt.
+
+Lido o prompt V5 original da entrega manual e contrastado com as falhas
+auditadas. Criados prompts/chatgpt-anvisa-pdf-v6.txt e o guia de teste separado.
+A V6 retira a obrigação de programar parser, verificador e suíte durante a
+análise. Prioriza interpretação pela IA, fronteiras e papéis por evento,
+composição própria, artigos decisórios completos, escopo farmacêutico explícito,
+evidências e ausência distinta de falha. Ferramentas locais podem apoiar
+leitura, armazenamento, conferências mecânicas e geração do PDF.
+
+Revisão independente das instruções corrigiu ambiguidades sobre composição
+compartilhando linha com identificadores e múltiplos papéis na certificação.
+O prompt não contém nomes, páginas ou contagens da edição como metas. Casos
+reais conhecidos ficam apenas no guia externo de conferência, não na entrada
+da geração. Índice inicial, PDF e dados/cobertura/verificação da mesma rodada
+permitem avaliar o resultado futuro sem depender apenas da aparência do PDF.
+
+Aplicada OpenAI Docs e consultada documentação oficial de prompting para
+separar objetivo, instruções, fonte, saída e avaliação. A skill global
+karpathy-guidelines não está disponível. Não houve chamada de modelo/API,
+envio de documento, geração de novo PDF ou alteração da aplicação, workflow,
+infraestrutura, credencial ou contrato ativo regulatory-extraction-v5.md.
+
+Estado: candidato revisado documentalmente, ainda NÃO executado/validado no
+ChatGPT. Os 144 testes do experimento anterior validam scripts, não a V6.
+Próximo passo: nova conversa com Markdown original autorizado e prompt V6;
+conferir arquivos resultantes, regressões e amostras fora dos casos usados no
+ajuste. Após uma rodada satisfatória e aceite, validar outro documento antes
+da integração. O guia registra que ChatGPT/API e a renderização exigem testes
+próprios; não foi contratado nem integrado provedor nesta tarefa.
+
+Checagens desta etapa: texto UTF-8, nomes dos quatro arquivos consistentes,
+links locais existentes, exemplo estrutural JSON válido, presença das regras
+de evidência/cobertura/ausência e ausência de gabarito real no prompt. São
+verificações estáticas das instruções, não avaliação do comportamento da IA.
+SHA-256 do prompt V6:
+492c05e6ea8e4bd11a02391d19e7edeb42126501dd8aeb45b91b37a58bd31cb3.
+git diff --check aprovado. Suíte da aplicação não executada nesta tarefa
+documental; mudanças preexistentes preservadas, sem commit ou push.
+
+## 2026-10-31 — Auditoria da entrega V6 e revisão do prompt manual V7
+
+Recebido anvisa_v6_arquivos.zip com PDF, JSONL, cobertura e verificação da rodada
+manual. A fonte declarada coincide com o Markdown autorizado da comparação.
+Auditoria: PDF de 72 páginas, 132 fichas incluídas/links com destinos corretos,
+163 registros no JSONL e 1603 evidências localizadas literalmente na página
+de origem. Esses controles não comprovaram completude semântica. A entrega
+declarou somente quatro das 198 páginas integralmente analisadas; parte das
+outras páginas teve blocos revisados. Não houve falsa alegação de cobertura total.
+
+Falhas comprovadas: identificação/localização de unidades omitida em eventos
+incluídos, dispositivos de prorrogação e fundamentos clínicos cortados, evidência
+de retificação insuficiente no próprio campo da decisão. As perdas já existiam
+nos registros de análise; corrigir somente o PDF não resolveria. A rodada não
+foi aprovada como entrega final nem como validação concluída do prompt.
+
+A pedido explícito do usuário, criada a candidata prompts/chatgpt-anvisa-pdf-v7.txt
+com guia separado. Preservados os arquivos V6. Acrescentadas conferência inversa
+fonte -> ficha, identificação de unidades por papel, fechamento semântico de
+dispositivos/fundamentos, antes/depois com evidências, checkpoints cumulativos
+por bloco e distinção entre cobertura e integridade. O PDF deve preservar os
+dados das unidades; contexto comum completo pode ser referenciado por várias
+fichas, sem repetir o texto integral em todas. Índice diferencia assuntos genéricos.
+
+O prompt principal não contém empresas, páginas ou quantidades do corpus como
+gabarito. As regressões ficam no guia externo, que não deve acompanhar a entrada
+da geração. Nova execução parte do Markdown original; retomadas reaproveitam
+apenas checkpoints da mesma V7, conferidos contra a fonte. O usuário executará
+o teste no ChatGPT; não houve chamada de modelo ou envio de documento nesta revisão.
+
+OpenAI Docs aplicada para estrutura e avaliação com documentação oficial.
+karpathy-guidelines indisponível; seguidas as regras pertinentes do repositório.
+Escopo exclusivamente documental/manual: PRD, aplicação, contrato ativo,
+workflows, modelo, infraestrutura e credenciais não alterados por esta revisão.
+O experimento permite checkpoints parciais identificados; isso não altera o
+bloqueio de relatório parcial por falha técnica no fluxo operacional do PRD.
+
+Estado da V7: candidata para teste, não homologada. Próxima rodada deve verificar
+regressões, amostras fora dos casos conhecidos, cobertura e correspondência dos
+quatro artefatos; documento separado e aceite do cliente continuam pendentes
+antes da futura integração. Mudanças locais preexistentes preservadas.
+
+Verificações documentais: revisão independente das instruções, UTF-8, exemplo
+estrutural JSON válido, nomes dos quatro artefatos consistentes, links locais do
+roadmap existentes e ausência de empresas/hash da fonte no prompt principal.
+Revisão corrigiu a divisão de tabelas entre eventos completos e a reconciliação
+das páginas vazias. Hash da V6 permanece inalterado. git diff --check aprovado.
+Não houve execução da V7 pelo modelo, geração de relatório ou suíte da aplicação
+nesta tarefa; nenhum commit ou push. SHA-256 do prompt V7 (31536 bytes):
+dd1b9fb55fb028bec518541b58562b913faa81d238695d152a317b65166756d2.
+
+## 2026-10-31 — Auditoria V7 e correção da ordem de leitura na aplicação
+
+Recebido o ZIP V7 do teste manual. A auditoria encontrou PDF de 39 páginas,
+81 fichas incluídas e cobertura ainda parcial (quatro páginas integralmente
+analisadas). Os suplementos da continuação das páginas 114/115 foram vinculados
+à RE 2.140/deferimento, embora pertençam à RE 2.143/cancelamento. A fonte
+intermediária da aplicação já colocava RE 2.140/DANISCO depois das RE 2.141,
+2.142 e 2.143: a extração seguia a ordem interna dos objetos, não a leitura visual.
+O resultado da IA não foi aprovado e esse diagnóstico não é autorização para
+inventar vínculos a partir de contexto incompleto.
+
+O usuário autorizou corrigir a geração do Markdown na aplicação e depois
+retestar o mesmo V7. Implementado conversor `0.4.0`, sem novas dependências:
+extração de palavras por coordenadas com pdfplumber, cortes espaciais de regiões,
+leitura de colunas, tabelas com grade tratadas como objetos indivisíveis e
+tratamento conservador de células curtas alinhadas sem bordas. O algoritmo
+não contém regras de empresas, atos ou páginas desta edição. Há verificações
+de preservação de caracteres antes/depois da reorganização, liberação do cache
+por página e fallback explícito com pypdf quando a geometria não puder ser usada.
+Avisos de ordem/ambiguidade aparecem também na própria página do Markdown,
+identificados como notas da ferramenta. O exportador local continua em `0.1.0`.
+
+PRD RF-03 explicita o critério de ordem visual e rastreabilidade de novas versões.
+Guia V7 e ROADMAP passam a exigir novo Markdown do mesmo PDF, em nova conversa,
+sem reaproveitar checkpoints do hash antigo. O prompt V7 permaneceu byte a byte
+inalterado; não foi criado V8 nem corrigido manualmente o documento fonte.
+PDF original e Markdown antigo preservados. Nenhuma mudança no n8n, VPS,
+credenciais, provedor ou prompt operacional; nenhuma chamada de IA ou e-mail.
+
+Validação da implementação: 129 testes Python aprovados (incluindo 14 regressões
+novas de leitura) e 21 testes JavaScript aprovados. A suíte Python apresentou
+três avisos de depreciação das dependências/eventos existentes; não são falhas
+de conversão. Build e Compose local validados. A primeira tentativa da suíte
+ficou bloqueada no sandbox e foi interrompida; a execução local autorizada fora
+desse isolamento concluiu. Um monkeypatch de teste foi ajustado à nova assinatura
+do extrator antes da aprovação final. A revisão também corrigiu uma mensagem
+que afirmava preservação antes de confirmar o sucesso do fallback: erro e retorno
+vazio agora têm aviso próprio, coberto por duas variantes de teste. Não foram
+alteradas dependências do projeto.
+
+Revisão independente nas páginas 114, 115, 122 e 123: 37 âncoras sequenciais de
+atos/conteúdos corretas; multiconjunto de caracteres não brancos conferido contra
+a camada textual do PDF, sem perda/acréscimo nas quatro amostras. Inspeção visual
+da fonte e revisão de conteúdo incluíram suplementos, retificações, continuidade
+de atos, processos clínicos e tabelas de largura inteira. Isso não constitui
+conferência semântica integral das 198 páginas nem homologação de qualquer PDF.
+Tabelas sem bordas complexas, elementos sobrepostos e layouts não exercitados
+permanecem sujeitos a conferência. Skill PDF utilizada para comparação visual;
+karpathy-guidelines indisponível, mantidas as regras pertinentes do repositório.
+
+Verificação desta versão autossuficiente: duas revisões independentes sem
+bloqueantes; UTF-8, exemplo JSON, nomes das saídas, links e git diff --check
+conferidos. Busca de dependências V7 e localizadores da edição no prompt sem
+ocorrências. Hashes da V7, complemento V8, guia histórico, contrato operacional
+e Markdown preservados. Prompt novo: 38.462 bytes, SHA-256
+3e75a9619a9cd5e7ce7080b22faad815148172cd0ffe30aa9db85e3b43b804e7.
+Não houve execução pelo modelo, geração de relatório ou teste de aplicação
+nesta tarefa; os arquivos estão preparados para o teste manual do usuário.
+
+A amostra adicional das páginas 113, 116, 144 e 145 não revelou troca de atos ou
+entidades, mas encontrou palavras unidas em linhas comprimidas. Ajustada a
+tolerância horizontal à fonte (`x_tolerance_ratio=0.2`), inclusive nas tabelas
+suplementares. Comparação com 0.15/0.1 em seis páginas produziu as mesmas
+separações; mantido o maior limiar que resolveu os casos. Identificadores foram
+preservados nas amostras e o novo teste sintético de palavras separadas por
+dois pontos falhou antes e passou depois do ajuste. As conversões exploratórias
+foram interrompidas ao reconstruir o contêiner; não foram entregues como
+artefatos concluídos. Não confundir preservação de caracteres com prova de
+espaçamento, vínculos semânticos ou cobertura regulatória integral.
+
+Conversão integral concluída pela API da aplicação local, na imagem reconstruída:
+HTTP 200 em 674,182534 segundos, 198 páginas, 2.173.841 bytes de Markdown,
+marcadores consecutivos 1–198, hashes conferidos. Fonte PDF preservada com
+SHA-256 10ab4a9643e68640b3d420920e33453d003b2a4da452a3e8e8df6747aa68f58f.
+Novo Markdown: c0438df8900bcd7179cf20f4c0468ea55c877d0c01fb92efce0169cdc66c0514.
+O hash antigo a4a5cfce74a2950c04404d559990eefdf4122eb4639234e3961564cec5c2ad30
+permanece inalterado. Prompt V7 também preservado:
+dd1b9fb55fb028bec518541b58562b913faa81d238695d152a317b65166756d2.
+
+Mantidos 89 avisos no artefato: 86 possíveis tabelas preservadas em texto e
+três tabelas estruturadas detectadas automaticamente. Não houve página sem
+texto, falha de extração ou fallback na conversão completa. Conferidas no
+arquivo exportado as sequências de atos das páginas 114/115/122/123 e a
+separação de palavras da apresentação comprimida na página 116. O tempo medido
+é somente conversão/exportação nesta máquina: não mede IA, VPS ou meta total
+de 90 minutos. Antes de implantar no workflow, reavaliar recursos e
+PDF_CONVERTER_TIMEOUT_SECONDS (padrão de 300 s no export; não modificado aqui).
+
+Entregues como artefatos locais não versionados, sem incluir o PDF original no
+repositório: output/markdown/2026_06_01_ASSINADO_do1_colunas_v040.md e
+output/markdown/validacao_conversao_v040.json. Aplicação local permanece em
+127.0.0.1:18080. Próximo passo: usuário executar o mesmo V7 em conversa nova
+com o novo Markdown e retornar os quatro arquivos da mesma revisão. A V7
+continua não homologada. Sem commit ou push; mudanças preexistentes preservadas.
+
+## 2026-11-01 — Auditoria do checkpoint V7 final e complemento corretivo V8
+
+Recebido anvisa_v7_documentos_finais.zip, revisão v7-cp027-20261101, ligado ao
+Markdown corrigido de hash c0438df8900bcd7179cf20f4c0468ea55c877d0c01fb92efce0169cdc66c0514.
+Pacote com 1.685 registros (710 incluídos, 972 excluídos, 3 representações
+duplicadas) e PDF de 414 páginas. A declaração de 198 páginas analisadas não
+foi aceita como prova de completude. Encontradas nove certificações de
+medicamentos omitidas na continuação do anexo da RE 2.175, fonte página 146,
+entre NOVONORTE e RE 2.225, apesar de o texto estar legível no Markdown.
+
+Outros achados: artigos de vigência ausentes nas RE 2.233/2.127; campo de
+escopo DECARES marcado como limitação embora legível; inclusão Takeda com
+escopo farmacêutico não demonstrado no trecho; 34 notas de cobertura
+incompatíveis com o estado analisada; hash do PDF diferente do registrado
+no TXT. Hash real do PDF recebido:
+b1cf6de3c1663ffe0d3eba9b34132810d8adfcccbec0c6367c8f1e42438ba080.
+As falhas de suplementos e evidência própria do OZIVY foram corrigidas nessa
+rodada. Não houve nova falha comprovada do conversor nesses casos.
+
+Conferências independentes da rodada recebida: 12.433 trechos de evidência
+localizados literalmente na página declarada; 710 links com ID/destino correto;
+9.352 valores não nulos encontrados na própria ficha do PDF, após normalização
+de espaços/caixa e remoção de cabeçalhos/rodapés interpostos; 58 dispositivos
+distintos preservados. Inspeção visual de 22 páginas sem cortes físicos ou
+sobreposições nas amostras. Checagens mecânicas e amostras semânticas não
+homologam as 710 fichas; as nove omissões impedem o aceite como entrega completa.
+
+O usuário solicitou V8 como instrução complementar, para usar na mesma conversa
+e corrigir a saída antes de integrar IA. Criados prompts/chatgpt-anvisa-pdf-v8.txt
+e prompts/LEIA_ME-chatgpt-anvisa-v8.txt. A V8 depende da V7 e do checkpoint da
+mesma fonte; preserva IDs anteriores, arquivos de origem e regras não alteradas.
+Acrescenta reconciliação de unidades da fonte com destinos/IDs, fechamento de
+continuações sem saltos, correções localizadas, cobertura sem notas obsoletas,
+separação do histórico e da reconferência V8 e hash do PDF efetivamente entregue.
+
+Decisão explícita para esta rodada: incluir no complemento os localizadores
+das falhas conhecidas para reparar o documento já processado. Eles são pistas
+a conferir, não dados para copiar nem metas de contagem. Isso difere do teste
+inicial sem gabarito do prompt-base V7; resultado corretivo não pode ser
+apresentado como avaliação independente de generalização. Depois do reparo,
+consolidar regras gerais e validar outro documento autorizado sem essas pistas.
+
+OpenAI Docs utilizada para estruturar objetivo, contexto, correções e saídas,
+preservando as instruções-base. karpathy-guidelines continua indisponível.
+Esta é mudança documental/manual: sem alteração de requisitos operacionais
+do PRD, contrato regulatory-extraction-v5.md, aplicação, fonte, conversor,
+infraestrutura, modelos ou credenciais. ROADMAP atualizado, preservando as
+etapas anteriores como histórico. Nenhuma execução do V8 ou chamada de IA
+externa foi realizada nesta preparação; V8 permanece candidata não homologada.
+
+Validação documental desta preparação: duas revisões independentes do V8 e
+guia; incorporadas a distinção explícita de destino pendente por ambiguidade
+e a ordem acíclica de fechamento dos hashes PDF/JSONL, cobertura e verificação.
+Conferidos UTF-8, término de linha, nomes dos quatro arquivos/ZIP e links novos
+do ROADMAP. git diff --check sem erros. Hashes da V7, Markdown-fonte e contrato
+operacional V5 conferidos e preservados. SHA-256 do complemento V8 final:
+6b795f9f5cecbe0b9aa6ee034d183cf9a96e861a66cba37441536b94346d2815.
+Não foram executados testes da aplicação, pois esta etapa não mudou código;
+essas verificações documentais não validam a saída futura do modelo.
+
+## 2026-11-01 — V8 autossuficiente para teste com somente dois arquivos
+
+O usuário relatou que o ChatGPT interrompeu a execução do complemento V8 por
+falta do prompt e dos quatro artefatos V7. A interrupção correspondia ao contrato
+do complemento, mas não ao teste desejado pelo usuário, que esclareceu a entrada
+de somente prompt + Markdown. Não é falha da aplicação ou corrupção da fonte.
+
+Criado prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt, reunindo o conteúdo
+completo da V7 e os reforços gerais da V8: inventário direto da fonte e reconciliação
+de unidades/continuações, artigos de vigência, escopo com evidência própria,
+ambiguidade distinta de omissão, cobertura consistente, referências a contexto
+comum e fechamento acíclico dos hashes dos quatro artefatos. A análise inicia
+do zero; todos os controles são saídas. Nenhuma dependência de V7, resultados,
+ZIP, revisão cp027, hash predefinido ou histórico da conversa. Progresso criado
+na própria execução pode apoiar continuação, sem exigir outros anexos ao usuário.
+
+Retirados do prompt principal os localizadores específicos dos erros desta
+edição; permanecem no histórico/guia para auditoria externa à geração.
+Isso não torna a edição inédita para avaliação: ela já orientou os ajustes.
+Nenhum ganho de completude, desempenho ou generalização foi demonstrado ainda.
+
+Complemento V8 anterior preservado byte a byte. Seu guia foi preservado em
+prompts/LEIA_ME-chatgpt-anvisa-v8-complementar-historico.txt; o guia principal e
+ROADMAP indicam apenas a versão autossuficiente para o próximo teste. O segundo
+arquivo de entrada é o Markdown já existente da aplicação, sem reconversão,
+edição ou criação de uma fonte substituta. Contrato operacional, PRD, código,
+infraestrutura e credenciais não foram alterados nesta tarefa. OpenAI Docs
+utilizada para preservar instruções e esclarecer entradas/saídas; skill
+karpathy-guidelines indisponível, mantidas as regras pertinentes do repositório.
+
+## 2026-11-10 — Decisão: integrar o V8 autossuficiente com Terra no OpenRouter
+
+O usuário informou o aceite do PDF revisado pelo cliente e autorizou integrar
+o V8 autossuficiente ao fluxo da aplicação, com Terra no OpenRouter. O aceite
+informado refere-se ao PDF revisado; a API e os novos resultados requerem
+validação própria. O prompt aprovado deve permanecer byte a byte inalterado.
+
+O modo OpenRouter será selecionado explicitamente no servidor. A fonte enviada
+será apenas o Markdown paginado, sem PDF bruto, protocolo ou credenciais no
+conteúdo. A aplicação vai persistir a saída no fluxo existente e gerar o PDF
+com índice inicial e fichas. A chave fica no ambiente protegido; sem chave ou
+em caso de falha não há troca automática para outro provedor. O teste local
+usa documento artificial e não ativa workflows na VPS.
+
+## 2026-11-10 — Fluxo Anvisa V8 implementado e testado localmente
+
+Após persistir o Markdown, o export interno seleciona o provedor configurado.
+Em `openrouter`, o renderizador autenticado envia o prompt V8 original e as
+páginas da fonte ao `openai/gpt-6.1-terra`. Processa os blocos em ordem, amplia
+o contexto para continuações e subdivide saídas truncadas sem descartar páginas.
+Valida páginas, IDs, evidências literais e inventário; gera o relatório com
+índice inicial e fichas, confere os destinos dos links e fecha o ZIP com os
+quatro arquivos V8. A conclusão operacional continua depois da persistência
+do PDF; a entrega por Gmail permanece manual. O export anterior continua
+disponível no histórico do Git em `911d0ef`.
+
+O hash do prompt não mudou:
+`3e75a9619a9cd5e7ce7080b22faad815148172cd0ffe30aa9db85e3b43b804e7`.
+O modo Ollama continua disponível com seleção explícita no ambiente; não há
+troca automática quando a opção OpenRouter falha. A chave é passada somente
+ao serviço renderizador e não é incluída no export nem no conteúdo enviado.
+
+Validação final local: 81 testes Python aprovados, incluindo PDF sintético de
+oito páginas convertido, chamadas do Terra simuladas, divisão por truncamento,
+continuação com contexto anterior, correção de evidência, dois links de
+petições, leitura do PDF e identidade do PDF no ZIP. As duas páginas do
+relatório de teste foram inspecionadas visualmente. Os nós JavaScript de seleção
+e preparação foram exercitados com dados simulados; os dois arquivos Compose
+e `git diff --check` passaram. Nenhuma chave OpenRouter estava configurada,
+portanto não houve chamada real, teste integrado no n8n, envio ou implantação
+na VPS. Qualidade, tempo e custo com o Terra real permanecem por validar.
+
+`output/` fica fora do Git e do contexto Docker. Prompts históricos e testes
+avulsos foram preservados localmente em `output/historico-integracao-v8-20261110/`
+com manifesto de hashes. O V8 autossuficiente e as regressões automatizadas
+dos contratos alterados foram mantidos. Aplicadas a skill PDF e as orientações
+publicadas de `karpathy-guidelines`, sem instalar a skill global ausente.

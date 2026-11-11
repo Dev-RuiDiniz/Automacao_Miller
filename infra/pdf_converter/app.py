@@ -3,13 +3,13 @@ from __future__ import annotations
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
 
-from .converter import ConversionError, convert_pdf_bytes
+from .converter import CONVERTER_VERSION, ConversionError, convert_pdf_bytes
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
 
 app = FastAPI(
     title="PDF to Markdown Converter",
-    version="0.3.0",
+    version=CONVERTER_VERSION,
     description="Conversor interno e determinístico de PDF para Markdown.",
 )
 

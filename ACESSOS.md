@@ -66,6 +66,13 @@ O Drive pertence a workflows antigos de homologação. Não é necessário para 
 
 O remoto do repositório está configurado como origin. Use uma conta autorizada no cliente Git ou no cofre da máquina. Não salve PAT, cookie ou chave de acesso em arquivo versionado.
 
+## OpenRouter — relatório Anvisa V8
+
+A chave fica em `OPENROUTER_API_KEY` no `.env` protegido do ambiente de teste
+ou operação e só é injetada no serviço `report-renderer`. Não guarde o valor
+no Git, nos exports do n8n ou no navegador. O administrador do ambiente deve
+configurar e testar a chave; a integração não altera a credencial NVIDIA.
+
 ## Como trocar um segredo
 
 1. Identifique o sistema e quem administra a credencial.

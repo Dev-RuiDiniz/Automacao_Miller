@@ -13,7 +13,7 @@ A IA ajuda a ler e resumir. Ela não decide o que a empresa deve fazer e não su
 1. Uma pessoa autorizada entra na landing e envia um PDF.
 2. O sistema cria um protocolo e guarda o original em armazenamento privado.
 3. O PDF é convertido para texto organizado por página.
-4. O Ollama analisa todas as páginas, uma parte de cada vez.
+4. O provedor configurado analisa todas as páginas em blocos: Ollama no modo local ou Terra no modo Anvisa V8.
 5. O sistema confere se as páginas foram cobertas e se as citações aparecem no texto original.
 6. O sistema monta um relatório em Markdown e PDF.
 7. O operador encontra o relatório no painel e pode conferi-lo.
@@ -37,7 +37,38 @@ O sinal de cobertura informa quantas páginas foram analisadas e quantas referê
 
 A saída persistida é o relatório técnico em Markdown e sua versão PDF. RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo. O sinal mede localização de evidências, não confiança semântica da IA. Referências pendentes aparecem como pendentes e não bloqueiam, por si só, a geração do relatório ou a solicitação de envio. Uma falha técnica ou uma página não analisada interrompe a geração de um relatório completo.
 
+No modo Anvisa V8, o PDF começa pelo índice de assuntos e páginas da fonte.
+As fichas preservam as petições, dispositivos e evidências; inconsistências
+de cobertura e evidência precisam ser corrigidas antes de publicar o PDF.
+
 ## Como usar, passo a passo
+
+### Teste local: gerar somente o arquivo .md
+
+Para gerar o Markdown e depois testar prompts manualmente, não é necessário
+subir n8n, banco ou Ollama. Com Docker e Docker Compose instalados, execute na
+raiz do projeto, no Linux:
+
+```bash
+docker compose --env-file /dev/null -f deploy/markdown-local/compose.yml up --build -d
+```
+
+Abra [a ferramenta local](http://127.0.0.1:18080), selecione um PDF, clique em
+**Gerar Markdown**, confira os avisos e clique em **Baixar .md**. Repita para
+outros PDFs. O arquivo inclui páginas, metadados e avisos; não é um relatório
+de IA. O envio posterior ao ChatGPT é manual e somente para material autorizado.
+
+O modo local não usa `.env`, não exige chave de IA, não altera a VPS e não
+grava protocolos no painel. Sem OCR: PDFs sem camada textual não são suportados.
+Não exponha a porta por túnel/proxy. Para encerrar somente essa ferramenta:
+
+```bash
+docker compose --env-file /dev/null -f deploy/markdown-local/compose.yml down
+```
+
+Detalhes e limites em [infra/pdf_converter/README.md](infra/pdf_converter/README.md).
+
+### Fluxo completo pela landing
 
 1. Entre na landing com o acesso fornecido por um administrador.
 2. Envie um PDF com texto selecionável e guarde o protocolo mostrado na tela.
@@ -48,6 +79,19 @@ A saída persistida é o relatório técnico em Markdown e sua versão PDF. RAG,
 7. Se o estado mudar para **Concluído**, baixe o PDF pelo próprio painel.
 
 O operador pode conferir o relatório antes do envio. Essa conferência é opcional; enviar o e-mail continua sendo uma ação manual.
+
+### Usar o V8 com Terra no OpenRouter
+
+No `.env` protegido da stack, configure `ANVISA_REPORT_PROVIDER=openrouter` e
+preencha `OPENROUTER_API_KEY`. O modelo é `openai/gpt-6.1-terra`. O
+[prompt aprovado](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt) é incluído
+no build do renderizador e conferido por SHA-256 antes da chamada.
+
+No ambiente de teste, reconstrua o `report-renderer`, recrie o n8n para ler a
+configuração e importe o workflow interno atualizado. Comece com um PDF
+sintético. Use `PDF_CONVERTER_TIMEOUT_SECONDS=1200` para arquivos grandes como
+o caso de 198 páginas já convertido localmente. Veja os detalhes em
+[workflows/README.md](workflows/README.md#modo-anvisa-v8-com-openrouter).
 
 ## O que o sistema não faz
 
@@ -63,7 +107,7 @@ O operador pode conferir o relatório antes do envio. Essa conferência é opcio
 - **Landing e gateway:** recebem o PDF, criam o protocolo, autenticam o operador e controlam a consulta dos arquivos.
 - **n8n:** coordena as etapas e registra falhas.
 - **Conversor PDF → Markdown:** extrai texto e marca cada página.
-- **Ollama:** executa a análise local dos documentos reais.
+- **Ollama / OpenRouter:** analisam o Markdown no modo configurado.
 - **PostgreSQL:** guarda estados, tentativas, destinatários, erros e referências aos arquivos.
 - **Volume privado do Docker:** guarda o PDF original e os relatórios Markdown e PDF.
 - **Renderizador:** transforma o relatório Markdown em PDF.

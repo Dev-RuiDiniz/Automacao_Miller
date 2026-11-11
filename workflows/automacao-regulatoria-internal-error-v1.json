@@ -47,7 +47,7 @@
             {
               "id": "error-category",
               "name": "error_category",
-              "value": "={{ String($json.execution?.error?.message || '').startsWith('IA:') ? 'ia' : ((String($json.execution?.error?.message || '').startsWith('EXTRACTION:') || String($json.execution?.error?.message || '').startsWith('EXTRAÇÃO:')) ? 'extração' : ((String($json.execution?.error?.message || '').startsWith('VALIDACAO:') || String($json.execution?.error?.message || '').startsWith('VALIDAÇÃO:') || String($json.execution?.lastNodeExecuted || '').includes('Validate report Markdown') || String($json.execution?.lastNodeExecuted || '').includes('Merge batch findings and prepare report')) ? 'validação' : 'infraestrutura')) }}",
+              "value": "={{ (String($json.execution?.error?.message || '').startsWith('IA:') || String($json.execution?.lastNodeExecuted || '').includes('OpenRouter - Analyze')) ? 'ia' : ((String($json.execution?.error?.message || '').startsWith('EXTRACTION:') || String($json.execution?.error?.message || '').startsWith('EXTRAÇÃO:')) ? 'extração' : ((String($json.execution?.error?.message || '').startsWith('VALIDACAO:') || String($json.execution?.error?.message || '').startsWith('VALIDAÇÃO:') || String($json.execution?.lastNodeExecuted || '').includes('Validate report Markdown') || String($json.execution?.lastNodeExecuted || '').includes('Merge batch findings and prepare report')) ? 'validação' : 'infraestrutura')) }}",
               "type": "string"
             },
             {

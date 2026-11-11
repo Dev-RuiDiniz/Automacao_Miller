@@ -138,6 +138,32 @@ pastas do Drive para representar estados. Arquivos antigos do Drive não são
 apagados automaticamente e só podem entrar por procedimento de importação
 controlada futuro.
 
+## Modo Anvisa V8 com OpenRouter
+
+Configure `ANVISA_REPORT_PROVIDER=openrouter` e `OPENROUTER_API_KEY` no `.env`
+protegido. A chave é injetada somente no `report-renderer`. Recrie o n8n para
+aplicar o provedor e reconstrua a imagem do renderizador para instalar o prompt.
+Importe o export interno atualizado e associe a credencial PostgreSQL no
+ambiente de homologação. Os exports do Git permanecem inativos.
+
+Depois de persistir o Markdown, o workflow chama a rota interna autenticada
+do renderizador. O serviço envia o V8 intacto e os blocos paginados ao Terra,
+sem PDF bruto nem protocolo. O serviço pede contexto adicional quando a
+resposta informa que o ato continua fora do bloco. Confere hashes, cobertura,
+citações e reconciliação do inventário antes de escrever o relatório; em caso
+de falha, o workflow registra erro e não troca para Ollama automaticamente.
+
+O PDF com índice clicável e o Markdown usam os artefatos existentes da landing.
+O ZIP de verificação acompanha o PDF no volume privado, como
+`report-vN-anvisa-v8.zip`; sua chave relativa fica nos metadados do relatório
+Markdown. Nenhum envio por e-mail é disparado automaticamente. O pacote
+registra os limites das verificações mecânicas e da revisão feita pelo modelo.
+
+O prazo total da análise V8 é `OPENROUTER_TIMEOUT_SECONDS` (padrão: 5400 s);
+não inclui a conversão. Teste com um PDF sintético após configurar a chave.
+Valide conteúdo, custo e latência em material autorizado antes de habilitar
+para uso operacional. O modo local em `127.0.0.1:18080` continua somente conversão.
+
 ## Validação atual de citações e RAG legado
 
 **Nota de vigência:** a seção abaixo descreve a capacidade legada de RAG,
@@ -177,7 +203,7 @@ regulatório definitivo e a conferência humana é opcional.
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
 
-## Fluxo de análise integral vigente
+## Fluxo de análise integral com Ollama
 
 O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 

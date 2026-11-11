@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Miller — PDF para Markdown local</title>
+    <link rel="stylesheet" href="/static/local.css">
+    <script src="/static/local.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="page-header">
+        <p class="brand">Miller <span>Ferramenta local</span></p>
+        <h1>Do PDF para o Markdown.</h1>
+        <p class="intro">Extraia o conteúdo paginado de um PDF textual e baixe o arquivo <code>.md</code> para seus testes manuais de prompt.</p>
+      </header>
+
+      <section class="panel" aria-labelledby="upload-title">
+        <div class="section-heading">
+          <p class="eyebrow">1. Escolha o documento</p>
+          <h2 id="upload-title">Gerar Markdown</h2>
+        </div>
+        <form id="convert-form">
+          <label for="pdf-file">Arquivo PDF</label>
+          <input id="pdf-file" name="file" type="file" accept=".pdf,application/pdf" aria-describedby="file-help selected-file" required>
+          <p id="file-help" class="helper">Um arquivo por vez, até 100 MiB. O PDF precisa conter uma camada de texto; esta ferramenta não executa OCR.</p>
+          <p id="selected-file" class="selected-file">Nenhum arquivo selecionado.</p>
+          <button id="convert-button" class="button primary" type="submit" disabled>Gerar Markdown</button>
+        </form>
+        <p id="conversion-status" class="status" role="status" aria-live="polite" aria-atomic="true">Selecione um PDF para começar.</p>
+      </section>
+
+      <section id="result-panel" class="panel" aria-labelledby="result-title" hidden>
+        <div class="result-heading">
+          <div>
+            <p class="eyebrow">2. Confira e baixe</p>
+            <h2 id="result-title">Markdown gerado</h2>
+          </div>
+          <a id="download-markdown" class="button primary">Baixar .md</a>
+        </div>
+        <p class="helper">O download contém o Markdown completo em UTF-8, com metadados, avisos e marcadores de página.</p>
+        <dl class="metadata">
+          <div><dt>Arquivo de origem</dt><dd id="source-name"></dd></div>
+          <div><dt>Páginas</dt><dd id="page-count"></dd></div>
+          <div><dt>Conversor / exportador</dt><dd id="converter-version"></dd></div>
+          <div class="wide"><dt>SHA-256 do PDF</dt><dd id="source-hash" class="hash"></dd></div>
+          <div class="wide"><dt>SHA-256 do Markdown</dt><dd id="markdown-hash" class="hash"></dd></div>
+        </dl>
+        <div id="warnings-panel" class="notice warning" role="alert" hidden>
+          <h3>Avisos da conversão</h3>
+          <ul id="conversion-warnings"></ul>
+        </div>
+        <p class="notice">A contagem de páginas e os hashes identificam a conversão; não comprovam a leitura visual de tabelas, imagens ou gráficos, nem a qualidade de uma análise por IA. Confira o Markdown com o PDF original.</p>
+        <details class="preview">
+          <summary>Visualizar o Markdown como texto</summary>
+          <p id="preview-help" class="helper"></p>
+          <pre id="markdown-preview" tabindex="0" aria-label="Prévia textual do Markdown"></pre>
+        </details>
+      </section>
+
+      <aside class="privacy-note" aria-label="Limites e privacidade">
+        <p><strong>Transcrição, não relatório de IA.</strong> Este modo converte o PDF localmente, sem Ollama, n8n, banco de dados ou envio ao ChatGPT.</p>
+        <p>Para testar o arquivo em um serviço externo, faça o envio manualmente e use somente documentos cujo compartilhamento esteja autorizado.</p>
+      </aside>
+    </main>
+  </body>
+</html>

@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 
@@ -9,7 +10,8 @@ def test_remote_vps_status_is_dated_and_not_presented_as_current() -> None:
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     log = (ROOT / "LOG.md").read_text(encoding="utf-8")
 
-    assert "**Atualizado em:** 8 de outubro de 2026" in roadmap
+    # A data de manutenção pode avançar sem alterar a data histórica da VPS.
+    assert re.search(r"^\*\*Atualizado em:\*\* \d{1,2} de [a-zç]+ de \d{4}$", roadmap, re.MULTILINE)
     assert "as últimas informações confirmadas da VPS são de 3 de outubro de 2026" in roadmap
     assert "A VPS não foi consultada durante esta atualização" in roadmap
     assert "Os seis serviços padrão do Docker estavam saudáveis" in roadmap
@@ -18,6 +20,19 @@ def test_remote_vps_status_is_dated_and_not_presented_as_current() -> None:
     assert "Seu resultado posterior não está registrado aqui" in roadmap
     assert "chave foi exposta e precisa ser revogada" in roadmap
     assert "Validação na VPS" in log
+
+
+def test_local_markdown_mode_does_not_start_operational_services() -> None:
+    compose = (ROOT / "deploy" / "markdown-local" / "compose.yml").read_text(encoding="utf-8")
+    assert "name: miller-markdown-local" in compose
+    assert re.findall(r"^  ([a-z-]+):$", compose, re.MULTILINE) == ["markdown-local"]
+    assert '"127.0.0.1:18080:8080"' in compose
+    assert "infra.pdf_converter.local_app:app" in compose
+    assert "infra/pdf_converter/Dockerfile" in compose
+    for forbidden in ("depends_on:", "volumes:", "environment:", "env_file:"):
+        assert forbidden not in compose
+    ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert {".env", ".env.*", ".aws", ".git", "tmp"} <= set(ignore)
 
 
 def test_product_docs_match_active_markdown_report_flow() -> None:
@@ -58,6 +73,9 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "ARTIFACT_STORAGE_DIR" in compose
     assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
     assert "PDF_CONVERTER_TIMEOUT_SECONDS:-300" in compose
+    renderer_service = compose.split("  report-renderer:\n", 1)[1].split("\n  upload-gateway:", 1)[0]
+    assert "OPENROUTER_API_KEY:" in renderer_service
+    assert "OPENROUTER_API_KEY" not in n8n_service
     assert "automacao_miller_submission_data:" in compose
     assert '"${ARTIFACTS_GID:-10002}"' in compose
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
@@ -223,6 +241,15 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert workflow["connections"]["Loop Over Items"]["main"][0][0]["node"] == "Merge batch findings and prepare report"
     assert workflow["connections"]["Loop Over Items"]["main"][1][0]["node"] == "Ollama - Analyze each batch"
     assert workflow["connections"]["Ollama - Analyze each batch"]["main"][0][0]["node"] == "Loop Over Items"
+
+    edges = workflow["connections"]
+    assert edges["State - Markdown persisted"]["main"][0][0]["node"] == "Select report provider"
+    assert [row[0]["node"] for row in edges["Use OpenRouter V8?"]["main"]] == [
+        "OpenRouter - Analyze and render V8", "Prepare analysis batches",
+    ]
+    assert edges["Internal Storage - Write V8 bundle"]["main"][0][0]["node"] == "Prepare report Markdown file"
+    assert edges["OpenRouter - Prepare PDF"]["main"][0][0]["node"] == "Internal Storage - Write report PDF"
+    assert "OPENROUTER_API_KEY" not in json.dumps(workflow)
 
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "status = 'aguardando_envio'" in report_state["parameters"]["query"]

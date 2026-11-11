@@ -87,6 +87,10 @@ services:
       dockerfile: infra/report_renderer/Dockerfile
     restart: unless-stopped
     expose: ["8091"]
+    environment:
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_TIMEOUT_SECONDS: ${OPENROUTER_TIMEOUT_SECONDS:-5400}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/healthz')"]
       interval: 30s
@@ -152,6 +156,8 @@ services:
       N8N_PERSONALIZATION_ENABLED: "false"
       ARTIFACT_STORAGE_DIR: /data/artifacts
       N8N_RESTRICT_FILE_ACCESS_TO: ${N8N_RESTRICT_FILE_ACCESS_TO:-/data/artifacts}
+      ANVISA_REPORT_PROVIDER: ${ANVISA_REPORT_PROVIDER:-ollama}
+      OPENROUTER_TIMEOUT_SECONDS: ${OPENROUTER_TIMEOUT_SECONDS:-5400}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
       PDF_CONVERTER_BASE_URL: ${PDF_CONVERTER_BASE_URL:-http://pdf-converter:8080}
       PDF_CONVERTER_TIMEOUT_SECONDS: ${PDF_CONVERTER_TIMEOUT_SECONDS:-300}

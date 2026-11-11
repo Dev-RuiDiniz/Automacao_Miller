@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import base64
+import hmac
 import io
 import json
+import os
 from html import escape
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import Response
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
@@ -14,6 +17,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from . import anvisa_pdf, anvisa_v8
 
 REPORT_VERSION = "1.3.0"
 BRAND_NAVY = "#123B5D"
@@ -692,3 +696,53 @@ def render_markdown_report(payload: dict[str, Any]) -> Response:
         media_type="application/pdf",
         headers={"X-Report-Version": REPORT_VERSION},
     )
+
+
+@app.post("/v1/analyze-anvisa-v8")
+def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = Header(default=None)) -> dict[str, Any]:
+    token = os.environ.get("INTERNAL_API_TOKEN", "")
+    if not token or not x_internal_token or not hmac.compare_digest(token.encode(), x_internal_token.encode()):
+        raise HTTPException(status_code=403, detail="Acesso interno necessário.")
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not key:
+        raise HTTPException(status_code=503, detail="IA: configure OPENROUTER_API_KEY no servidor.")
+    markdown = payload.get("markdown")
+    page_count = payload.get("page_count")
+    expected_hash = payload.get("markdown_sha256")
+    filename = payload.get("source_filename")
+    warnings = payload.get("warnings", [])
+    if (not isinstance(markdown, str) or not markdown or type(page_count) is not int
+        or not isinstance(expected_hash, str) or not isinstance(filename, str)
+        or not isinstance(warnings, list) or any(not isinstance(warning, str) for warning in warnings)):
+        raise HTTPException(status_code=422, detail="VALIDAÇÃO: Markdown paginado e seus metadados são obrigatórios.")
+    try:
+        timeout = int(os.environ.get("OPENROUTER_TIMEOUT_SECONDS", "5400"))
+        if not 1 <= timeout <= 14400:
+            raise ValueError
+    except ValueError:
+        raise HTTPException(status_code=503, detail="IA: OPENROUTER_TIMEOUT_SECONDS inválido.") from None
+    try:
+        records, coverage = anvisa_v8.analyze(markdown, page_count, expected_hash, key, timeout)
+        coverage["fonte"]["nome"] = filename
+        coverage["avisos"] = warnings
+    except anvisa_v8.AnvisaError as exc:
+        status = 502 if str(exc).startswith("IA:") else 422
+        raise HTTPException(status_code=status, detail=str(exc)) from None
+    try:
+        report_markdown, pdf, checks = anvisa_pdf.render(records, coverage, filename, warnings)
+        coverage["verificacao_pdf"] = checks
+        bundle = anvisa_v8.package(pdf, records, coverage)
+    except anvisa_v8.AnvisaError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=500, detail="PDF: falha ao montar o relatório V8 e os arquivos de verificação.") from None
+    return {
+        "prompt_version": anvisa_v8.PROMPT_VERSION,
+        "report_markdown": report_markdown,
+        "report_pdf_base64": base64.b64encode(pdf).decode("ascii"),
+        "bundle_base64": base64.b64encode(bundle).decode("ascii"),
+        "report_context": {"provider": "openrouter", "model": anvisa_v8.MODEL,
+                           "prompt_sha256": anvisa_v8.PROMPT_HASH, "source_sha256": expected_hash,
+                           "pages_analyzed": page_count, "pdf": checks,
+                           "references_confirmed": coverage["evidencias_literais_conferidas"]},
+    }

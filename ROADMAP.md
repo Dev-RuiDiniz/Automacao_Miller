@@ -1,6 +1,6 @@
 # ROADMAP.md — O que falta para concluir o projeto
 
-**Atualizado em:** 8 de outubro de 2026
+**Atualizado em:** 10 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 **Regra de leitura:** as últimas informações confirmadas da VPS são de 3 de outubro de 2026. A VPS não foi consultada durante esta atualização. “Último estado conhecido” não significa “estado atual”.
 
@@ -21,6 +21,151 @@ A última observação registrada da VPS informa:
 O histórico detalhado está em [LOG.md](LOG.md). A situação da instalação n8n/VPS precisa ser reconfirmada antes de qualquer ativação ou decisão de produção.
 
 ## 2. Ordem de execução
+
+### Integração Anvisa V8 com OpenRouter
+
+**Estado:** opção implementada na branch `feature/performance-test`. O usuário
+informou o aceite do PDF revisado pelo cliente. O
+[V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt) foi
+preservado byte a byte e é usado pelo Terra para analisar o Markdown paginado.
+A aplicação gera o PDF com índice e fichas e guarda os controles no ZIP privado.
+
+Próximo passo: configurar a chave protegida no ambiente de homologação,
+atualizar o workflow interno e executar um caso sintético com o OpenRouter
+real. Depois, medir tempo, custo e conferir o conteúdo com documento autorizado
+antes de promover a opção para operação. O teste simulado não homologa a API,
+e nenhum workflow da VPS foi ativado nesta etapa.
+
+### Teste local — Gerar somente Markdown
+
+**Estado:** modo implementado em 29/10/2026, separado da stack operacional.
+
+Interface local com upload/conversão/download em `127.0.0.1:18080`, sem IA,
+banco, n8n, credencial ou `.env`. Reutiliza o conversor, preserva o corpo
+paginado, metadados e avisos no arquivo. Não é relatório final nem alteração
+da landing/VPS. Instruções em [infra/pdf_converter/README.md](infra/pdf_converter/README.md).
+
+Validação histórica de 29/10: 115 testes Python e 21 testes JavaScript aprovados; build e
+Compose local válidos; upload, conversão e download conferidos no navegador
+com PDF público de uma página. Teste HTTP da versão final com PDF público de
+100 páginas: 200, sequência 1–100, hashes conferidos, aproximadamente 49,45 s
+somente conversão/exportação local. Não mede relatório, IA ou meta de 90 minutos.
+
+Validação de 31/10 do conversor `0.4.0`: 129 testes Python e 21 JavaScript
+aprovados. O PDF autorizado de 198 páginas foi convertido pelo endpoint local
+com HTTP 200 em 674,18 s (11 min 14 s), gerando 2.173.841 bytes de Markdown,
+marcadores 1–198 e hashes conferidos. Foram mantidos 89 avisos de tabelas
+(86 possíveis tabelas em texto e três tabelas estruturadas), sem páginas sem
+texto ou fallback de leitura. Regeneração em `output/markdown/`, artefatos locais
+não versionados. Esse tempo é da conversão nesta máquina, não da VPS ou da IA.
+
+Próximo passo do operador: gerar `.md` dos PDFs autorizados, conferir avisos e
+conteúdo com o original e testar prompts manualmente. Integração futura com a
+API OpenAI, escolha de modelo, qualidade regulatória e tempo final não foram
+validados nesta entrega e não são ativados por este modo.
+
+### Histórico do teste manual — V8 autossuficiente, somente prompt + Markdown
+
+**Estado em 01/11/2026:** usuário esclareceu que o teste deve começar com
+somente dois arquivos. Criado o [prompt V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt),
+consolidando as instruções completas e as correções gerais, sem depender de V7,
+relatórios, ZIP, checkpoint ou histórico anterior. O guia de envio foi
+atualizado. Naquela data a execução e o aceite ainda estavam pendentes.
+
+Próximo passo: em conversa nova, anexar somente o prompt autossuficiente e o
+mesmo Markdown gerado pela aplicação. A análise parte do zero; PDF, JSONL,
+cobertura e verificação são saídas a gerar, não requisitos de entrada.
+Solicitar o ZIP final para auditoria. Não alterar a aplicação nem reconverter
+o documento. O prompt não inclui empresas, páginas-alvo, contagens ou hash
+fixo desta edição; as regressões continuam externas à geração.
+
+Esta edição já orientou ajustes: resultado positivo não comprova generalização.
+Validação do modelo, documento independente, aceite do cliente e integração
+de IA/API permanecem pendentes. Complemento anterior preservado abaixo.
+
+### Histórico do teste manual — V8 complementar à V7
+
+**Estado em 01/11/2026:** V8 preparada a pedido do usuário para corrigir a
+entrega V7 `v7-cp027-20261101` na mesma conversa. Ainda não executada nem
+homologada. Arquivos históricos: `chatgpt-anvisa-pdf-v8.txt` e
+`LEIA_ME-chatgpt-anvisa-v8-complementar-historico.txt`, arquivados localmente.
+V7 preservada como base. Este complemento foi substituído, para o próximo
+teste, pela versão autossuficiente descrita acima.
+
+A rodada V7 com o Markdown corrigido produziu 710 fichas e PDF de 414 páginas,
+declarando as 198 páginas concluídas. A auditoria de 01/11 confirmou os 710
+links e a transposição dos valores examinados, mas encontrou nove unidades
+farmacêuticas omitidas na continuação da RE 2.175, fonte página 146. Também
+identificou artigos de vigência ausentes, campo de escopo incoerente,
+ambiguidade de inclusão, 34 observações de cobertura desatualizadas e hash
+do PDF divergente da verificação. Portanto, a entrega não foi aprovada como
+completa. As falhas demonstradas não exigem regenerar o Markdown.
+
+Procedimento histórico do complemento: anexar o V8 na mesma conversa, conferir acesso ao prompt V7,
+Markdown e pacote cp027 e executar a revisão corretiva. Reconferir unidades
+e continuações da fonte contra os registros, corrigir estados e gerar os
+quatro arquivos cumulativos V8 em nova revisão, mantendo os originais.
+Não reutilizar checkpoints de outra fonte. A V8 contém localizadores dos
+erros conhecidos desta edição; um reparo bem-sucedido não prova generalização.
+
+Alterações desta etapa limitadas a prompt e documentação. Aplicação, conversor,
+contrato operacional, n8n, VPS e Markdown permanecem inalterados. Validação
+do novo pacote, aceite do cliente, teste em documento independente e futura
+integração de IA/API permanecem pendentes.
+
+### Histórico do teste manual — Prompt Anvisa V7 e conversor
+
+**Estado em 31/10/2026:** V7 executada pelo usuário e auditada; não aprovada
+como entrega final. O PDF recebido tem 39 páginas e 81 fichas incluídas; a
+cobertura continua parcial. A auditoria encontrou associação indevida dos
+suplementos das páginas 114/115 à RE 2.140, em vez da RE 2.143. O Markdown da
+aplicação já trazia os atos fora da ordem visual; é defeito da fonte intermediária,
+não algo a corrigir silenciosamente por suposição no prompt.
+
+Decisão autorizada: corrigir a ordenação no conversor compartilhado e regenerar
+o Markdown do mesmo PDF pela aplicação local. A versão `0.4.0` lê regiões e
+colunas pela geometria, preserva tabelas detectadas e explicita limitações de
+ordem. Não há regras por empresa/ato nem edição manual do documento.
+V6, V7, PDF original e Markdown anterior são preservados. A VPS não foi alterada.
+Antes de implantar o conversor no fluxo operacional, medir o custo da leitura
+geométrica no servidor e revisar `PDF_CONVERTER_TIMEOUT_SECONDS` (padrão de
+300 segundos no export); o teste local não ajusta nem valida esse timeout.
+
+Próximo passo definido em 31/10 (histórico, sucedido pela etapa V8 acima):
+abrir uma conversa nova no ChatGPT e anexar o **novo
+Markdown gerado com o conversor 0.4.0** e o mesmo
+`chatgpt-anvisa-pdf-v7.txt`, sem alterar o prompt (cópia histórica local).
+Não reutilizar checkpoints ligados ao hash antigo nem fornecer relatórios
+anteriores ou o guia de regressões como fonte da geração. Guardar PDF, JSONL,
+cobertura e verificação da mesma revisão para conferir conteúdo e omissões.
+Mensagem de início/continuação e regressões externas ao prompt em
+`LEIA_ME-chatgpt-anvisa-v7.txt` (cópia histórica local).
+
+O prompt prioriza interpretação pela IA, com código apenas como apoio local,
+e não exige desenvolver outro parser/testes na execução. Nenhuma integração,
+troca de modelo ou mudança do prompt ativo foi feita. Testes do conversor não
+homologam a extração por IA. Aceite do cliente, teste
+em documento separado e contrato de integração permanecem pendentes.
+
+### Experimento local — Correção da entrega manual V5 (referência)
+
+**Estado em 31/10/2026:** scripts da entrega manual corrigidos em cópia isolada,
+sem integração na aplicação. O ZIP original e o Markdown autorizado foram
+preservados. O pacote reproduzível e o novo PDF ficam em `output/pdf/`, como
+artefatos locais não versionados; não devem ser incluídos em commit.
+
+Validação deste experimento: 144 testes aprovados, G1–G8 sem falhas, 710 fichas
+incluídas, 310 apresentações preservadas e 710 links internos reconciliados.
+O PDF tem 304 páginas; 13 páginas críticas foram inspecionadas visualmente,
+sem cortes ou sobreposições nas amostras. A auditoria e os hashes acompanham
+o pacote. Isso não homologa individualmente os 710 eventos.
+
+Próximo passo: revisão e aceite do cliente, confrontando o original, as tabelas
+com avisos nas páginas-fonte 122/123, as correções e as exclusões. O extrator
+continua específico dos formatos desta edição do DOU; outros documentos
+exigem validação separada. O tempo local parte do Markdown e não mede a meta
+operacional de 90 minutos. Não houve mudança de prompt ativo, modelo, API,
+n8n, Docker ou VPS; integração futura depende de nova decisão.
 
 ### P0 — Resolver o estado da execução longa
 
@@ -71,7 +216,7 @@ O teste NVIDIA não faz parte do processamento de PDFs reais e não é condiçã
 3. Conferir se as páginas aparecem em sequência e se os fatos citados estão no trecho correto.
 4. Concluir a validação do PDF longo de 142 páginas citado acima, sem iniciar duplicata.
 5. Conferir o relatório com o responsável operacional; a revisão humana é uma conferência opcional do produto, mas o aceite dos testes do projeto continua necessário.
-6. Não enviar dados reais a provedores externos de IA. O fluxo real usa Ollama local.
+6. No modo Ollama, manter a análise local. No modo Anvisa V8, usar o OpenRouter somente com Markdown autorizado e após o teste sintético da integração.
 
 **Concluído quando:** todas as páginas dos casos aprovados foram analisadas, o relatório foi criado, as referências foram classificadas corretamente e as limitações foram aceitas pelo responsável.
 

@@ -14,6 +14,20 @@ Pense numa esteira:
 8. O operador decide se e para quem enviar.
 9. O sistema só libera o download oficial depois que o Gmail confirma o envio.
 
+## Caminho local opcional: somente Markdown
+
+Este caminho é separado da esteira operacional. Não cria protocolo nem muda
+estados do painel; o download é texto-fonte para teste, não relatório final.
+
+```text
+Abrir 127.0.0.1:18080 → selecionar PDF textual → converter localmente
+  → conferir páginas, hashes e avisos → baixar .md completo
+  → eventual teste manual em serviço externo, somente com material autorizado
+```
+
+Sem n8n, banco, Ollama, API de IA ou envio de e-mail. O arquivo inclui os avisos
+antes das páginas. Sem OCR: páginas sem texto não comprovam ausência de dados.
+
 ## Fluxo principal
 
 ```mermaid
@@ -33,7 +47,13 @@ flowchart TD
     K --> L{Conversão e cobertura de páginas estão completas?}
     L -- Não --> X[Registrar erro técnico<br/>Não criar relatório parcial]
     L -- Sim --> M[Guardar Markdown e metadados]
-    M --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
+    M --> OR{Provedor configurado}
+    OR -- OpenRouter --> TERRA[Terra aplica o V8 ao Markdown em blocos]
+    TERRA --> VV{Cobertura, registros e evidências válidos?}
+    VV -- Não --> X
+    VV -- Sim --> V8[Montar PDF com índice, fichas e ZIP de verificação]
+    V8 --> W
+    OR -- Ollama --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
     N --> O[Enviar um lote por vez ao Ollama local]
     O --> P{Todos os lotes terminaram?}
     P -- Não --> X
@@ -67,7 +87,7 @@ flowchart TD
 - **Arquivo duplicado:** o sistema mostra o protocolo que já existe; não inicia outro processamento automático.
 - **PDF inválido ou sem texto selecionável:** encerra com erro. Esta versão não faz OCR.
 - **Falha em qualquer lote ou página:** encerra como erro e não apresenta um relatório parcial como se estivesse completo.
-- **Citação não encontrada, com página errada ou diferente do original:** ela aparece como pendente. Isso não impede por si só a criação do PDF nem o envio manual.
+- **Citação não encontrada, com página errada ou diferente do original:** no Ollama aparece como pendente; no V8 o bloco precisa ser corrigido antes de gerar o PDF.
 - **Falha do Gmail:** a entrega fica registrada como falha. O operador pode pedir nova tentativa controlada; o download oficial só abre após um envio confirmado.
 - **Dúvida sobre o conteúdo:** o operador pode abrir o PDF original e conferir. Essa revisão é opcional para cada relatório.
 

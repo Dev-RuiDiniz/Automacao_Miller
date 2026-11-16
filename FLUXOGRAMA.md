@@ -7,12 +7,25 @@ Pense numa esteira:
 1. A pessoa coloca um PDF na entrada.
 2. A esteira confere se o arquivo é válido e dá um número de protocolo.
 3. O sistema transforma cada página em texto e guarda o original.
-4. A IA lê o texto em partes pequenas.
-5. Uma etapa confere se as páginas e as citações existem mesmo.
-6. O sistema monta o relatório e o PDF.
-7. O trabalho fica esperando um operador.
-8. O operador decide se e para quem enviar.
-9. O sistema só libera o download oficial depois que o Gmail confirma o envio.
+4. Python procura menções conhecidas no texto salvo e anota a página e a linha onde aparecem.
+5. A IA percorre todas as páginas em blocos e procura informações que as regras podem ter deixado passar.
+6. Python confere a página e a citação de cada sugestão da IA; o que não comprovar fica de fora da síntese.
+7. A IA usa as observações e sugestões aceitas para escrever o relatório.
+8. O sistema confere as referências finais e gera o PDF.
+9. O trabalho fica esperando um operador, que decide se e para quem enviar.
+10. O download oficial só é liberado depois que o Gmail confirma o envio.
+
+A leitura por regras registra palavras literais e trechos com páginas. Ela não
+decide se um ato foi aprovado, negado ou cancelado; a repetição de um número de
+processo é apenas uma pista de ligação. A lista de termos não cobre toda forma
+possível de escrever um ato. A versão híbrida ainda chama a IA em todos os
+lotes para procurar lacunas e também para escrever o relatório. A checagem
+Python confirma que uma citação aparece no texto, não que sua interpretação
+esteja correta. Essa sequência descreve o v2 híbrido. O v1 também permite
+Anvisa V8 com OpenRouter, descrito no diagrama abaixo. Os exports ficam
+inativos no Git; o v2 foi observado publicado na VPS em 27/10/2026, com falhas
+de qualidade no teste sintético. O V8 local segue o histórico de novembro no
+ROADMAP.md. Nenhum ambiente foi consultado nesta resolução de merge.
 
 ## Caminho local opcional: somente Markdown
 
@@ -29,6 +42,12 @@ Sem n8n, banco, Ollama, API de IA ou envio de e-mail. O arquivo inclui os avisos
 antes das páginas. Sem OCR: páginas sem texto não comprovam ausência de dados.
 
 ## Fluxo principal
+
+> Este diagrama reúne o v1 com Anvisa V8 e o v2 híbrido, selecionados pelo
+> workflow implantado e sua configuração. Na VPS, em 27/10/2026, o v2 e o
+> tratamento de erros estavam publicados. Envio e reconciliação estavam
+> inativos; havia 4 documentos aguardando envio (um sintético) e 6 com erro.
+> A landing não tinha entrada HTTPS verificada. Consulte o [ROADMAP.md](ROADMAP.md) antes de tratar o fluxo desenhado como operação disponível.
 
 ```mermaid
 flowchart TD
@@ -56,7 +75,7 @@ flowchart TD
     K --> L{Conversão e cobertura de páginas estão completas?}
     L -- Não --> X[Registrar erro técnico<br/>Não criar relatório parcial]
     L -- Sim --> M[Guardar Markdown e metadados]
-    M --> OR{Provedor configurado}
+    M --> OR{Workflow e provedor configurados}
     OR -- OpenRouter --> CPAI[Carregar e revalidar progresso privado da análise]
     CPAI -- Erro de integridade --> X
     CPAI -- Análise já concluída --> V8
@@ -89,13 +108,19 @@ flowchart TD
     FINIA -- Não --> DENS
     FINIA -- Sim --> V8[Montar PDF com índice, fichas e ZIP de verificação]
     V8 --> W
-    OR -- Ollama --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
-    N --> O[Enviar um lote por vez ao Ollama local]
+    OR -- Ollama --> M1[Gateway relê o Markdown persistido]
+    M1 --> M2[Localizar termos, identificadores, datas e durações literais]
+    M2 --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
+    N --> O[IA analisa todos os lotes sequencialmente]
     O --> P{Todos os lotes terminaram?}
     P -- Não --> X
-    P -- Sim --> Q[Consolidar achados temporários]
-    Q --> R[Gerar relatório em Markdown]
-    R --> S[Conferir páginas e trechos contra o Markdown original]
+    P -- Sim --> HYB{Workflow híbrido v2?}
+    HYB -- Sim --> Q[Python valida página, lote e citação de cada candidato]
+    Q --> Q1[Separar candidatos aceitos dos pendentes]
+    Q1 --> R[IA gera relatório com observações e candidatos aceitos]
+    HYB -- Não --> QV1[Consolidar achados e contexto entre páginas]
+    QV1 --> R
+    R --> S[Conferir páginas e trechos do relatório<br/>contra o Markdown original]
     S --> T{Todas as páginas foram analisadas?}
     T -- Não --> X
     T -- Sim --> U[Marcar citações comprovadas e pendentes]
@@ -139,6 +164,7 @@ flowchart TD
 - **Limites de recuperação V8:** buscas locais não consomem ampliações explícitas de páginas. Até três ampliações são admitidas desde o último avanço validado do grupo; novos registros, fichas concluídas ou cobertura/inventário concluídos reabrem esse orçamento. O pedido pendente fica salvo antes de interromper. Repetições sem trabalho novo, contexto e quantidade de buscas continuam protegendo a execução; a troca da janela de 32 chamadas não renova essas proteções.
 - **Falha temporária do OpenRouter:** cada chamada tem timeout de 360 segundos e até três tentativas, com esperas de 5 e 15 segundos. Antes de repetir o mesmo pacote, revalidar o checkpoint; lotes concluídos não são refeitos. Falhas de crédito/autorização e validação não recebem esse retry. Falha persistente após a terceira tentativa termina em erro explícito com progresso salvo.
 - **Retomada interna V8:** reutiliza lotes e grupos do mesmo protocolo, fonte e versão de análise, após revalidação. Estados ficam em volume privado e persistem após recriar o contêiner. Progresso antigo não salvo continua indisponível.
+- **Citação candidata inválida no v2 híbrido:** Python marca como pendente e não passa o candidato para a síntese.
 - **Falha do Gmail:** a entrega fica registrada como falha. O operador pode pedir nova tentativa controlada; o download oficial só abre após um envio confirmado.
 - **Dúvida sobre o conteúdo:** o operador pode abrir o PDF original e conferir. Essa revisão é opcional para cada relatório.
 
@@ -172,13 +198,22 @@ e validação da fonte permanecem os mesmos.
 - **Concluído:** o Gmail confirmou o envio.
 - **Com erro:** uma etapa técnica não terminou. O motivo deve aparecer no histórico do protocolo.
 
-## Uma avaliação separada
+## Provedor NVIDIA
 
-O workflow NVIDIA é um ensaio isolado: recebe apenas um texto inventado, é iniciado manualmente e não se conecta à entrada de documentos reais. Ele não substitui o Ollama, não envia PDFs à NVIDIA e deve ficar inativo depois do teste. A chave fica guardada somente nas credenciais protegidas do n8n.
+O workflow NVIDIA Trial continua sendo um ensaio isolado com texto inventado,
+acionamento manual e sem conexão com uploads. Ele não recebe documentos reais.
+
+O projeto agora prevê um caminho NVIDIA NIM de produção: depois da conversão,
+somente o Markdown paginado seria enviado em lotes. Esse caminho ainda não está
+implementado nem ativo. Antes de usá-lo, o endpoint e a licença precisam permitir
+expressamente dados governamentais; a autorização do usuário não substitui os
+termos do serviço. A credencial deve ficar protegida no n8n e o relatório deve
+registrar provedor/modelo. Não há fallback automático para Ollama.
 
 ## Onde cada peça mora
 
 - **PostgreSQL:** protocolos, estados, tentativas, entregas e erros.
 - **Volume privado Docker:** PDF original, Markdown paginado e relatórios Markdown/PDF.
-- **n8n:** sequência de trabalho e integração com Ollama e Gmail.
+- **n8n:** sequência de trabalho e integração atual com Ollama/Gmail, além do
+  futuro endpoint NVIDIA NIM de produção após homologação.
 - **Gateway:** entrada, login, painel, visualização e controle de download.

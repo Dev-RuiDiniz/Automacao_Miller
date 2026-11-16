@@ -1,11 +1,18 @@
 # Implantação da stack de homologação
-Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. A última observação registrada da VPS é de 03/10/2026; confirme o estado real antes de executar comandos de implantação.
+Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. A última fotografia registrada da VPS é de 27/10/2026; confirme o estado real e faça backup antes de qualquer comando que altere containers ou dados.
 
 
 Esta stack usa n8n, PostgreSQL, Ollama, os serviços locais de conversão e
 renderização e o gateway de upload, com volumes e rede próprios. O serviço RAG
 é legado e fica fora da inicialização padrão; somente o perfil optativo `rag`
 o inicia.
+
+Na consulta de 26/10/2026, os seis containers do Miller estavam saudáveis, mas somente os workflows de processamento e erro estavam ativos. Envio e reconciliação estavam inativos, o proprietário do n8n não estava configurado e o diretório de backup esperado não existia. O gateway não tinha publicação HTTP/HTTPS no host. Isso não é uma stack pronta para uso externo ou produção.
+
+Em 27/10, foram registrados a criação do proprietário, o backup e a publicação
+do v2 híbrido na VPS. A homologação técnica sintética passou, mas a qualidade
+do relatório foi reprovada. Os testes Anvisa V8 e a pausa local de novembro
+pertencem a outro ambiente; não comprovam a implantação desse código na VPS.
 
 ## Preparação no servidor
 
@@ -96,6 +103,12 @@ processamento, envio manual, reconciliação e erros. Associe somente PostgreSQL
 e Gmail, configure os webhooks `N8N_SUBMISSION_WEBHOOK_URL` e
 `N8N_REPORT_EMAIL_WEBHOOK_URL` e valide uma execução completa antes de ativar os
 workflows. Os exports que usam Drive devem permanecer inativos como histórico.
+
+O export atualizado do processamento chama a rota interna de contexto
+determinístico no gateway. Ela usa `INTERNAL_API_TOKEN` e o Markdown já salvo;
+não requer serviço, modelo ou variável adicional. Após atualizar o código,
+reconstrua o gateway e valide o nó com o fixture sintético antes de importar ou
+ativar o workflow no n8n.
 
 O processamento termina em `aguardando_envio`. O operador confere os artefatos
 no painel, escolhe os destinatários e solicita o envio. O download oficial fica

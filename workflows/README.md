@@ -1,16 +1,67 @@
 # Workflows n8n
 Visão do fluxo em [FLUXOGRAMA.md](../FLUXOGRAMA.md); locais seguros de credenciais em [ACESSOS.md](../ACESSOS.md). Confirme o estado dos workflows na VPS: os arquivos exportados no Git ficam inativos por segurança.
 
+## Estado observado na VPS em 27/10/2026
 
-## Fluxo ativo
+O n8n tem seis workflows registrados. Estão publicados Automação Regulatória - Duas Passagens e Automacao Regulatoria - Erros Internos. Automacao Regulatoria - Repositorio Interno (v1) foi despublicado. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM continuam inativos.
+
+Por isso, um relatório pode chegar a `aguardando_envio`, mas a solicitação de envio não está operacional até que o workflow de Gmail seja publicado, configurado e testado. A reconciliação também não recupera documentos ou entregas parados enquanto estiver inativa. Este estado é uma fotografia de 27/10/2026; confira novamente no n8n antes de operar.
+
+Os exports do Git continuam com active=false de propósito. Não os use como prova do estado remoto e não reimporte workflows em produção sem backup, preservação dos vínculos de credenciais e teste controlado.
+
+Essa fotografia é da VPS. A branch também contém o v1 com seleção Anvisa V8
+via OpenRouter e retomada por checkpoints, usado nos testes locais de novembro.
+O v2 híbrido é um export separado e não implementa essa seleção nem a retomada
+por artefatos do v1. A aplicação local foi pausada em 15/11, conforme ROADMAP.md;
+nenhum ambiente foi consultado ou implantado nesta resolução de merge.
+
+## Versão híbrida v2 — implantada em 27/10/2026
+
+`automacao-regulatoria-internal-v2-hybrid.json` permanece um export inativo no
+Git, mas foi importado e publicado na VPS após backup. Ele preserva o export v1
+para rollback. O fluxo ativo usa esta sequência: o gateway Python varre o Markdown
+persistido e registra observações literais; a IA audita cada lote à procura de
+lacunas; Python confere a página, o lote e a citação de cada candidato; e a IA
+redige o relatório usando somente os candidatos aceitos e as observações. O
+prompt da auditoria está em `prompts/regulatory-gap-audit-v1.md`, com contrato
+em `prompts/regulatory-gap-audit-v1.schema.json`.
+
+A rota autenticada
+`POST /internal/submissions/{id}/validate-ai-audit` relê o Markdown salvo e
+faz essa conferência. Ela só verifica localização de evidência; não prova que a
+conclusão proposta pela IA está correta. Candidatos rejeitados ficam pendentes e
+fora do prompt de síntese. A versão continua usando IA em todos os lotes e para
+interpretar o relatório.
+
+O painel autenticado confirmou o v2 publicado e o v1 despublicado em
+27/10/2026. O workflow de erros continua publicado. Não use o documento oficial
+como fixture de teste.
+
+### Resultado da homologação sintética em 27/10/2026
+
+Um PDF artificial de duas páginas percorreu upload, conversão, análise local
+com `qwen2.5:3b`, validação e renderização. O protocolo terminou em
+`aguardando_envio`, com cobertura de páginas 2/2, zero erros e zero entregas de
+e-mail. Foram gerados Markdown convertido, relatório Markdown e PDF.
+
+O teste técnico passou, mas o relatório falhou em qualidade: descreveu como
+inexistente uma contradição/alteração entre a concessão da página 1 e o
+cancelamento da página 2, recomendou planejar renovação após o cancelamento e
+ordenou as seções incorretamente. A validação confirmou 8 de 10 referências e
+deixou duas pendentes por formato não reconhecido. O PDF também mostrou âncoras
+Markdown sem resolução. O texto malicioso de teste não levou à revelação de
+segredos. Corrija prompt/validação e repita o fixture antes de processar
+documentos reais.
+
+
+## Fluxos versionados e última fotografia da VPS
 
 A origem oficial de novos documentos é a landing privada. Os exports ficam
-inativos no repositório para evitar ativação acidental. Na homologação local,
-importe os workflows de processamento e de erro interno, associe a credencial
-PostgreSQL aos dois e ative ambos. Mantenha o envio por e-mail e a reconciliação
-inativos no teste ponta a ponta:
+inativos no repositório para evitar ativação acidental. Na VPS, o workflow v2 e
+o workflow de erro estão publicados e associados à credencial PostgreSQL. O
+envio por e-mail e a reconciliação continuam inativos:
 
-1. `automacao-regulatoria-internal-v1.json` — recebe o protocolo, reivindica o
+1. `automacao-regulatoria-internal-v2-hybrid.json` — recebe o protocolo, reivindica o
    documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
    artefatos e deixa o documento em `aguardando_envio`, com alertas de qualidade
    e referências para conferência opcional;
@@ -21,6 +72,12 @@ inativos no teste ponta a ponta:
    processamento e entregas de e-mail paradas e as despacha ao workflow correto;
 4. `automacao-regulatoria-internal-error-v1.json` — registra categoria, etapa,
    execução, tentativa e mensagem no PostgreSQL.
+
+O `automacao-regulatoria-internal-v1.json` mantém os ramos Ollama e Anvisa V8,
+além da retomada autenticada por artefatos. No ramo Ollama, o contexto
+determinístico é carregado antes dos lotes; o ramo OpenRouter conserva suas
+buscas literais, janelas e checkpoints próprios, sem essa varredura adicional.
+Selecione o export correspondente ao ambiente antes de configurar o webhook.
 
 Os exports `automacao-regulatoria-v1.json`, `automacao-regulatoria-intake-v1.json`,
 `automacao-regulatoria-completion-v1.json` e
@@ -43,6 +100,16 @@ O gateway e o n8n compartilham `/data/artifacts`, proveniente do volume Docker
 
 O sufixo `v1` no exemplo representa a primeira tentativa; novas tentativas
 recebem sua própria versão. O workflow atual não grava `analysis-vN.json`.
+
+Nos ramos Ollama, depois de salvar o Markdown, o workflow chama a rota interna autenticada
+`POST /internal/submissions/{id}/deterministic-context`. O gateway relê o
+artefato salvo, registra menções literais de uma lista de termos e identificadores
+de processo conhecidos, e relaciona identificadores iguais encontrados em
+páginas diferentes. Esses dados são pistas com página e trecho, não uma
+classificação de status ou prova de que duas ocorrências sejam o mesmo ato. A
+síntese recebe vínculos associados aos achados; o relatório lista as menções e
+ocorrências relacionadas para conferência. A etapa não exige embeddings nem
+ativa o serviço legado `rag-service`.
 
 O PostgreSQL é a fonte de verdade. As tabelas operacionais incluem
 `documents`, `artifacts`, `processing_attempts`, `human_reviews`,
@@ -68,6 +135,10 @@ Além das permissões do volume, o n8n deve receber
 somente dentro do repositório privado compartilhado.
 
 ## Reprocessamento e conferência opcional
+
+A recuperação de artefatos descrita abaixo exige o workflow v1 atualizado.
+O v2 híbrido preserva seu caminho de processamento de outubro; não contém os
+nós de carregamento e desvio por checkpoint do v1.
 
 A deduplicação é feita pelo SHA-256 no gateway e reforçada pela restrição única
 do PostgreSQL. Para retomar um documento em erro, use **Reprocessar** no detalhe
@@ -140,13 +211,21 @@ snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
 
 ## Documentos extensos
 
-O workflow analisa todas as páginas do Markdown convertido em lotes de até
+No workflow v1, as páginas do Markdown convertido são analisadas em lotes de até
 6.000 caracteres. Cada lote preserva os números das páginas; páginas muito
 longas são divididas por parágrafo e, se necessário, por trechos menores. Os
 resultados dos lotes são combinados e duplicatas são removidas. Se qualquer
 lote falhar ou a contagem de páginas não corresponder ao PDF, o processamento
 falha e não cria um relatório parcial. O Markdown integral permanece guardado
-no volume e relacionado ao documento no PostgreSQL.
+no volume e relacionado ao documento no PostgreSQL. A leitura por regras é
+executada sobre esse Markdown salvo antes da análise. O v1 envia todos os lotes
+diretamente para extração por IA.
+
+No v2 híbrido local, a IA também percorre todos os lotes, mas para procurar
+lacunas nas observações do Python. Cada sugestão retorna página e trecho. O
+gateway valida essas citações no Markdown persistido antes da síntese final.
+Isso reduz o que a síntese precisa considerar, mas não reduz a auditoria a
+apenas páginas ambíguas e não elimina chamadas de IA.
 
 O nó `Loop Over Items` envia um lote por vez ao Ollama e espera cada resposta
 antes de continuar. Sem essa sequência, o n8n pode iniciar centenas de chamadas
@@ -395,7 +474,7 @@ limitações quando houver falha de qualidade, sem bloquear a disponibilização
 relatório quando não houver falha técnica.
 
 O contrato histórico de análise estruturada é o `regulatory-extraction-v3`. O
-contrato ativo é o `regulatory-extraction-v5-full-document-batched`, orientado
+contrato ativo é o `regulatory-extraction-v6-full-document-batched-deterministic-context`, orientado
 a inteligência regulatória e impacto de mercado. O relatório responde a nove perguntas:
 o que aconteceu; quem é afetado; qual é o status regulatório; qual é o impacto
 direto no negócio; qual é o impacto potencial de mercado; se existe urgência ou
@@ -408,18 +487,25 @@ regulatório definitivo e a conferência humana é opcional.
 Para reconstruir a base de embeddings, execute a indexação somente para os
 Markdowns já persistidos e mantenha os workflows antigos do Drive inativos.
 
-## Fluxo de análise integral com Ollama
+## Fluxos de análise integral com Ollama — v1 e v2
 
 O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 
 ```text
-PDF -> Markdown paginado -> lotes de até 6.000 caracteres
-    -> achados JSON temporários consolidados -> relatório Markdown
-    -> conferência de citações e sinal -> PDF -> aguardando_envio
+V1: PDF -> Markdown paginado -> contexto determinístico (termos e processos)
+    -> lotes de até 6.000 caracteres analisados pela IA
+    -> consolidação -> relatório -> validação -> PDF -> aguardando_envio
+
+V2 local: PDF -> Markdown paginado -> observações determinísticas em Python
+    -> todos os lotes auditados pela IA -> validação Python de página/citação
+    -> síntese IA somente com observações e candidatos aceitos
+    -> validação do relatório -> PDF -> aguardando_envio
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
-`regulatory-extraction-v5.md` define a extração estruturada e a consolidação.
+`regulatory-extraction-v6.md` define a extração estruturada e a consolidação,
+inclui as pistas determinísticas entre páginas e orienta o modelo a ignorar
+instruções embutidas no conteúdo do PDF.
 O JSON de cada lote é temporário e não é persistido como análise do documento.
 RAG, embeddings e `quality_checks` continuam fora do caminho ativo. O envio, a
 reconciliação, o tratamento de erros e o download oficial seguem sem alterações.
@@ -448,9 +534,18 @@ Para executar:
    PDF recebido: mede uma requisição curta com texto artificial e não prova o
    tempo ou a precisão do processamento real de 142 páginas.
 
-A NVIDIA oferece o endpoint para prototipação e teste, com limites/créditos
-dependentes da conta. Os termos da API Trial proíbem conteúdo governamental,
-confidencial e dados pessoais/financeiros/de saúde sem permissão expressa; também
-preveem coleta de conteúdo para melhoria de produtos/modelos e logs de segurança.
-Não envie o PDF `do1` a esse serviço gratuito. Uso em produção requer a licença
-NVIDIA AI Enterprise segundo a FAQ oficial do NIM.
+A NVIDIA API Catalog/Developer é um endpoint de prototipação e teste, com
+limites/créditos dependentes da conta. Os termos do Trial restringem informação
+governamental, confidencial, pessoal, financeira ou de saúde sem permissão
+expressa do serviço e permitem o uso de conteúdo para melhoria de produtos e
+modelos, além de logs de segurança. Não envie PDF real a esse endpoint.
+
+O projeto passa a prever um workflow separado para NVIDIA NIM de produção,
+condicionado a licença/assinatura apropriada e a termos que permitam
+expressamente o tipo de dado. Esse workflow ainda não foi implementado nem
+configurado. Faça primeiro o teste sintético, guarde a credencial de produção
+somente no cofre do n8n e registre provedor/modelo em cada tentativa. A chave
+enviada no chat está comprometida e deve ser revogada; não foi instalada no
+n8n.
+
+Fontes: [termos oficiais da NVIDIA API Trial](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) e [FAQ oficial do NVIDIA NIM](https://docs.api.nvidia.com/nim/docs/product).

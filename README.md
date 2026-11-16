@@ -136,6 +136,28 @@ continua dependendo da cobertura completa. Esse reaproveitamento vale para
 execuções feitas após a implantação dos checkpoints; progresso antigo que
 existia apenas em memória não pode ser recuperado retroativamente.
 
+## Caminho híbrido v2 com Ollama
+
+1. **Entrada:** a landing recebe o PDF, calcula seu SHA-256 e cria um protocolo no PostgreSQL.
+2. **Leitura:** o conversor local cria um Markdown com um marcador para cada página.
+3. **Primeira leitura:** Python procura identificadores, termos, datas e durações em formatos conhecidos e salva a página e a linha original onde apareceram.
+4. **Auditoria de lacunas:** no desenho híbrido, a IA percorre todos os lotes e propõe apenas fatos que podem não estar nas observações das regras. A IA ainda precisa ler todas as páginas; o ganho esperado é reduzir o trabalho de localizar padrões simples, não eliminar a IA.
+5. **Validação dos candidatos:** Python aceita para síntese somente candidatos com página válida e trecho literal encontrado naquela página e no lote correspondente.
+6. **Interpretação e relatório:** a IA recebe observações determinísticas e candidatos aceitos. Ela escreve o relatório; a checagem Python comprova a citação, não a interpretação.
+7. **Conferência final e entrega:** o gateway confere cobertura e referências do relatório. O documento aguarda solicitação manual; Gmail só conclui o envio quando confirmar a entrega.
+
+O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado do Docker guarda os PDFs e relatórios. O Google Drive é apenas parte de exports históricos e não participa do fluxo atual.
+
+## Limites do produto
+
+- PDF escaneado ou sem texto extraível termina com erro. OCR não está incluído.
+- O relatório é apoio documental, não um parecer definitivo.
+- Uma citação marcada como pendente não bloqueia, pelas regras atuais, a criação ou a solicitação de envio. Isso não significa que o conteúdo esteja correto.
+- A NVIDIA API Trial/Developer Catalog recebe somente fixture sintético. Documento real só poderá ser enviado a endpoint de produção se os termos permitirem expressamente aquele tipo de dado e houver autorização específica. A chave enviada no chat está comprometida e não foi configurada.
+- RAG, embeddings e treinamento de modelo estão fora do caminho ativo.
+- A versão híbrida ainda usa IA em todos os lotes para procurar lacunas e para escrever o relatório. A leitura por regras pode deixar passar formas de escrita que não conhece; a validação da citação não prova a interpretação semântica.
+- O envio de e-mail exige uma ação manual e o workflow de envio precisa estar ativo no n8n.
+
 ## O que o sistema não faz
 
 - Não lê PDFs que dependem de OCR nesta versão. PDF sem texto extraível termina com erro de leitura.
@@ -160,15 +182,28 @@ A configuração de implantação está em [deploy/README.md](deploy/README.md).
 
 ## Situação conhecida do projeto
 
-A última observação da VPS registrada nos documentos é de **3 de outubro de 2026**. Naquele momento, os seis serviços padrão estavam saudáveis; o fluxo sintético de uma página gerou Markdown e PDF e chegou a **Aguardando envio**. Duas de três referências foram confirmadas. Não foi enviado e-mail nesse teste.
+A última fotografia da VPS é de **27/10/2026**: v2 híbrido e workflow de
+erros publicados, v1 despublicado, envio manual e reconciliação inativos.
+O proprietário do n8n foi criado e houve backup protegido. O ensaio sintético
+chegou a **Aguardando envio**, mas reprovou qualidade ao não preservar a sequência
+concessão/cancelamento. A landing pública HTTPS, a restauração do backup e a
+homologação do envio continuam pendentes. Essa fotografia não confirma o estado
+atual da VPS, que não foi consultada durante a resolução dos conflitos.
 
-Também havia uma execução em andamento de um PDF real de 142 páginas. O resultado final dessa execução não consta dos registros posteriores disponíveis. Portanto, o estado atual da VPS e desse protocolo precisa ser confirmado antes de iniciar outro processamento ou anunciar a entrada em produção.
+Na stack **local Anvisa V8**, os testes autorizados de novembro e a pausa de
+15/11 estão registrados no [ROADMAP.md](ROADMAP.md). A stack foi parada com
+1.003 fichas preservadas para retomada; o relatório completo e sua duração real
+ainda não foram homologados. Esse ambiente não substitui a validação do v2 na VPS.
 
 O workflow e a documentação não provam, sozinhos, que os fluxos estão ativos na VPS. Os exports versionados ficam inativos para evitar acionamento acidental.
 
 ## O que falta antes de produção
 
-As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem verificar a execução do PDF longo, revogar uma chave NVIDIA que foi exposta, concluir a validação com documentos autorizados, testar recuperação de falhas e confirmar a segurança e o aceite operacional.
+As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem
+retomar o V8 local pelo mesmo protocolo quando solicitado, corrigir e repetir
+o fixture híbrido antes de documentos reais na VPS, concluir segurança,
+backup e HTTPS e homologar envio e reconciliação. As chaves NVIDIA expostas
+continuam pendentes de revogação.
 
 ## Infraestrutura de referência
 

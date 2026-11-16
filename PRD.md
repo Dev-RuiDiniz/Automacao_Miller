@@ -81,6 +81,10 @@ Componentes definidos para o projeto:
   usando apenas Markdown autorizado e a chave protegida no servidor;
 - **NVIDIA NIM API Trial:** provedor externo limitado a avaliações com conteúdo
   sintético, usando credencial protegida no n8n;
+- **Python no gateway:** contexto determinístico do RF-22 e validação de
+  candidatos no workflow híbrido v2, conforme RF-23;
+- **NVIDIA NIM de produção:** integração planejada, ainda não implementada,
+  condicionada a endpoint/licença e termos que permitam os dados autorizados;
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
 - **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
@@ -166,7 +170,7 @@ O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermed
 
 ### RF-03 — Conversão obrigatória para Markdown
 
-Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao Ollama. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
+Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao provedor de IA selecionado. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
 
 Nos layouts suportados, a sequência deve acompanhar a leitura visual: cada
 coluna antes da seguinte, respeitando cabeçalhos, regiões de largura inteira,
@@ -521,6 +525,8 @@ do armazenamento, confere as páginas analisadas e cada par página/evidência,
 e devolve as referências confirmadas e pendentes. A origem não pode ser enviada
 pelo cliente como substituta do artefato guardado.
 
+Essa validação comprova apenas cobertura e localização literal de páginas e trechos. Ela não verifica se a interpretação da IA está semanticamente correta. Pela regra atual, referências pendentes não bloqueiam por si só o relatório ou a solicitação manual de envio; esse comportamento não deve ser apresentado como garantia de qualidade.
+
 ### RF-08 — Conferência humana opcional
 
 Ambiguidade, contradição, informação não comprovada ou referência pendente
@@ -693,6 +699,35 @@ renderização pode reutilizar toda a análise já concluída. Execuções anter
 à implantação desse controle, sem lotes guardados, não têm recuperação
 retroativa de seu progresso em memória.
 
+### RF-22 — Contexto determinístico rastreável
+
+Depois de persistir o Markdown paginado, o gateway deve relê-lo do armazenamento
+privado e procurar um conjunto versionado de termos regulatórios literais e
+formatos conhecidos de identificador de processo. Cada ocorrência deve manter
+página, termo/identificador e trecho extraído. Um identificador exatamente igual
+encontrado em mais de uma página deve formar um vínculo entre essas ocorrências.
+
+Essa leitura é determinística: não classifica o resultado do ato, não decide
+que duas ocorrências são o mesmo evento e não substitui a análise do documento.
+Além de identificadores e termos regulatórios, o conjunto versionado pode
+localizar datas e durações em formatos conhecidos, sempre mantendo a linha
+original como evidência. O relatório deve apresentar as observações e os
+vínculos entre páginas como pistas para conferência, preservar cada página e
+explicitar que a repetição de um identificador não prova igualdade de status.
+A varredura usa somente o Markdown persistido; ausência de um termo da lista
+de regras não prova que o documento não contenha um achado relevante.
+
+### RF-23 — Auditoria de lacunas e validação em Python
+
+No workflow híbrido v2, a IA deve revisar todas as páginas em lotes para propor
+fatos que não estejam
+representados nas observações determinísticas. Cada candidato precisa trazer
+fato, categoria, página e trecho literal. O gateway deve aceitar o candidato
+para a síntese somente se a página existir, pertencer ao lote de origem e
+contiver o trecho citado. Candidato sem evidência válida fica pendente e não
+entra no prompt do relatório final. Essa validação mecânica não confirma a
+correção semântica do fato nem substitui a conferência profissional.
+
 ---
 
 ## 8. Regras de negócio
@@ -787,6 +822,21 @@ alterar as regras da análise. A rota externa não deve transmitir identificador
 internos do protocolo que não sejam necessários ao provedor. O resultado segue
 sujeito à validação de estrutura, cobertura e evidências do workflow.
 
+### RN-17 — Menções determinísticas não são decisões
+
+Termos e identificadores localizados por regras devem ser exibidos com o trecho
+e a página de origem. A regra só confirma a ocorrência literal. Não pode inferir
+deferimento, indeferimento, cancelamento, identidade de atos ou consequência
+regulatória a partir de uma palavra ou de um identificador repetido.
+
+### RN-18 — Candidatos da IA no fluxo híbrido precisam de citação verificável
+
+Nenhum candidato proposto pela IA pode entrar na síntese final sem passar pela
+validação Python da página e do trecho literal contra o Markdown persistido.
+Essa checagem atesta apenas a localização da citação, não a verdade ou a
+interpretação do candidato. Itens rejeitados permanecem identificados como
+pendentes e não podem ser reaproveitados na redação final.
+
 ---
 
 ## 9. Requisitos não funcionais
@@ -806,6 +856,11 @@ real, identificador interno ou dado pessoal. O workflow de avaliação é manual
 separado e inativo por padrão; sua credencial fica somente no armazenamento
 protegido do n8n. O endpoint de trial não pode ser usado para processar o PDF
 governamental recebido.
+
+A futura integração NVIDIA de produção depende das condições de licença,
+privacidade e autorização registradas no LOG.md em 26/10/2026; o Trial
+continua exclusivo para fixture sintético. Essa integração não é habilitada
+pela seleção de provedor do Anvisa V8.
 
 ### RNF-03 — Manutenibilidade
 
@@ -898,6 +953,7 @@ O projeto contempla:
 - processamento de PDFs;
 - conversão para Markdown;
 - persistência do Markdown e das evidências;
+- leitura determinística de termos e identificadores com rastreabilidade por página;
 - análise por IA;
 - geração de relatórios;
 - conversão para PDF;
@@ -931,10 +987,11 @@ Qualquer item fora desta lista de requisitos deve ser tratado como alteração d
 
 RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança
 semântica da IA não fazem parte do caminho ativo nem dos critérios de aceite do
-MVP. Código, tabelas e exports relacionados a RAG ou a esquemas JSON históricos
-permanecem como capacidade opcional/legada e não são chamados pelo workflow
-atual. A prioridade executiva continua no relatório porque orienta a ordem das
-ações sugeridas; ela não representa confiança da IA.
+MVP. A leitura determinística do RF-22 é uma etapa lexical simples, não usa
+embeddings nem é RAG. Código, tabelas e exports relacionados a RAG ou a esquemas
+JSON históricos permanecem como capacidade opcional/legada e não são chamados
+pelo workflow atual. A prioridade executiva continua no relatório porque orienta
+a ordem das ações sugeridas; ela não representa confiança da IA.
 
 ### Regras de qualidade e evidência
 
@@ -962,7 +1019,8 @@ O MVP poderá ser considerado entregue quando:
 5. o Markdown for persistido e associado ao PDF de origem;
 6. a análise usar somente o Markdown paginado persistido como fonte documental;
 7. o provedor configurado processar o conteúdo; na opção OpenRouter, usar
-   Terra, o V8 aprovado e apenas o Markdown documental autorizado;
+   Terra, o V8 aprovado e apenas o Markdown documental autorizado; uma futura
+   opção NVIDIA exige licença de produção e permissão para o tipo de dado;
 8. todas as páginas forem analisadas e os achados temporários forem consolidados;
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
@@ -978,6 +1036,18 @@ O MVP poderá ser considerado entregue quando:
 20. o workflow analisar todas as páginas em lotes limitados e interromper o relatório se um lote falhar;
 21. páginas e evidências literais forem conferidas automaticamente e citações inválidas forem marcadas como pendentes, sem bloquear o estado `aguardando_envio`;
 22. o relatório final puder ser baixado somente após conclusão válida.
+
+Os critérios 23–24 aplicam-se ao contexto determinístico dos ramos Ollama;
+os critérios 25–29, à auditoria do workflow híbrido v2. O modo Anvisa V8
+mantém as validações específicas do RF-04.
+
+23. um identificador repetido em páginas diferentes preservar todas as ocorrências e seus trechos, sem unir status ou atos por inferência;
+24. marcadores de página ausentes ou fora de ordem forem rejeitados pela leitura determinística, e as menções encontradas aparecerem no relatório como localizações literais, não decisões.
+25. a primeira passagem Python processar todas as páginas do Markdown salvo e registrar a versão do conjunto de regras;
+26. a IA auditar todos os lotes e a falta de resposta de qualquer lote impedir um relatório apresentado como completo;
+27. candidatos com evidência inexistente, página errada ou página fora do lote forem excluídos da síntese e contabilizados como pendentes;
+28. a síntese final receber apenas candidatos aceitos pelo validador Python e as observações determinísticas;
+29. observações de datas e durações preservarem a evidência original e não inferirem o efeito jurídico ou regulatório do texto.
 
 ---
 
@@ -1019,23 +1089,31 @@ servir a uma futura capacidade opcional de RAG e à fila de candidatos, mas não
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
 
-## Fluxo operacional com Ollama — decisão de 2026-10-02
+## Fluxo operacional com Ollama v1 — decisão de 2026-10-02
+
+Esta seção descreve o ramo Ollama do v1, que mantém a opção Anvisa V8 em
+ramo separado. O v2 híbrido tem export próprio e aplica o RF-23. A fotografia
+da VPS de 27/10/2026 e os testes locais de novembro são estados distintos.
 
 O processamento percorre uma cadeia linear, mas analisa o documento completo em
 lotes para manter cada chamada ao modelo dentro de um limite controlado:
 
 ```text
-PDF -> Markdown paginado -> análise de todas as páginas em lotes de até 6.000 caracteres
-    -> achados temporários consolidados -> relatório Markdown
+PDF -> Markdown paginado -> varredura determinística de termos e identificadores
+    -> análise de todas as páginas em lotes de até 6.000 caracteres
+    -> achados e ligações literais temporários consolidados -> relatório Markdown
     -> validação de cobertura e referências -> PDF -> aguardando_envio
 ```
 
 O relatório Markdown é o resultado técnico principal; o PDF é a apresentação
-final. O contrato ativo `regulatory-extraction-v5-full-document-batched`
-analisa todas as páginas, preserva as referências e usa as nove perguntas de
-negócio, com foco em impacto, prioridade, plano de ação, limitações e
-referências de página. A saída JSON dos lotes é temporária; ela é consolidada e
-não substitui o Markdown nem é salva como análise estruturada do documento.
+final. O contrato ativo `regulatory-extraction-v6-full-document-batched-deterministic-context`
+analisa todas as páginas, preserva as referências, recebe ligações literais de
+identificadores entre páginas e usa as nove perguntas de negócio, com foco em
+impacto, prioridade, plano de ação, limitações e referências de página. O prompt
+instrui o modelo a tratar texto e evidências do PDF como dados não confiáveis e
+ignorar comandos embutidos. A saída JSON dos lotes é temporária; ela é
+consolidada e não substitui o Markdown nem é salva como análise estruturada do
+documento.
 
 O gateway confere a cobertura e cada citação do relatório contra o Markdown
 original. Citações não confirmadas ficam pendentes e não bloqueiam a entrega.
@@ -1049,3 +1127,25 @@ esse sinal nem expressa certeza semântica.
 Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros, envio autenticado e download somente após
 `concluido` continuam obrigatórios.
+
+## Decisão de arquitetura híbrida — 2026-10-27
+
+O fluxo alvo passa a separar leitura mecânica, busca de lacunas e interpretação:
+
+```text
+Markdown persistido
+  -> Python registra observações literais para todas as páginas
+  -> IA audita todos os lotes e propõe fatos que podem faltar
+  -> Python confere página, lote e citação dos candidatos
+  -> IA interpreta observações e candidatos aceitos no relatório final
+  -> validação do relatório, PDF e aguardando_envio
+```
+
+A implementação está representada em
+`workflows/automacao-regulatoria-internal-v2-hybrid.json` e foi criada inativa.
+O endpoint de validação usa o Markdown persistido e seu hash. Nenhum documento
+real foi usado para a alteração nem para os testes sintéticos. Essa decisão
+aplica-se ao workflow híbrido v2; não substitui o contrato
+Anvisa V8. O registro de 27/10/2026 no LOG.md confirma a publicação do v2 na
+VPS e a reprovação de qualidade do ensaio sintético. Isso não homologa o V8
+local nem comprova o estado atual da VPS.

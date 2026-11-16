@@ -25,8 +25,9 @@ from fastapi.staticfiles import StaticFiles
 
 from infra.upload_gateway.storage import original_key, resolve_storage_key, storage_root
 from infra.upload_gateway.checkpoints import CheckpointError, LABELS, load_checkpoint
+from infra.regulatory_analysis.deterministic_context import build_deterministic_context
 from infra.regulatory_analysis.quality import validate_analysis
-from infra.regulatory_analysis.report_validation import validate_report_references
+from infra.regulatory_analysis.report_validation import validate_ai_audit_candidates, validate_report_references
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
 STATUSES = {"recebido", "processando", "aguardando_revisao", "aguardando_envio", "concluido", "erro"}
@@ -1163,7 +1164,8 @@ def validate_submission_report(submission_id: str, payload: dict[str, Any]) -> d
         detail = store.detail(submission_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
-    artifact = next((item for item in detail["artifacts"] if item["artifact_type"] == "markdown"), None)
+    markdown_artifacts = [item for item in detail["artifacts"] if item["artifact_type"] == "markdown"]
+    artifact = max(markdown_artifacts, key=lambda item: int(item.get("version", 0)), default=None)
     if artifact is None:
         raise HTTPException(status_code=409, detail="Markdown original ainda não foi persistido.")
     try:
@@ -1177,6 +1179,77 @@ def validate_submission_report(submission_id: str, payload: dict[str, Any]) -> d
     except (OSError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=422, detail="Markdown original não pôde ser lido.") from exc
     return validate_report_references(report_markdown, source_markdown, pages_processed)
+
+
+@app.post("/internal/submissions/{submission_id}/deterministic-context", dependencies=[Depends(require_internal_access)])
+def deterministic_submission_context(submission_id: str) -> dict[str, Any]:
+    if store.get(submission_id) is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    try:
+        detail = store.detail(submission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
+    markdown_artifacts = [item for item in detail["artifacts"] if item["artifact_type"] == "markdown"]
+    artifact = max(markdown_artifacts, key=lambda item: int(item.get("version", 0)), default=None)
+    if artifact is None:
+        raise HTTPException(status_code=409, detail="Markdown original ainda não foi persistido.")
+    try:
+        markdown_path = resolve_storage_key(artifact["storage_key"])
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.") from exc
+    if not markdown_path.is_file():
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.")
+    try:
+        markdown = markdown_path.read_text(encoding="utf-8")
+        context = build_deterministic_context(markdown)
+        expected_sha256 = str(artifact.get("sha256") or "").lower()
+        if len(expected_sha256) != 64 or any(character not in "0123456789abcdef" for character in expected_sha256):
+            raise HTTPException(status_code=409, detail="Hash do Markdown persistido ausente ou inválido.")
+        if context["source_markdown_sha256"] != expected_sha256:
+            raise HTTPException(status_code=409, detail="Hash do Markdown persistido não confere.")
+        return context
+    except (OSError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="Markdown original não pôde ser lido.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/internal/submissions/{submission_id}/validate-ai-audit", dependencies=[Depends(require_internal_access)])
+def validate_submission_ai_audit(submission_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if store.get(submission_id) is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list):
+        raise HTTPException(status_code=422, detail="candidates precisa ser uma lista.")
+    try:
+        detail = store.detail(submission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
+    markdown_artifacts = [item for item in detail["artifacts"] if item["artifact_type"] == "markdown"]
+    artifact = max(markdown_artifacts, key=lambda item: int(item.get("version", 0)), default=None)
+    if artifact is None:
+        raise HTTPException(status_code=409, detail="Markdown original ainda não foi persistido.")
+    try:
+        markdown_path = resolve_storage_key(artifact["storage_key"])
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.") from exc
+    if not markdown_path.is_file():
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.")
+    try:
+        source_markdown = markdown_path.read_text(encoding="utf-8")
+        context = build_deterministic_context(source_markdown)
+        expected_sha256 = str(artifact.get("sha256") or "").lower()
+        if context["source_markdown_sha256"] != expected_sha256:
+            raise HTTPException(status_code=409, detail="Hash do Markdown persistido não confere.")
+        return {
+            "submission_id": submission_id,
+            "source_markdown_sha256": expected_sha256,
+            **validate_ai_audit_candidates(candidates, source_markdown),
+        }
+    except (OSError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="Markdown original não pôde ser lido.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/internal/submissions/{submission_id}/status", dependencies=[Depends(require_internal_access)])

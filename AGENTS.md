@@ -26,6 +26,13 @@ A fonte de verdade é: código e workflows para o comportamento implementado; PR
 
 ## 4. Mantenha o escopo
 
+### Verifique e date o estado externo
+
+- Ao documentar VPS, n8n, serviços externos ou credenciais, registre a data da consulta e diga se a informação foi verificada agora ou veio de um registro histórico.
+- Separe o comportamento previsto no PRD, o que o código implementa e o que está publicado/ativo no ambiente. Um export inativo no Git não comprova o estado do n8n.
+- Um health check verde confirma que o serviço responde; não comprova o fluxo ponta a ponta, as credenciais ou a qualidade do relatório.
+- Não leia nem copie valores de arquivos de segredo para montar um resumo. Registre apenas existência, permissão, local e situação.
+
 - Implemente somente o que estiver previsto no PRD ou solicitado explicitamente.
 - Não adicione serviços, dependências pagas, integrações ou mudanças de arquitetura por conveniência.
 - Uma mudança de regra de negócio exige registro no LOG.md e atualização do PRD.md; ajuste o ROADMAP.md se mudar fase, prioridade ou trabalho pendente.
@@ -41,6 +48,8 @@ Fora do escopo inicial, salvo nova decisão registrada: OCR comercial pago, apli
 - Preserve divergências e contradições; não escolha uma versão por suposição.
 - Diferencie dado não localizado de erro de leitura, conversão, IA, validação, PDF, armazenamento, envio ou infraestrutura.
 - A IA presta apoio documental. Não produza parecer definitivo nem remova o caminho para conferência humana.
+- Uma chamada a provedor externo com documento real exige autorização explícita para o documento e o destino, e os termos/licença do serviço precisam permitir aquele tipo de dado. Registre o provedor e o modelo usados em cada tentativa.
+- A NVIDIA API Trial/Developer Catalog permanece restrita ao fixture sintético. Não envie informação governamental, confidencial, pessoal ou sensível ao Trial. Para documentos reais, use apenas endpoint de produção licenciado e autorizado cujos termos permitam o tipo de dado.
 
 ## 6. Segurança e acessos
 
@@ -67,6 +76,8 @@ Antes de alterar um workflow:
 5. confira caminhos de sucesso, erro, retry e retomada;
 6. não marque sucesso antes do fim de todas as etapas obrigatórias;
 7. teste o caso sintético antes de usar documento real.
+8. leia o contexto determinístico apenas do Markdown já persistido; preserve a página e o trecho de cada menção e não interprete termos ou identificadores como decisão regulatória.
+9. no fluxo híbrido, valide em Python a página, o lote e a citação literal de cada candidato da IA; envie à síntese final somente candidatos aceitos e deixe explícito que a validação não confirma a interpretação semântica.
 
 Os exports versionados ficam inativos por segurança. A ativação é uma ação do ambiente n8n e precisa ser verificada separadamente.
 

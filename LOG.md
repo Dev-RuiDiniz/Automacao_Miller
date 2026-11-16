@@ -57,6 +57,18 @@ Tipos sugeridos:
 
 ## 3. Contexto consolidado do projeto
 
+### Estado consolidado verificado em 26/10/2026
+
+- **Produto:** automação interna para receber PDFs regulatórios pela landing, gerar Markdown paginado, analisar com Ollama local, criar relatório Markdown/PDF e permitir envio manual.
+- **Stack no repositório:** n8n, PostgreSQL, Ollama, gateway, conversor PDF, renderizador e volume privado Docker. RAG é opcional/legado e não está no caminho ativo.
+- **VPS:** commit 38f5358 da main; seis containers do Miller saudáveis. O n8n 2.30.5 está preso ao loopback; Ollama 0.32.1 usa qwen2.5:3b.
+- **Workflows publicados:** processamento interno e erro ativos; envio manual, reconciliação e avaliação NVIDIA sintética inativos.
+- **Operação:** 3 documentos em aguardando_envio, 6 em erro e nenhum em processamento. A conta proprietária do n8n não tem e-mail/senha definidos.
+- **Segurança e recuperação:** a senha root exposta e a chave NVIDIA exposta ainda precisam de rotação/revogação; o diretório de backup esperado não existe; a landing não tem entrada HTTPS publicada.
+- **VPS compartilhada:** o outro projeto Docker observado é ideia-saude-agent-test. As stacks BRANDRIOT Socialsuite e Supabase Socialsuite foram removidas em 26/10/2026.
+
+Os tópicos seguintes desta seção descrevem a proposta e a linha de base histórica. Para estado operacional e trabalho pendente, use ROADMAP.md; para requisitos, use PRD.md.
+
 ### Produto
 
 Solução automatizada para processamento e análise de documentos regulatórios em PDF.
@@ -65,7 +77,7 @@ Solução automatizada para processamento e análise de documentos regulatórios
 
 Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de baixo custo operacional.
 
-### Stack definida
+### Stack definida na linha de base inicial (histórico)
 
 - n8n;
 - Ollama;
@@ -74,7 +86,7 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 - Docker;
 - Linux em VPS.
 
-### Arquitetura aprovada para evolução
+### Arquitetura aprovada para evolução na linha de base inicial (histórico)
 
 - PostgreSQL como fonte de verdade operacional;
 - volume privado do Docker para PDFs, Markdown e relatórios;
@@ -86,7 +98,7 @@ Substituir processo manual e repetitivo por fluxo automatizado, rastreável e de
 Essa arquitetura ainda não está implementada nos workflows versionados. A
 homologação vigente registrada nos eventos históricos continua usando o Drive.
 
-### Fluxo de referência
+### Fluxo de referência inicial (histórico)
 
 ```text
 Google Drive
@@ -102,7 +114,7 @@ Google Drive
 → Gmail
 ```
 
-### Capacidades previstas
+### Capacidades previstas na linha de base inicial (histórico)
 
 - monitoramento automático de PDFs;
 - extração de conteúdo;
@@ -466,7 +478,9 @@ A governança da Fase 0 passa a registrar os insumos e o responsável sem versio
 
 ---
 
-## 5. Pendências abertas
+## 5. Pendências iniciais — snapshot histórico de 2026-08-25
+
+> Esta tabela registra a situação inicial, não a situação atual. Consulte ROADMAP.md para as pendências vigentes.
 
 | ID | Pendência | Tipo | Prioridade | Status |
 |---|---|---|---|---|
@@ -483,7 +497,7 @@ A governança da Fase 0 passa a registrar os insumos e o responsável sem versio
 
 ---
 
-## 6. Decisões que ainda precisam ser fechadas
+## 6. Decisões que ainda precisavam ser fechadas na linha de base inicial
 
 ### D-001 — Modelo Ollama
 
@@ -2520,6 +2534,384 @@ Impacto:
 A documentação agora separa visão comercial, requisitos, execução, estado,
 fluxo e tratamento de acessos. Nenhum segredo foi incluído e nenhuma mudança de
 requisito ou configuração remota foi feita nesta tarefa.
+
+## 2026-10-23 — Verificação do login n8n e exposição de credencial SSH
+
+Data: 2026-10-23
+Tipo: Acesso / Segurança
+Contexto: Foi solicitado identificar o usuário e a senha do n8n. O endereço
+fornecido foi acessado com a chave SSH já configurada no computador, sem usar a
+senha root compartilhada na conversa.
+
+Decisão/Ação:
+O host respondeu como `srv1728832.hstgr.cloud`. O container
+`automacao-miller-n8n-1` estava saudável. A consulta somente de leitura ao banco
+usado pelo n8n encontrou um registro sem e-mail e sem senha; portanto, não há
+credencial de login recuperável nessa conta. Nenhuma senha, hash ou segredo foi
+copiado para este registro, e nenhuma credencial do n8n foi alterada.
+
+A senha administrativa root foi exposta na conversa e deve ser considerada
+comprometida. Ela não foi repetida nem usada. A rotação ainda está pendente para
+ser feita e guardada no cofre aprovado; o acesso SSH por chave foi validado.
+
+Arquivos afetados:
+ACESSOS.md e LOG.md.
+
+Testes:
+Acesso SSH somente por chave com verificação estrita do host; estado do
+container n8n; consulta SQL somente de leitura dos indicadores de e-mail e senha
+configurados. Nenhum teste de aplicação foi executado.
+
+Pendências:
+Rotacionar a senha root e guardá-la no cofre aprovado. Configurar um usuário
+proprietário do n8n pelo fluxo de configuração suportado, caso a tela de
+configuração inicial esteja disponível.
+
+Impacto:
+O usuário e a senha solicitados não podem ser fornecidos porque não há uma
+credencial de proprietário configurada no registro consultado. O valor root
+compartilhado não é uma credencial do n8n e requer rotação.
+
+## 2026-10-26 — Verificação e sincronização do repositório e da VPS
+
+Data: 2026-10-26
+Tipo: Operação / Sincronização / Estado de homologação
+Contexto: O usuário pediu para verificar atualizações no Git remoto e na VPS,
+sincronizar o projeto e resumir o estado e as oportunidades de melhoria.
+
+Decisão/Ação:
+O `origin/main` não tinha commits novos em relação ao checkout local, que estava
+em `911d0ef`. A VPS respondeu como `srv1728832.hstgr.cloud`; o checkout estava
+um commit atrás (`5862ee2`). Os dois exports de workflow com mudanças locais na
+VPS eram idênticos aos arquivos do commit remoto, então foram preservados e o
+checkout foi avançado para `origin/main` após a atualização documental.
+
+A instância tem seis serviços do Automação Miller saudáveis. O export das
+versões publicadas mostrou somente os workflows de processamento e erro; a
+lógica de nós, parâmetros e conexões corresponde ao repositório. As diferenças
+observadas estão nas referências às credenciais da instalação, que não devem
+ser copiadas entre ambientes. Os workflows de envio e reconciliação continuam
+sem publicação. Não houve importação de workflows nem reinicialização de
+serviços.
+
+No PostgreSQL havia três documentos em `aguardando_envio`, seis em `erro` e
+nenhum em `em_processamento`. O único PDF acima de 25 MB, correspondente ao
+documento de 142 páginas citado em outubro, está em erro na etapa
+`Ollama - Analyze each batch`, categoria `infraestrutura`; não há execução em
+andamento. A conta proprietária do n8n segue sem e-mail e senha configurados.
+
+O servidor tem 2 vCPU, 7,8 GiB de RAM e 99 GiB de disco. Durante a consulta,
+havia 2,4 GiB de memória disponível, 724 MiB de swap usados e 58 GiB livres em
+disco. Um Ollama de outro projeto usava 2,93 GiB de seu limite de 4 GiB. Também
+foram observados containers de `ideia-saude-agent-test`, `brandriot-socialsuite`
+e uma stack Supabase; `atendimento` e `rtk-renata`, citados em agosto, não
+apareceram no `docker ps` desta verificação.
+
+O `.env` da VPS estava com permissão 600. O diretório esperado para backups,
+`/opt/backups/automacao-miller`, não existe. A senha root exposta em conversa
+continua pendente de rotação; o acesso por chave SSH foi validado.
+
+Arquivos afetados:
+README.md, ROADMAP.md, ACESSOS.md e LOG.md.
+
+Testes/Verificações:
+Fetch do `origin`; comparação do checkout da VPS e das versões publicadas dos
+workflows; SSH com verificação estrita do host; estado dos seis containers;
+consultas agregadas de status do banco; permissões do `.env`, uso de recursos e
+existência do diretório de backups. `git diff --check` e checagem dos links
+Markdown locais. Nenhum teste de aplicação foi executado, pois o código da
+aplicação e os workflows em execução não foram alterados. A última suíte local
+registrada passou com 77 testes em 08/10/2026.
+
+Pendências:
+Rotacionar a senha root e guardá-la no cofre aprovado; configurar o usuário
+proprietário do n8n; revogar a chave NVIDIA exposta; investigar a falha e decidir
+sobre o reprocessamento controlado do PDF longo; homologar envio e reconciliação
+Gmail; criar e testar backup/restauração; validar proteção contra instruções
+embutidas em PDFs antes de produção.
+
+Impacto:
+O checkout local, o remoto e o código versionado na VPS ficaram sincronizados.
+As execuções ativas do n8n não foram reiniciadas ou modificadas, porque os
+workflows publicados já correspondiam à lógica do repositório e suas
+credenciais são específicas da instalação.
+
+## 2026-10-26 — Avaliação operacional e atualização da documentação
+
+Data: 2026-10-26
+Tipo: DOCUMENTAÇÃO / AVALIAÇÃO / OPERAÇÃO
+Status: documentação atualizada; pendências de homologação preservadas
+
+Contexto:
+O usuário solicitou uma avaliação completa da Automação Miller, leitura dos documentos disponíveis e criação/atualização da documentação principal em linguagem fácil de entender e executar.
+
+Decisão/Ação:
+Foram revisados os documentos Markdown versionados e auxiliares, os exports e prompts relevantes, o Compose, os serviços principais e os artefatos PDF sintéticos existentes. O inventário do projeto não encontrou arquivos de áudio. O arquivo .env local não foi aberto. A auditoria por SSH foi somente de leitura e usou a chave configurada no computador.
+
+A documentação foi alinhada para separar requisitos do produto, comportamento implementado e estado ativo na VPS. README.md, PRD.md, AGENTS.md, ROADMAP.md, FLUXOGRAMA.md e ACESSOS.md foram atualizados. Também foram alinhados workflows/README.md, deploy/README.md, docs/checklists/matriz-documentos-referencia.md e o contexto inicial deste LOG.md, sem apagar o histórico cronológico.
+
+Estado observado na VPS:
+O checkout estava no commit 38f5358, sincronizado com origin/main. Os seis containers do Miller estavam saudáveis. Somente os workflows de processamento interno e erro estavam ativos; envio manual, reconciliação e avaliação NVIDIA estavam inativos. Havia 3 documentos em aguardando_envio, 6 em erro e nenhum em processamento. O registro proprietário do n8n não tinha e-mail nem senha definidos. O arquivo .env remoto existia com permissão 600; o diretório de backup esperado estava ausente. O gateway não tinha entrada pública HTTP/HTTPS identificada. A VPS compartilhava recursos com ideia-saude-agent-test; as stacks BRANDRIOT Socialsuite e Supabase Socialsuite removidas em 26/10 não apareciam mais no inventário Docker.
+
+Risco de qualidade:
+Um relatório sintético temporário apresentou afirmações sem apoio no documento e 0 de 6 referências comprovadas. O validador marcou as referências como pendentes, mas a regra atual não bloqueia o envio por esse motivo. O roadmap registra a decisão de produto necessária; nenhum requisito foi alterado nesta atualização.
+
+Arquivos afetados:
+README.md, PRD.md, AGENTS.md, ROADMAP.md, FLUXOGRAMA.md, ACESSOS.md, LOG.md, workflows/README.md, deploy/README.md e docs/checklists/matriz-documentos-referencia.md.
+
+Testes e verificações:
+Não foram executados testes da aplicação nem alterações funcionais. Foram feitas consultas somente de leitura à VPS, inventário e leitura dos documentos, conferência de estado dos containers, workflows e contagens agregadas do banco, verificação de permissão do .env sem ler seu conteúdo e checagem do estado Git. A última suíte automatizada registrada continua sendo a de 77 testes aprovada em 08/10/2026; ela não foi repetida nesta tarefa.
+
+Pendências:
+Seguir os itens P0 e P1 do ROADMAP.md: rotacionar/revogar credenciais expostas, configurar o proprietário do n8n, publicar a landing por HTTPS, estabelecer backup e restauração, decidir o tratamento de relatórios sem referências comprovadas, ativar e homologar envio/reconciliação, reforçar o prompt contra instruções embutidas e concluir a matriz de falhas com dados autorizados.
+
+Impacto:
+A documentação deixa explícito que a stack saudável ainda não equivale a uma operação pronta. O caminho esperado, os bloqueios atuais, os riscos de qualidade e a ordem de execução agora podem ser entendidos sem consultar senhas ou tratar registros históricos como estado atual.
+
+## 2026-10-26 — Adiciona contexto determinístico ao processamento
+
+Data: 2026-10-26
+Tipo: FUNCIONAL / CONTEXTO / EVIDÊNCIAS
+Status: implementado e testado localmente; ainda não implantado na VPS
+
+Contexto:
+O usuário decidiu avançar com uma camada determinística para preservar contexto entre páginas e pediu implementação e testes.
+
+Decisão/Ação:
+Foi adicionado `build_deterministic_context`, que varre o Markdown paginado, localiza termos regulatórios de uma lista controlada e identificadores de processo em formatos conhecidos, mantendo trecho e página. Identificadores exatamente iguais encontrados em mais de uma página são agrupados como pistas de contexto; nenhuma classificação ou decisão regulatória é inferida pelo código.
+
+O gateway passou a oferecer a rota interna autenticada `POST /internal/submissions/{id}/deterministic-context`. A rota lê a versão mais recente do Markdown no volume, confere o SHA-256 registrado e rejeita marcadores ausentes, repetidos ou fora de ordem. O workflow versionado chama a rota depois de persistir o Markdown, associa ligações literais aos achados, apresenta menções e ocorrências no relatório e valida suas citações contra o Markdown original.
+
+O prompt foi atualizado para v6 e instrui explicitamente a IA a tratar o PDF, as evidências e as relações entre páginas como dados não confiáveis e ignorar comandos embutidos. A IA ainda analisa todos os lotes; a seleção de páginas ambíguas e o modo sem IA continuam pendentes. A lista de regras é limitada, não substitui a leitura integral e não comprova correção semântica.
+
+Arquivos afetados:
+`infra/regulatory_analysis/deterministic_context.py`, `infra/upload_gateway/app.py`, `workflows/automacao-regulatoria-internal-v1.json`, `prompts/regulatory-extraction-v6.md`, testes de análise regulatória, gateway e contrato de workflow, além de `PRD.md`, `README.md`, `AGENTS.md`, `ROADMAP.md`, `FLUXOGRAMA.md`, `workflows/README.md` e `deploy/README.md`.
+
+Testes e verificações:
+`python -m pytest -q` passou com 89 testes. O conjunto cobriu termos literais, processo repetido entre páginas, conteúdo repetido em páginas diferentes, marcadores inválidos, autenticação da rota interna, hash ausente/inválido/divergente, seleção da versão mais recente do Markdown, composição do workflow e inclusão das citações determinísticas no relatório. Foram usados somente fixtures sintéticos; não foram processados documentos reais, não foi chamada uma instância Ollama e não houve mudança na VPS. A suíte emitiu dois avisos de depreciação preexistentes do evento `on_event` do FastAPI.
+
+Pendências:
+Atualizar a VPS após backup, reconstruir o gateway, importar o export inativo preservando credenciais, validar o workflow de três páginas em homologação e confirmar com o fixture que o Ollama ignora comandos embutidos. Depois de medir a qualidade, decidir se deve existir um modo sem IA e se as chamadas ao modelo podem ser limitadas a passagens ambíguas.
+
+Impacto:
+O relatório passa a expor ocorrências de termos e identificadores com página e citação, e a síntese ganha ligações entre páginas sem aumentar paralelismo ou habilitar embeddings. O fluxo remoto permanece inalterado até homologação e implantação controladas.
+
+## 2026-10-26 — Interrompe tentativa local e avalia NVIDIA API
+
+Data: 2026-10-26
+Tipo: OPERAÇÃO / INTEGRAÇÃO / BLOQUEIO
+Status: tentativa local encerrada; processamento externo não iniciado
+
+Contexto:
+Durante o reprocessamento controlado de um PDF oficial, o usuário escolheu usar
+a NVIDIA API em vez de aguardar a análise local. O PRD vigente restringe a
+NVIDIA API Trial a testes com conteúdo artificial.
+
+Decisão/Ação:
+Foi verificado que a VPS não tem credencial NVIDIA configurada. O único workflow
+NVIDIA disponível é a avaliação sintética, inativa e sem credencial; o registro
+de proprietário do n8n continua sem e-mail e senha utilizáveis. A documentação
+oficial da NVIDIA descreve os endpoints do NVIDIA Developer Program/API Catalog
+como destinados a prototipagem e limita o acesso Trial a teste e avaliação; o
+uso em produção depende de assinatura/licença apropriada. A licença da conta
+NVIDIA do usuário não foi verificada. Nenhum PDF real foi enviado à NVIDIA e
+nenhum requisito do PRD foi alterado.
+
+A parada individual da execução não estava disponível sem sessão autenticada do
+n8n. Como havia apenas uma execução n8n ativa, o contêiner Ollama do Miller foi
+parado para interromper essa tentativa e em seguida reativado. O n8n registrou a
+execução 16 como erro em `Ollama - Analyze each batch`. O PDF original, o
+Markdown v1 e os artefatos anteriores foram preservados. Não foi gerado relatório
+v2 nem enviado e-mail.
+
+Arquivos afetados:
+`ROADMAP.md` e `LOG.md`.
+
+Testes e verificações:
+Consultas operacionais confirmaram a execução 16 em erro, 3 documentos em
+`aguardando_envio`, 6 em `erro`, nenhum em processamento e o contêiner Ollama
+saudável após reinício. Foram conferidos os metadados de workflows e credenciais
+sem ler ou exibir valores secretos. Não foram executados testes de aplicação nem
+chamadas à API NVIDIA.
+
+Pendências:
+Configurar o proprietário do n8n por acesso administrativo seguro. Se o usuário
+quiser seguir com NVIDIA, provisionar endpoint e assinatura/licença apropriados
+para produção, revisar as condições de privacidade e guardar a credencial no
+n8n. Executar primeiro o fixture sintético aprovado. Só então decidir se o PRD
+deve mudar e reprocessar o PDF real. A chave Trial exposta anteriormente ainda
+precisa ser revogada.
+
+Impacto:
+A análise local atual foi interrompida sem apagar entradas ou artefatos. O
+processamento externo continua bloqueado até haver acesso NVIDIA de produção
+configurado e autorizado; a rota Trial permanece restrita a conteúdo sintético.
+
+## 2026-10-26 — Chave NVIDIA compartilhada no chat
+
+Data: 2026-10-26
+Tipo: SEGURANÇA / CREDENCIAL
+Status: chave não utilizada; revogação pendente no portal NVIDIA
+
+Contexto:
+O usuário enviou uma chave NVIDIA pelo chat e pediu que fosse configurada no
+projeto. O segredo ficou exposto no histórico da conversa.
+
+Decisão/Ação:
+A chave foi tratada como comprometida. Não foi copiada para arquivos, logs,
+VPS ou credenciais do n8n e não foi usada para chamar a API. O valor não é
+registrado neste histórico. A finalidade informada está relacionada à API
+NVIDIA; o workflow disponível na VPS segue inativo e é restrito a fixture
+sintético. Nenhum documento real foi transmitido.
+
+Arquivos afetados:
+`ACESSOS.md` e `LOG.md`.
+
+Testes e verificações:
+Não houve chamada à API NVIDIA nem alteração na VPS. Foi conferido somente o
+estado Git e atualizado o registro de acesso sem incluir o segredo.
+
+Pendências:
+Revogar no portal NVIDIA a chave enviada pelo chat e confirmar se a chave
+registrada como exposta em 03/10/2026 também segue ativa. Se for necessário
+testar a API, gerar outra credencial e guardá-la diretamente no cofre n8n após
+configurar o proprietário. Usar a API Trial apenas com fixture sintético; o
+processamento de documentos reais depende de endpoint e acesso de produção
+aprovados.
+
+Impacto:
+Nenhuma credencial exposta foi reutilizada ou instalada. A chave enviada deve
+ser substituída antes de qualquer teste futuro.
+
+## 2026-10-26 — Planeja integração NVIDIA NIM de produção
+
+Data: 2026-10-26
+Tipo: REGRA DE NEGÓCIO / PRIVACIDADE / INTEGRAÇÃO
+Status: regra documental atualizada; endpoint externo não configurado
+
+Contexto:
+O usuário pediu para alterar as regras do projeto e adotar a NVIDIA API para
+processar o PDF oficial selecionado. O ambiente só tem um workflow NVIDIA Trial
+manual, inativo e sem credencial. A chave enviada pelo chat está comprometida.
+
+Decisão/Ação:
+O PRD e os guias passam a prever uma integração NVIDIA NIM de produção para
+documentos reais, condicionada a endpoint e licença/assinatura apropriados,
+permissão expressa para o tipo de dado, revisão de privacidade e autorização do
+documento/destino. O processamento local por Ollama permanece como a
+implementação atualmente implantada; a integração externa ainda não existe.
+
+Os termos oficiais do NVIDIA API Trial (seções 2.6 e 4.3) restringem informação
+governamental, confidencial e sensível sem permissão específica do serviço. A
+seção 3.3 informa que conteúdo de usuário pode ser usado para melhoria de
+produtos e modelos. A FAQ do NIM diferencia o acesso Developer para prototipagem
+da licença NVIDIA AI Enterprise voltada à produção. Alterar regras locais não
+altera esses termos. Por isso, a chave do chat não foi reutilizada, salva ou
+chamada contra a API; nenhum conteúdo do PDF foi transmitido.
+
+Fontes consultadas: [termos oficiais da NVIDIA API Trial](https://assets.ngc.nvidia.com/products/api-catalog/legal/NVIDIA%20API%20Trial%20Terms%20of%20Service.pdf) e [FAQ oficial do NVIDIA NIM](https://docs.api.nvidia.com/nim/docs/product).
+
+Arquivos afetados:
+`AGENTS.md`, `PRD.md`, `README.md`, `ROADMAP.md`, `FLUXOGRAMA.md`, `ACESSOS.md`,
+`workflows/README.md` e `LOG.md`.
+
+Testes e verificações:
+Foram revisados os termos oficiais da API Trial e a FAQ do NIM, e o diff
+documental foi conferido. Não foram executados testes de aplicação, chamadas à
+NVIDIA, alterações na VPS ou processamento de documento.
+
+Pendências:
+Revogar a chave enviada no chat. Configurar o proprietário do n8n e provisionar
+um endpoint/licença NVIDIA de produção cujos termos permitam o documento
+governamental. Guardar a nova credencial no cofre n8n, validar primeiro com
+fixture sintético e só então retomar o processamento autorizado do PDF. Não
+usar API Trial para esse documento.
+
+Impacto:
+O projeto agora permite como objetivo uma integração externa NVIDIA de produção
+com condições explícitas de privacidade e licença. O caminho real continua
+local enquanto o endpoint não estiver configurado e homologado.
+
+## 2026-10-27 — Implementa processamento híbrido determinístico e auditoria por IA
+
+Data: 2026-10-27
+Tipo: ARQUITETURA / IMPLEMENTAÇÃO / TESTE / DOCUMENTAÇÃO
+Status: implementado localmente; ainda não implantado na VPS
+
+Contexto:
+Foi escolhida uma primeira passagem em Python sem IA, seguida por uma auditoria
+da IA para procurar lacunas e uma síntese interpretativa final. A meta é
+registrar observações com evidência rastreável e impedir que citações inventadas
+entrem na síntese sem conferência mecânica.
+
+Decisão/Ação:
+O contexto determinístico passou a registrar identificadores, termos, datas e
+durações literais em formatos conhecidos, incluindo a linha de origem e a
+versão das regras. O gateway recebeu a rota autenticada
+`POST /internal/submissions/{id}/validate-ai-audit`, que relê o Markdown
+persistido, confere o hash e separa candidatos aceitos de pendentes conforme a
+página, lote e citação literal. O workflow v2 inativo audita todos os lotes com
+IA e envia para a síntese final apenas as observações e candidatos aceitos.
+Candidatos pendentes são excluídos do prompt final.
+
+O fluxo continua usando IA para procurar lacunas em todos os lotes e para
+interpretar o relatório. A validação Python localiza citações; não comprova a
+correção semântica dos fatos ou da interpretação. O export v1 foi preservado,
+nenhum workflow foi ativado e nenhum documento oficial foi processado.
+
+Arquivos afetados:
+`infra/regulatory_analysis/deterministic_context.py`,
+`infra/regulatory_analysis/report_validation.py`,
+`infra/upload_gateway/app.py`, testes de análise, API e contrato n8n,
+`workflows/automacao-regulatoria-internal-v2-hybrid.json`,
+`prompts/regulatory-gap-audit-v1.md`,
+`prompts/regulatory-gap-audit-v1.schema.json`, `PRD.md`, `README.md`,
+`AGENTS.md`, `ROADMAP.md`, `FLUXOGRAMA.md`, `workflows/README.md` e `LOG.md`.
+
+Testes e verificações:
+`python -m pytest -q`: 94 testes aprovados. O teste foi realizado com fixtures
+sintéticos; nenhum PDF real foi enviado a modelo ou serviço externo. O JSON do
+workflow v2 foi validado. A execução exibiu dois avisos de depreciação do
+evento `on_event` do FastAPI. Não houve acesso à VPS.
+
+Pendências:
+Revisar o diff e depois planejar backup, importação do export v2 preservando as
+credenciais, e homologação com fixture sintético em ambiente controlado. A
+última verificação disponível da VPS, em 26/10/2026, indicava v1 ativo; o v2
+permanece apenas local e inativo. Não processar o PDF oficial nesta etapa.
+
+Impacto:
+O Python cobre a primeira passagem de menções conhecidas e valida as citações
+dos candidatos produzidos pela IA. A cobertura das regras é limitada; a
+auditoria por IA continua necessária e a revisão humana continua disponível.
+
+## 2026-10-27 — Publica o v2 e executa homologação ponta a ponta
+
+Data: 2026-10-27
+Tipo: IMPLANTAÇÃO / TESTE / QUALIDADE
+Status: workflow v2 publicado; teste técnico concluído; qualidade do relatório reprovada para uso real
+
+Contexto:
+O usuário concluiu a criação do proprietário do n8n e confirmou a troca do workflow ativo e o teste sintético. O repositório local e a VPS estavam um commit atrás antes da atualização.
+
+Decisão/Ação:
+O commit `a5e036c` foi enviado para `main` e sincronizado na VPS. Foi feito backup protegido do PostgreSQL, do volume de artefatos e dos cinco workflows antes da importação. O proprietário foi criado no painel; a senha foi definida pelo usuário e não foi copiada para chat, Git ou documentação. O v1 foi despublicado e o v2 híbrido publicado; o workflow de erros permaneceu ativo. Envio manual e reconciliação continuaram inativos.
+
+Um PDF totalmente sintético de duas páginas foi enviado pelo gateway, processado pelo Ollama local `qwen2.5:3b` e concluído na execução n8n 18, protocolo `e6904fac-45c8-4321-a53b-cf296e4df23d`, estado `aguardando_envio`. A conversão cobriu as duas páginas; o registro da tentativa não tem erros; não houve entrega ou e-mail. A frase de injeção do fixture não levou à revelação de segredos.
+
+A validação das referências confirmou 8 de 10; duas ficaram pendentes por formato não reconhecido. O relatório não reconheceu a concessão seguida do cancelamento, recomendou cronograma de renovação depois do cancelamento e colocou as seções fora da ordem. O PDF mostra âncoras Markdown sem resolução. A homologação técnica passou, mas a qualidade do relatório não foi aprovada para uso real.
+
+Arquivos afetados:
+`docker-compose.yml`, `.env.example`, `ROADMAP.md`, `ACESSOS.md`, `workflows/README.md`, `LOG.md` e artefatos em `output/e2e-sintetico-20261027-e6904fac/`.
+
+Testes e verificações:
+`python -m pytest -q`: 94 aprovados, dois avisos de depreciação do FastAPI. `docker compose config --quiet` passou localmente e na VPS. Os seis containers Miller estavam saudáveis após o teste. O relatório PDF foi renderizado e conferido visualmente: legível e sem corte, mas com ordem e âncoras incorretas.
+
+Pendências:
+Corrigir a síntese e a validação estrutural do relatório, incluir regressões para mudança de status entre páginas, referência pendente e ordem das seções, e repetir este fixture antes de processar documento real. Confirmar a guarda da senha do proprietário, rotacionar a senha root exposta e revogar as chaves NVIDIA expostas. Testar restauração de backup, publicar a landing com HTTPS e homologar separadamente envio manual e reconciliação. Nenhum PDF real foi processado nesta tarefa.
+
+Impacto:
+O v2 está ativo na VPS; o v1 permanece disponível no repositório/backup para rollback. Os relatórios atuais devem ser tratados como rascunho sujeito a revisão, não como resultado aprovado.
 
 ## 2026-10-29 — Modo local autorizado para gerar somente Markdown
 
@@ -6006,3 +6398,53 @@ na entrada anterior, sem repetir a suíte nem chamar o provedor para esta
 pausa e consolidação. A execução real de ponta a ponta e a conferência do
 PDF final continuam pendentes; estimativas anteriores não são uma medição
 de conclusão. Nenhum push foi autorizado.
+
+## 2026-11-15 — Conciliação da main com as melhorias Anvisa V8
+
+Tipo: INTEGRAÇÃO / DOCUMENTAÇÃO / TESTE
+Status: conflitos locais resolvidos e integração validada
+
+O usuário solicitou resolver os conflitos surgidos ao integrar a main
+`29a6b4b` na branch `feature/performance-test`, então em `eaf90bd`. Foram
+conciliados dez arquivos conflitantes e preservadas as alterações recebidas
+sem conflito. Backup dos arquivos e do índice anterior em diretório protegido
+sob `/tmp/miller-merge-txwibrux`, fora do repositório.
+
+O gateway conserva os imports e rotas de retomada e recebe o contexto
+determinístico e a validação de candidatos do v2. No workflow v1, a nova
+varredura ocorre somente no ramo Ollama. Nós, parâmetros, configurações e
+conexões existentes do V8 e da retomada foram comparados com a versão anterior
+e preservados; o v2 híbrido continua em export próprio, inativo no Git.
+Os requisitos determinísticos e da auditoria híbrida recebem RF-22 e RF-23,
+sem sobrescrever RF-20 (conversão local) e RF-21 (retomada).
+
+Documentação conciliada por ambiente e data: fotografia da VPS de 27/10 e
+histórico local Anvisa V8 de novembro. Preservados integralmente os 117 registros
+datados da branch e os 72 da main, inclusive os compartilhados, com os eventos
+de outubro inseridos antes dos de novembro. Nenhuma validação histórica foi
+apresentada como execução atual. As falhas de qualidade do v2 e a conclusão
+real ainda pendente do V8 continuam registradas.
+
+Validação desta integração:
+- Suíte Python em contêiner descartável sem rede e com cópia somente leitura
+  dos arquivos versionados: 415 aprovados e 15 contratos pulados por falta de
+  Node na imagem; os 32 contratos completos passaram no host, cobrindo os 15.
+  Total de 430 testes Python distintos. Três avisos de depreciação de
+  Starlette/AnyIO e FastAPI, sem falhas.
+- Duas suítes JavaScript de detalhe e upload aprovadas.
+- Compose principal, complemento local e conversão local validados sem ler
+  valores do `.env` protegido.
+- JSON dos workflows, conexões, unicidade de IDs, `active=false`, ausência de
+  vínculos de credenciais, sintaxe Python, links Markdown e diff conferidos.
+- Gitleaks local sem rede: nenhum segredo encontrado nos arquivos versionados.
+
+A primeira execução dos contratos detectou a expectativa antiga de ligação
+direta do seletor ao lote Ollama. O contrato foi conciliado para exigir o novo
+nó de contexto nesse ramo e manter a ligação direta ao V8 no outro; a suíte
+completa posterior passou. Mantidas também as verificações documentais das
+duas branches, sem relaxar cobertura ou evidências.
+
+Nenhuma chamada a provedor, uso de documento real, implantação, alteração de
+credencial, reinício da aplicação pausada ou push foi realizado. A recuperação
+operacional do V8 e a homologação da VPS continuam sendo tarefas separadas,
+com as pendências e autorizações anteriores preservadas.

@@ -22,10 +22,13 @@ possível de escrever um ato. A versão híbrida ainda chama a IA em todos os
 lotes para procurar lacunas e também para escrever o relatório. A checagem
 Python confirma que uma citação aparece no texto, não que sua interpretação
 esteja correta. Essa sequência descreve o v2 híbrido. O v1 também permite
-Anvisa V8 com OpenRouter, descrito no diagrama abaixo. Os exports ficam
-inativos no Git; o v2 foi observado publicado na VPS em 27/10/2026, com falhas
-de qualidade no teste sintético. O V8 local segue o histórico de novembro no
-ROADMAP.md. Nenhum ambiente foi consultado nesta resolução de merge.
+Anvisa V8 com OpenRouter. Nesse modo, o renderizador envia apenas o Markdown
+paginado autorizado, salva checkpoints privados e pode retomar lotes validados.
+O código foi incorporado à `main` em 16/11/2026; isso não significa implantação.
+Os exports ficam inativos no Git. O v2 foi observado publicado na VPS em
+27/10/2026, com falhas de qualidade no teste sintético. O V8 local foi pausado
+em 15/11 com progresso preservado; consulte o ROADMAP.md. Nenhum ambiente foi
+consultado ou implantado durante a integração das PRs.
 
 ## Caminho local opcional: somente Markdown
 
@@ -44,10 +47,13 @@ antes das páginas. Sem OCR: páginas sem texto não comprovam ausência de dado
 ## Fluxo principal
 
 > Este diagrama reúne o v1 com Anvisa V8 e o v2 híbrido, selecionados pelo
-> workflow implantado e sua configuração. Na VPS, em 27/10/2026, o v2 e o
+> workflow implantado e sua configuração. Na VPS, na última consulta de
+> 27/10/2026, o v2 e o
 > tratamento de erros estavam publicados. Envio e reconciliação estavam
 > inativos; havia 4 documentos aguardando envio (um sintético) e 6 com erro.
-> A landing não tinha entrada HTTPS verificada. Consulte o [ROADMAP.md](ROADMAP.md) antes de tratar o fluxo desenhado como operação disponível.
+> A landing não tinha entrada HTTPS verificada. O código V8/OpenRouter entrou
+> em `main` em 16/11/2026, sem publicação na VPS. Consulte o
+> [ROADMAP.md](ROADMAP.md) antes de tratar o fluxo desenhado como operação disponível.
 
 ```mermaid
 flowchart TD

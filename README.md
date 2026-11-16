@@ -79,6 +79,11 @@ os seis serviços e acessar a landing em `http://127.0.0.1:18085` e o n8n em
 `http://127.0.0.1:25678`. Esse modo carrega o `.env` e permite selecionar o
 OpenRouter. O Compose complementar mantém os dados locais em volumes próprios.
 
+Para testar a rota local padrão com Ollama até `aguardando_envio`, use o
+[roteiro de teste local](docs/TESTE_LOCAL.md), que publica a landing somente em
+`127.0.0.1:8085` e mantém envio e reconciliação inativos. Esse roteiro não
+homologa o modo Anvisa V8/OpenRouter.
+
 ### Fluxo completo pela landing
 
 1. Entre na landing com o acesso fornecido por um administrador.
@@ -156,6 +161,7 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - A NVIDIA API Trial/Developer Catalog recebe somente fixture sintético. Documento real só poderá ser enviado a endpoint de produção se os termos permitirem expressamente aquele tipo de dado e houver autorização específica. A chave enviada no chat está comprometida e não foi configurada.
 - RAG, embeddings e treinamento de modelo estão fora do caminho ativo.
 - A versão híbrida ainda usa IA em todos os lotes para procurar lacunas e para escrever o relatório. A leitura por regras pode deixar passar formas de escrita que não conhece; a validação da citação não prova a interpretação semântica.
+- O modo Anvisa V8 envia o Markdown paginado ao OpenRouter. Use-o somente com documento e destino autorizados, após conferir os termos e a privacidade do provedor; mantenha a chave no `.env` protegido.
 - O envio de e-mail exige uma ação manual e o workflow de envio precisa estar ativo no n8n.
 
 ## O que o sistema não faz
@@ -190,6 +196,11 @@ concessão/cancelamento. A landing pública HTTPS, a restauração do backup e a
 homologação do envio continuam pendentes. Essa fotografia não confirma o estado
 atual da VPS, que não foi consultada durante a resolução dos conflitos.
 
+Em 16/11/2026, as PRs #5 e #3 foram integradas ao GitHub `main`: o repositório
+agora contém a opção Anvisa V8/OpenRouter com checkpoints e o guia de teste local
+com Ollama. Essa atualização é de código e documentação; não publicou os exports
+nem alterou a VPS.
+
 Na stack **local Anvisa V8**, os testes autorizados de novembro e a pausa de
 15/11 estão registrados no [ROADMAP.md](ROADMAP.md). A stack foi parada com
 1.003 fichas preservadas para retomada; o relatório completo e sua duração real
@@ -220,6 +231,8 @@ O prazo comercial de referência é de até **10 dias úteis** depois da aprova�
 - [AGENTS.md](AGENTS.md) — como alterar e manter este repositório.
 - [LOG.md](LOG.md) — histórico cronológico de decisões, incidentes e validações.
 - [workflows/README.md](workflows/README.md) — detalhes operacionais dos workflows n8n.
+- [docs/TESTE_LOCAL.md](docs/TESTE_LOCAL.md) — roteiro de teste local com Ollama, sem envio de e-mail.
+- [deploy/full-local/README.md](deploy/full-local/README.md) — stack completa local e modo Anvisa V8 com OpenRouter.
 - [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — auditoria histórica; não substitui a documentação vigente.
 
 ## Responsáveis

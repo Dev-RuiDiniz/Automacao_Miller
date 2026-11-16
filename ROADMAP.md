@@ -1,12 +1,12 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 15 de novembro de 2026
+**Atualizado em:** 16 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 **Regra de leitura:** as últimas informações confirmadas da VPS são de 27 de outubro de 2026. A VPS não foi consultada durante esta atualização. “Último estado conhecido” não significa “estado atual”.
 
 ## Leitura em um minuto
 
-A base do produto existe, mas a homologação ainda está incompleta. Em 27/10/2026 o repositório e a VPS foram sincronizados no commit `a5e036c`, o proprietário do n8n foi criado e o v2 híbrido foi publicado. Um PDF sintético percorreu o fluxo até `aguardando_envio`, sem e-mail. O teste técnico passou; a qualidade do relatório falhou ao omitir a sequência concessão/cancelamento e sugerir renovação após o cancelamento. O envio manual, a reconciliação, a landing pública e o teste de restauração continuam pendentes.
+A base do produto existe, mas a homologação ainda está incompleta. A última verificação da VPS, em 27/10/2026, encontrou o repositório no commit `29a6b4b`, com o v2 híbrido publicado. Um PDF sintético percorreu o fluxo até `aguardando_envio`, sem e-mail. O teste técnico passou; a qualidade do relatório falhou ao omitir a sequência concessão/cancelamento e sugerir renovação após o cancelamento. Em 16/11 as PRs #5 e #3 foram integradas ao `main`, mas não implantadas. O envio manual, a reconciliação, a landing pública, a restauração e a homologação V8 completa continuam pendentes.
 
 **Na VPS, não envie documentos reais pelo v2 híbrido nem declare o projeto
 concluído antes de fechar os itens P0 e P1 e obter o aceite operacional.**
@@ -19,12 +19,25 @@ a conclusão real de ponta a ponta continua pendente.
 
 ### Repositório
 
-- Em 27/10/2026, o commit `a5e036c` foi sincronizado na VPS. Esta é uma fotografia histórica, não o estado atual da branch.
+- Último registro verificável da VPS: em 27/10/2026, o checkout `/opt/automacao-miller` estava no commit `29a6b4b`. É uma fotografia histórica; não houve consulta à VPS em 16/11.
+- Em 16/11/2026, a PR #5 foi mesclada por squash no commit `2aabff7`, trazendo a opção Anvisa V8/OpenRouter e a retomada otimizada por checkpoints. A PR #3 foi atualizada sobre essa base e mesclada com o guia local. Essas alterações estão no GitHub `main`; não foram implantadas na VPS.
+- A PR #3 documenta o teste local com Ollama em `docs/TESTE_LOCAL.md`, com a landing limitada a `127.0.0.1:8085` e os workflows de envio e reconciliação inativos. A stack completa local com V8/OpenRouter tem guia separado em `deploy/full-local/README.md`.
 - O export versionado do workflow permanece inativo no Git; o workflow v2 publicado no n8n foi verificado separadamente.
 - A suíte local passou em 27/10/2026: 94 testes aprovados e dois avisos de depreciação do evento `on_event` do FastAPI. O teste ponta a ponta da VPS está descrito abaixo.
+- A descrição da PR #3 registra 75 testes Python, configuração Compose válida e seis serviços locais saudáveis na validação feita à época. Não repeti a suíte nem o upload ponta a ponta em 16/11; nenhum e-mail foi enviado nesta integração.
 - Os exports JSON no Git são modelos versionados e ficam inativos. Eles não provam se um workflow está ativo no n8n.
 
-### Conciliação da main com Anvisa V8 — 15/11/2026
+### Guia local com Ollama — PR #3
+
+A PR #3 foi integrada em 16/11/2026. O guia explica como iniciar a stack local,
+enviar um PDF textual de teste e conferir Markdown/PDF até `aguardando_envio`.
+O override publica a landing apenas em `127.0.0.1:8085`; envio Gmail e
+reconciliação ficam inativos. O roteiro cobre o caminho local com Ollama, não o
+modo Anvisa V8/OpenRouter nem a stack da VPS. Os 75 testes e health checks são
+resultados históricos informados pela PR, não foram executados novamente nesta
+integração.
+
+### Validação local antes do merge no GitHub — 15/11/2026 (histórico)
 
 Conflitos locais entre `main` (`29a6b4b`) e a branch `feature/performance-test`
 (`eaf90bd`) resolvidos, preservando o V8, seus checkpoints e o histórico das
@@ -41,11 +54,18 @@ anteriores permanecem.
 
 ### Integração Anvisa V8 com OpenRouter
 
-**Estado:** opção implementada na branch `feature/performance-test`. O usuário
-informou o aceite do PDF revisado pelo cliente. O
+**Estado em 16/11/2026:** a opção foi integrada à `main` pela PR #5, no commit
+`2aabff7`. Ela continua sem implantação confirmada na VPS. O usuário informou
+o aceite do PDF revisado pelo cliente. O
 [V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt) foi
 preservado byte a byte e é usado pelo Terra para analisar o Markdown paginado.
 A aplicação gera o PDF com índice e fichas e guarda os controles no ZIP privado.
+
+O teste local autorizado foi pausado em 15/11. O último checkpoint validado
+preserva 159 de 198 páginas fechadas e 1.003 fichas, mas não há relatório final
+homologado. A retomada depende de reiniciar a stack local e confirmar
+**Reprocessar** no mesmo protocolo; não se deve enviar outra cópia do PDF.
+Créditos, chave e estado atual da stack não foram consultados em 16/11.
 
 **Teste real iniciado em 12/11/2026 às 11h49 (Brasília):** após autorização
 explícita do usuário, confirmada a retomada com a prévia `análise do Markdown
@@ -1060,12 +1080,12 @@ uma tentativa e um registro de falha no banco. Essa falha HTTP do conversor
 foi classificada como `infraestrutura`; a classificação precisa ser ajustada
 e conferida antes de considerar o cenário de conversão plenamente homologado.
 
-Próximo passo: enviar um PDF sintético válido e conferir a análise real pelo
-OpenRouter e os relatórios no painel. A chave está configurada somente no
-renderizador, mas nenhuma chamada de análise à API foi feita nesta preparação.
-Gmail OAuth e entrega manual local permanecem pendentes; não houve envio nem
-alteração na VPS. O serviço Ollama está saudável, sem modelo baixado neste
-volume novo, pois o provedor selecionado é OpenRouter.
+Naquele ponto da preparação, ainda faltava enviar um PDF sintético válido e
+conferir a análise pelo OpenRouter. A chave estava configurada somente no
+renderizador; Gmail OAuth e entrega manual local permaneciam pendentes. O
+serviço Ollama estava saudável, sem modelo baixado nesse volume, pois o provedor
+selecionado era OpenRouter. As tentativas posteriores estão registradas abaixo;
+este parágrafo é histórico, não a próxima ação atual.
 
 **Teste posterior em 11/11/2026:** o usuário enviou um PDF pela landing local.
 A execução 3 converteu e persistiu o Markdown, chamou a análise V8 e encerrou
@@ -1077,6 +1097,12 @@ confirmados. É necessário revisar crédito/orçamento no OpenRouter antes de
 novo teste controlado. O erro de IA foi classificado como `infraestrutura`,
 reforçando a pendência de classificação descrita acima. Não houve reexecução
 automática; PDF e Markdown permaneceram preservados.
+
+**Estado final conhecido em 15/11/2026:** a stack local foi pausada a pedido do
+usuário. Os seis serviços foram parados sem remover volumes. O checkpoint privado
+foi revalidado contra o Markdown e preserva 159/198 páginas fechadas e 1.003
+fichas; não existe relatório final homologado. A aplicação não foi reiniciada
+nem o checkpoint retomado durante a integração das PRs em 16/11.
 
 ### Reenvio de PDF já cadastrado
 
@@ -1409,8 +1435,8 @@ foi enviado.
 4. **Testar restauração do backup e manter cópia fora da VPS.**
    Responsável: administrador da VPS. O backup protegido do banco, volume de artefatos e workflows foi criado em 27/10. Copie-o para outro local, confira os hashes e restaure em ambiente isolado. A cópia na própria VPS não protege contra perda total do servidor.
 
-5. **Revogar a chave NVIDIA exposta e provisionar acesso correto.**
-   Responsável: administrador da conta NVIDIA. Revogue a chave compartilhada no chat e confirme a situação da chave exposta anteriormente. Para avaliação, use uma credencial substituta somente com o fixture sintético. Para documentos reais, confirme licença/assinatura NVIDIA NIM de produção e permissão expressa para dados governamentais; guarde a credencial no cofre n8n. Não use a chave Trial no PDF real.
+5. **Regularizar os acessos a provedores externos.**
+   Responsável: administrador das contas de IA. Revogue a chave NVIDIA exposta e confirme a situação da chave exposta anteriormente; a API Trial permanece restrita ao fixture sintético. Antes de retomar o V8 local, confira a chave e o orçamento do OpenRouter no ambiente protegido, revise os termos aplicáveis ao documento e confirme a autorização do destino. A chave fica somente no `.env` protegido do `report-renderer`, nunca no Git, workflow ou navegador. Para documentos reais via NVIDIA, exija licença de produção e permissão expressa para os dados.
 
 6. **Corrigir as falhas semânticas e estruturais do relatório híbrido.**
    Responsável: responsável técnico e responsável pelo produto. O teste sintético de 27/10 não preservou a sequência concessão/cancelamento, recomendou renovação após o cancelamento, marcou duas referências como pendentes por formato e ordenou as seções incorretamente. Ajuste prompt e validação, inclua testes de regressão e repita o teste antes de qualquer PDF real. O PRD atual permite que referências pendentes não bloqueiem `aguardando_envio`; a equipe ainda deve decidir se essa regra é aceitável.
@@ -1432,13 +1458,13 @@ foi enviado.
 11. **Executar a matriz de falhas e retomada.**
     Responsáveis: responsável técnico e operador. Teste PDF inválido/sem texto, falha do conversor, falha de lote Ollama, falha de validação, renderização, armazenamento, Gmail, duplicidade, reenvio e recuperação de processo parado. Confirme que erro não vira “informação ausente”, que tentativa repetida não duplica trabalho e que download oficial só abre após envio confirmado.
 
-12. **Homologar documentos reais autorizados.**
-    Responsável: representante indicado pelo cliente. Comece com um documento curto textual. Depois trate o PDF de 142 páginas em janela autorizada, sem duplicar protocolo. Confira cobertura, fatos, referências pendentes, duração e qualidade. Registre o aceite e as limitações.
+12. **Homologar os caminhos com documentos autorizados.**
+    Responsáveis: responsável técnico, operador e representante indicado pelo cliente. No v2 da VPS, repetir primeiro o fixture sintético após corrigir as falhas de interpretação e estrutura; depois avaliar o PDF de 142 páginas em janela autorizada, sem duplicar protocolo. No V8 local, retomar o documento de 198 páginas pelo mesmo protocolo e checkpoint, após conferência dos acessos e confirmação de **Reprocessar**. Em ambos, conferir cobertura, fatos, evidências, duração e qualidade; registrar aceite e limitações. O V8 ainda não tem relatório final homologado.
 
 ### P2 — melhorar segurança e desempenho depois da estabilidade
 
 13. **Medir o desempenho com carga controlada.**
-    O modelo qwen2.5:3b executa em CPU numa VPS compartilhada de 2 vCPU. A segunda tentativa do PDF de 142 páginas foi interrompida após cerca de 26 minutos, ainda na análise por lotes. Uma execução sequencial protege a memória, mas pode demorar muitas horas. Meça tempo e RAM em PDFs curtos e longos. Depois de provisionar e aprovar um endpoint NVIDIA de produção, compare qualidade, duração e custo usando primeiro o fixture sintético. Não envie documento real à API Trial nem aumente paralelismo sem medição.
+    O modelo qwen2.5:3b executa em CPU numa VPS compartilhada de 2 vCPU. A segunda tentativa do PDF de 142 páginas foi interrompida após cerca de 26 minutos, ainda na análise por lotes. O V8 implementa grupos adaptativos e até duas chamadas concorrentes para lotes independentes; a branch registra benchmark controlado sem regressão, mas o relatório real completo ainda não foi concluído. Meça tempo e RAM em PDFs curtos e longos e confirme duração, custo e qualidade em ponta a ponta. Depois de aprovar endpoint NVIDIA de produção, compare primeiro com fixture sintético. Não envie documento real à API Trial nem aumente o paralelismo além do limite implementado sem medição.
 
 14. **Reduzir exposição da landing.**
     Avalie remover o token legado aceito por URL, adicionar limitação de tentativas no login/upload/envio, proteção CSRF e níveis de acesso quando houver necessidade operacional. Preserve o túnel local do n8n.

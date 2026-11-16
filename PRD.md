@@ -11,7 +11,7 @@
 
 ## 2. Visão do produto
 
-O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker.
+O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker. O Ollama é o caminho local padrão. Para o relatório Anvisa V8, há uma opção explícita via OpenRouter com GPT-6.1 Terra; ela só pode receber Markdown autorizado após revisão dos termos e da privacidade do provedor, sem fallback automático. A integração NVIDIA NIM de produção permanece condicionada a endpoint/licença que permita o tipo de dado processado.
 
 O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos

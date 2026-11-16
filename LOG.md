@@ -2136,6 +2136,22 @@ CPU torna o processamento muito demorado; estabilidade e tempo são limitações
 distintas e ambas ficam explícitas no estado e na documentação.
 
 
+## 2026-10-02 — Integração das PRs #1/#2 e roteiro de teste local
+
+Registro histórico incorporado da branch da PR #3 em 16/11/2026; os resultados
+abaixo pertencem à validação original, não foram repetidos nesta integração.
+
+As PRs #1 e #2 foram integradas à `main` em 02/10/2026. A PR #3 foi preparada
+com um override de Compose que publica a landing somente em loopback e um guia
+para subir a stack local, enviar PDF de teste e conferir o estado
+`aguardando_envio` sem disparar e-mail. README, implantação, workflows, roadmap
+e log receberam referências para esse roteiro.
+
+A descrição original da PR registra 75 testes Python aprovados, Compose local
+válido, seis serviços saudáveis e respostas HTTP 200 do gateway e do n8n. Ela
+também informa que não foi feito novo upload ponta a ponta, nenhum e-mail foi
+enviado e a VPS não foi consultada.
+
 ## 2026-10-03 — Validação na VPS
 
 Data: 2026-10-03
@@ -6448,3 +6464,50 @@ Nenhuma chamada a provedor, uso de documento real, implantação, alteração de
 credencial, reinício da aplicação pausada ou push foi realizado. A recuperação
 operacional do V8 e a homologação da VPS continuam sendo tarefas separadas,
 com as pendências e autorizações anteriores preservadas.
+
+## 2026-11-16 — Integra as PRs #5 e #3 e alinha a documentação
+
+Data: 2026-11-16
+Tipo: INTEGRAÇÃO / DOCUMENTAÇÃO / ROADMAP
+Status: PRs integradas ao GitHub `main`; sem implantação em ambiente
+
+Contexto:
+O usuário solicitou integrar as PRs abertas #5 (V8/retomada) e #3 (guia de
+teste local), além de atualizar a documentação e o roadmap. A PR #5 estava
+mesclável; a #3 partia de uma base antiga e conflitava em README, ROADMAP,
+LOG, implantação e workflows.
+
+Decisão/Ação:
+A PR #5 foi mesclada por squash no commit `2aabff7`. A branch da PR #3 foi
+atualizada sobre essa base; os documentos atuais foram preservados e o guia
+local e seus links foram incorporados. A PR #3 foi então integrada. O código
+da PR #5 acrescenta a opção Anvisa V8 com OpenRouter/Terra, checkpoints privados,
+retomada e transporte otimizado; o Ollama permanece como padrão local e o v2
+híbrido continua separado. A PR #3 acrescenta o teste local com Ollama até
+`aguardando_envio`, mantendo envio e reconciliação desligados.
+
+PRD, README, ROADMAP, FLUXOGRAMA, ACESSOS, implantação, workflows e os dois
+guias locais foram alinhados para distinguir comportamento versionado,
+validação local e fotografia histórica da VPS. A fotografia da VPS continua
+sendo a verificação de 27/10/2026; o merge no GitHub não ativa exports nem
+implanta a stack.
+
+Validação:
+GitHub confirmou a PR #5 mesclada e a PR #3 foi atualizada e integrada após a
+resolução dos conflitos. Os conflitos e links locais foram revisados, sem
+marcadores remanescentes; `git diff --check` passou. As 430 verificações da
+conciliação local da PR #5 e os 75 testes históricos citados na PR #3 não foram
+reexecutados nesta etapa. Não houve chamada ao OpenRouter, teste de aplicação,
+upload, e-mail, acesso à VPS, troca de credencial ou reinício da stack local.
+
+Pendências:
+A VPS não foi consultada nem atualizada. O V8 local continua pausado desde
+15/11 com checkpoint preservado para retomada no mesmo protocolo; não há PDF
+final homologado. Permanecem as falhas de qualidade do teste híbrido sintético,
+além das tarefas de segurança, backup, HTTPS, envio e reconciliação registradas
+no ROADMAP.md.
+
+Impacto:
+As duas PRs e as atualizações documentais estão versionadas em `main`. O V8
+está disponível no código, mas não está confirmado como implantado ou ativo na
+VPS. O usuário deve consultar ROADMAP.md antes de retomar a operação.

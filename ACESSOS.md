@@ -11,6 +11,11 @@ separada, com a data de configuração. Nenhuma credencial ou ambiente externo
 foi consultado nesta resolução de merge; a pausa local de 15/11 e os testes
 posteriores à configuração inicial estão no ROADMAP.md.
 
+Em 16/11/2026, as PRs #5 e #3 foram integradas ao GitHub `main`, incluindo o
+caminho Anvisa V8/OpenRouter e o guia de teste local. Isso atualiza o código e
+a documentação versionados, não os acessos nem os workflows da VPS. Não houve
+consulta ao servidor, ao OpenRouter ou ao cofre de credenciais nesta data.
+
 - O host é srv1728832.hstgr.cloud, acessado por SSH como root.
 - O acesso por chave SSH foi confirmado. A chave privada fica apenas no computador autorizado.
 - A senha root foi exposta anteriormente e a rotação ainda está pendente.
@@ -142,6 +147,13 @@ documental protegido; não publique o arquivo de estado para diagnosticar falhas
 - **Configuração anterior:** cópia protegida em `.env.before-full-local`,
   também ignorada pelo Git. Esses arquivos não devem ser anexados a chamados,
   exportações de workflows ou commits.
+
+**Atualização de estado em 16/11/2026:** o histórico registra tentativas V8
+autorizadas via OpenRouter entre 12 e 15/11, mas não um relatório final
+homologado. A stack local foi parada em 15/11 com o checkpoint preservado e
+1.003 fichas registradas para retomada. Não confirmei se a chave local ainda é
+válida, se permanece configurada ou se a stack foi reiniciada depois disso.
+Não há confirmação de OpenRouter configurado na VPS.
 
 ## 9. Google Drive e GitHub
 

@@ -1,6 +1,12 @@
 # Workflows n8n
 Visão do fluxo em [FLUXOGRAMA.md](../FLUXOGRAMA.md); locais seguros de credenciais em [ACESSOS.md](../ACESSOS.md). Confirme o estado dos workflows na VPS: os arquivos exportados no Git ficam inativos por segurança.
 
+Para homologar localmente a rota Ollama até `aguardando_envio`, siga o
+[roteiro de teste local](../docs/TESTE_LOCAL.md). Para a stack isolada com
+Anvisa V8/OpenRouter e retomada por checkpoints, use
+[deploy/full-local/README.md](../deploy/full-local/README.md). Nenhum desses
+roteiros ativa workflows na VPS.
+
 ## Estado observado na VPS em 27/10/2026
 
 O n8n tem seis workflows registrados. Estão publicados Automação Regulatória - Duas Passagens e Automacao Regulatoria - Erros Internos. Automacao Regulatoria - Repositorio Interno (v1) foi despublicado. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM continuam inativos.
@@ -9,11 +15,12 @@ Por isso, um relatório pode chegar a `aguardando_envio`, mas a solicitação de
 
 Os exports do Git continuam com active=false de propósito. Não os use como prova do estado remoto e não reimporte workflows em produção sem backup, preservação dos vínculos de credenciais e teste controlado.
 
-Essa fotografia é da VPS. A branch também contém o v1 com seleção Anvisa V8
-via OpenRouter e retomada por checkpoints, usado nos testes locais de novembro.
-O v2 híbrido é um export separado e não implementa essa seleção nem a retomada
-por artefatos do v1. A aplicação local foi pausada em 15/11, conforme ROADMAP.md;
-nenhum ambiente foi consultado ou implantado nesta resolução de merge.
+Essa fotografia é da VPS. Desde 16/11/2026, a `main` também contém o v1 com
+seleção Anvisa V8 via OpenRouter e retomada por checkpoints, usado nos testes
+locais de novembro. O v2 híbrido é um export separado e não implementa essa
+seleção nem a retomada por artefatos do v1. A aplicação local foi pausada em
+15/11, conforme ROADMAP.md. A VPS não foi consultada nem atualizada durante a
+integração das PRs no GitHub.
 
 ## Versão híbrida v2 — implantada em 27/10/2026
 

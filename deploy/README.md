@@ -7,6 +7,17 @@ renderização e o gateway de upload, com volumes e rede próprios. O serviço R
 é legado e fica fora da inicialização padrão; somente o perfil optativo `rag`
 o inicia.
 
+## Testes locais
+
+- [Teste local com Ollama](../docs/TESTE_LOCAL.md): stack padrão, landing em
+  `127.0.0.1:8085`, processamento até `aguardando_envio`; envio Gmail e
+  reconciliação ficam inativos.
+- [Stack completa local](full-local/README.md): ambiente isolado para testar
+  também o modo Anvisa V8 com OpenRouter, em portas locais próprias. Não altera
+  nem confirma a implantação na VPS.
+- [Conversor local de Markdown](../infra/pdf_converter/README.md): converte e
+  baixa o texto paginado sem n8n, banco ou provedor de IA.
+
 Na consulta de 26/10/2026, os seis containers do Miller estavam saudáveis, mas somente os workflows de processamento e erro estavam ativos. Envio e reconciliação estavam inativos, o proprietário do n8n não estava configurado e o diretório de backup esperado não existia. O gateway não tinha publicação HTTP/HTTPS no host. Isso não é uma stack pronta para uso externo ou produção.
 
 Em 27/10, foram registrados a criação do proprietário, o backup e a publicação

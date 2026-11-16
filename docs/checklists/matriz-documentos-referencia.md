@@ -8,6 +8,11 @@ O PDF original recebido para validação permanece fora do Git. Só documentos a
 
 ## Estado conhecido
 
+- Os registros de 26/10 abaixo são históricos. Em 27/10 o v2 híbrido foi
+  publicado na VPS e o fixture sintético completou o fluxo técnico, mas
+  reprovou qualidade. Os testes Anvisa V8 e a pausa local de 15/11 são de
+  outro ambiente; consulte ROADMAP.md para as evidências e pendências.
+
 - Verificação da VPS em 26/10/2026: 3 documentos aguardando_envio, 6 em erro e nenhum em processamento. Envio manual e reconciliação estavam inativos.
 - A suíte local passou com 89 testes em 26/10/2026; os novos testes de contexto determinístico usam fixtures sintéticos. A alteração ainda não foi implantada nem homologada na VPS.
 - Em 03/10/2026, um PDF sintético de uma página chegou a Aguardando envio, com cobertura 1/1 e duas de três referências confirmadas.

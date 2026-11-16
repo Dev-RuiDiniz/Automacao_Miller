@@ -1,0 +1,13 @@
+name: miller-full-local
+
+# Complemento local: use junto com docker-compose.yml da raiz.
+services:
+  upload-gateway:
+    ports:
+      - "127.0.0.1:18085:8085"
+    environment:
+      SESSION_COOKIE_SECURE: "false"
+
+volumes:
+  automacao_miller_artifacts_data:
+    name: miller-full-local-artifacts

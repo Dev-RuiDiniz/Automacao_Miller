@@ -11,19 +11,15 @@
 
 ## 2. Visão do produto
 
-O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker. A arquitetura também poderá integrar NVIDIA NIM; documentos reais só poderão usar um endpoint de produção cuja licença e termos permitam o tipo de dado processado.
+O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker.
 
 O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
 exports históricos; não é parte da entrada nem do processamento atual.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, fazer uma primeira leitura determinística de menções literais com página e evidência, pedir à IA que procure achados não capturados pelas regras em todas as páginas e validar em Python cada citação proposta pela IA contra o Markdown salvo. A IA que escreve o relatório final recebe as observações determinísticas e somente os candidatos cuja página e citação foram localizadas. Essa validação comprova onde o trecho aparece; não comprova se a interpretação do fato está correta. O PostgreSQL mantém metadados e estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
 
 A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
-
-### Em palavras simples
-
-O operador entrega um PDF; o sistema organiza o texto, aponta o que encontrou e mostra de quais páginas tirou cada citação. O operador decide se solicita o envio do relatório. O resultado ajuda a equipe a trabalhar, mas não garante que a interpretação da IA esteja correta e não substitui um profissional habilitado.
 
 ---
 
@@ -80,11 +76,15 @@ Responsável por:
 Componentes definidos para o projeto:
 
 - **n8n:** automação e orquestração do workflow;
-- **Ollama:** execução local atualmente implantada do modelo de IA;
-- **Python no gateway:** leitura determinística do Markdown persistido e validação das páginas e citações propostas pela IA;
-- **NVIDIA NIM:** provedor externo planejado, condicionado a endpoint/licença de
-  produção, autorização para os dados e credencial protegida no n8n. A API
-  Developer/API Catalog Trial segue limitada a fixture sintético;
+- **Ollama:** execução local padrão do modelo de IA;
+- **OpenRouter + GPT-6.1 Terra:** opção explícita para o relatório Anvisa V8,
+  usando apenas Markdown autorizado e a chave protegida no servidor;
+- **NVIDIA NIM API Trial:** provedor externo limitado a avaliações com conteúdo
+  sintético, usando credencial protegida no n8n;
+- **Python no gateway:** contexto determinístico do RF-22 e validação de
+  candidatos no workflow híbrido v2, conforme RF-23;
+- **NVIDIA NIM de produção:** integração planejada, ainda não implementada,
+  condicionada a endpoint/licença e termos que permitam os dados autorizados;
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
 - **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
@@ -112,15 +112,11 @@ Persistência no volume privado e registro no PostgreSQL
         ↓
 Conversão para Markdown com marcadores de página
         ↓
-Leitura determinística de menções literais por página
+Análise de todas as páginas em lotes
         ↓
-IA audita todos os lotes em busca de achados não capturados pelas regras
+Achados JSON temporários consolidados
         ↓
-Python valida página e citação literal dos candidatos
-        ↓
-IA interpreta observações e candidatos aceitos para escrever o relatório
-        ↓
-Validação final da cobertura e das referências do relatório
+Relatório Markdown e validação de páginas/evidências
         ↓
 Geração e armazenamento do PDF
         ↓
@@ -136,6 +132,10 @@ Documento concluído e download oficial liberado
 O JSON usado em cada lote é temporário: ele ajuda a consolidar os achados, mas
 não é salvo nem exibido como análise final. Os artefatos analíticos do caminho
 atual são o relatório Markdown e sua versão PDF.
+
+No modo Anvisa V8, os lotes e grupos validados também são salvos como controle
+privado de retomada, conforme RF-04 e RF-21. Esse controle não é uma análise
+JSON publicada no painel nem um artefato `analysis_json`.
 
 Quando o documento for enviado pela landing, o gateway persiste atomicamente o
 arquivo no volume privado, gera um protocolo e registra o documento no
@@ -161,6 +161,9 @@ O sistema deve receber PDFs exclusivamente pelo gateway privado da landing,
 validar o conteúdo, persistir o arquivo no volume interno e registrar um
 documento elegível no PostgreSQL. O Google Drive não é uma entrada ativa.
 
+O modo local de conversão do RF-20 é uma ferramenta separada para testes
+manuais; não é uma entrada operacional de documentos e não cria protocolo.
+
 ### RF-02 — Leitura de PDF
 
 O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermediário. Falhas de leitura devem ser classificadas como erro técnico.
@@ -169,37 +172,306 @@ O sistema deve ler os PDFs suportados para produzir o artefato Markdown intermed
 
 Todo PDF elegível deve ser convertido para uma representação Markdown organizada antes de qualquer extração estruturada ou chamada ao provedor de IA selecionado. O Markdown deve conter metadados do documento, SHA-256, contagem de páginas, versão do conversor e um marcador `## Página N` para cada página. Falha de conversão, PDF corrompido ou ausência de camada textual deve interromper a análise e gerar erro técnico explícito. Possíveis tabelas devem ser preservadas quando detectáveis, com aviso de layout quando a geometria não puder ser reconstruída com segurança; OCR não faz parte desta etapa.
 
+Nos layouts suportados, a sequência deve acompanhar a leitura visual: cada
+coluna antes da seguinte, respeitando cabeçalhos, regiões de largura inteira,
+tabelas e continuações entre páginas. A ordem interna dos objetos do PDF não
+é, por si só, evidência dessa sequência. A reorganização não deve inventar ou
+apagar conteúdo. Limitação detectada de ordem espacial deve produzir aviso
+identificado como nota da ferramenta, inclusive no Markdown da página; não
+pode ser apresentada como ausência de informação. Mudança de conversor gera
+novo artefato/hash e exige nova validação, preservando a fonte anterior para auditoria.
+
 ### RF-04 — Análise por IA
 
-A análise usa o Markdown persistido como única fonte documental. Ollama local é
-o provedor atualmente implantado. O projeto passa a prever uma integração
-opcional com NVIDIA NIM para documentos reais somente quando o endpoint tiver
-licença de produção e seus termos permitirem expressamente o tipo de dado
-enviado, incluindo informação governamental. Antes do envio, o responsável deve
-autorizar o documento e o destino e registrar as condições de retenção, uso dos
-dados e proteção aplicáveis. O provedor e o modelo precisam ficar identificados
-na tentativa; não há fallback automático entre provedores.
+A análise de documentos reais usa Ollama local por padrão. A configuração
+`ANVISA_REPORT_PROVIDER=openrouter` seleciona o GPT-6.1 Terra (`openai/gpt-6.1-terra`)
+para análise Anvisa com o [V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt)
+inalterado. O Markdown paginado persistido é a única fonte documental em ambos
+os caminhos. No modo OpenRouter não são enviados o PDF bruto, o protocolo, o
+nome do arquivo ou credenciais no conteúdo da solicitação. A integração usa
+blocos de páginas, permite recuperar contexto e valida cobertura, evidências
+literais e reconciliação dos registros. Saída incompleta ou inválida bloqueia
+o relatório V8. A aplicação produz PDF com índice inicial clicável, resumo,
+fichas e pendências, bem como Markdown de consulta e ZIP interno da mesma
+revisão contendo PDF, JSONL, cobertura e verificação. A aprovação humana de um
+PDF anterior não homologa novas respostas do modelo ou da API.
 
-A NVIDIA API Trial/Developer Catalog continua exclusiva para o workflow manual
-de avaliação com fixture sintético, separado e inativo. Os termos atuais do
-Trial limitam o uso a teste/avaliação, restringem o envio de informação
-governamental sem permissão específica do serviço e permitem uso de conteúdo
-para melhoria de produtos/modelos. O endpoint Trial não processa uploads reais.
-Uma credencial exposta deve ser revogada e substituída antes de qualquer uso.
+Incluídos e pendentes usam a ficha completa com `justificativa_destino`.
+Excluídos e representações duplicadas podem usar o registro compacto do V8,
+com `justificativa`; para compatibilidade, nesses compactos também é aceita
+`justificativa_destino`. Toda justificativa fornecida deve ser texto não vazio.
+Se ambas as chaves existirem, preservar seus valores sem escolher, copiar ou
+sobrescrever uma delas. Essa compatibilidade não dispensa páginas válidas,
+evidências literais e reconciliação do inventário.
 
-Depois da leitura determinística, a IA deve auditar todos os lotes do Markdown
-em busca de fatos relevantes não localizados pelas regras. Ela deve devolver
-candidatos com página e citação literal. Python deve verificar se a página
-existe, se pertence ao lote analisado e se a citação está na página indicada do
-Markdown persistido. A etapa de redação final recebe as observações
-determinísticas e somente os candidatos aceitos. Candidatos rejeitados ficam
-fora da síntese e são contabilizados como pendentes. Falha em qualquer lote da
-auditoria impede a geração de um relatório apresentado como completo.
+Se uma evidência V8 falhar, registrar em armazenamento privado o bloco enviado,
+a resposta rejeitada, o ID do registro, o caminho do campo, a página, o trecho
+e o motivo específico, vinculados ao hash da fonte, protocolo, tentativa e
+execução. A chamada de correção deve receber esse diagnóstico e a resposta
+anterior, mantendo o limite de uma correção por grupo de resposta. Diferenças apenas de
+espaços ou quebras continuam rejeitadas pela conferência literal. O histórico
+exibe somente página, motivo e referência de diagnóstico; os detalhes
+documentais ficam disponíveis ao operador do ambiente, sem endpoint público.
+Os identificadores internos não são enviados ao provedor. Falha ao preservar
+o diagnóstico interrompe a análise como erro de armazenamento.
 
-Essa arquitetura continua usando IA para procurar lacunas e interpretar o
-relatório. A primeira passagem reduz a dependência de IA para localizar padrões
-simples, mas não torna o processamento sem IA nem garante que as regras cubram
-todo achado relevante.
+Falhas de estrutura também devem identificar o campo (JSON Pointer), o ID do
+registro quando aplicável, o valor recebido e a condição esperada no diagnóstico
+privado enviado à correção. O resumo público não deve expor esses valores. Ao
+registrar falhas, o workflow de erros deve preservar mensagem e descrição do
+n8n, sem repetir textos idênticos. Referências de diagnóstico V8 identificam
+erros de validação; o nome do último nó não deve substituir a causa conhecida.
+
+Blocos densos devem ser reduzidos por páginas-alvo sem cortar o texto das
+páginas ou unidades documentais. Uma resposta parcial deve continuar em grupos
+de eventos completos, preservando os IDs, valores e evidências dos registros
+já validados. O inventário e a cobertura são acumulados; páginas e unidades
+pendentes não são promovidas a concluídas apenas para satisfazer o validador.
+Iniciar cada lote com até oito eventos entre novos e revisões. Após respostas
+compactas aceitas com progresso, permitir grupos de 12 e depois 16, até esse
+máximo conferido no servidor. Respostas com incluídos/pendentes e revisões de
+fichas completas permanecem em até oito eventos, podendo usar menos quando
+extensas. O limite é de transporte, sem resumir ou dividir fichas/eventos.
+Fichas com revisão ainda aberta devem ser guardadas separadamente dos eventos completos, após validar sua estrutura,
+páginas e evidências literais. Priorizar a revisão dessas fichas antes de
+extrair novas unidades. Preservar seus IDs e evidências; dados acrescentados
+ou corrigidos pela releitura ficam auditáveis pelas versões anteriores no
+checkpoint privado. Eventos já concluídos permanecem imutáveis.
+
+Desde a primeira continuação, enviar as fichas concluídas somente por um
+índice de todos esses eventos, com IDs, categorias, destinos, páginas, hashes
+e referências curtas confirmadas. As fichas completas permanecem intactas no
+checkpoint e são reunidas pelo aplicativo no resultado final. Campo ausente
+do índice não representa ausência na fonte ou na ficha; o índice não é
+evidência nem substitui a conferência documental. Continuar rejeitando
+alteração de ficha concluída, duplicação e perda de IDs do inventário.
+
+O transporte admite inventário incremental: a IA devolve somente campos,
+blocos e unidades novos ou alterados, vinculados ao hash da base integral.
+IDs locais de transporte de blocos/unidades são estáveis e distintos dos
+identificadores documentais. Campos omitidos preservam seus valores; não
+excluir unidades, IDs reservados ou evidências anteriores. Rejeitar bases
+divergentes, IDs desconhecidos, duplicados e substituição integral disfarçada.
+O inventário continua derivado da leitura da fonte, não das fichas. O servidor
+consolida o inventário completo antes de validar cobertura e reconciliação.
+A representação integral anterior permanece aceita, com as mesmas validações,
+para compatibilidade; não aceitar as duas representações na mesma resposta.
+
+No delta do inventário, aceitar `adicionar_evidencias` no bloco ou unidade.
+O servidor conserva as evidências anteriores integralmente e em sua ordem,
+acrescentando somente objetos novos, sem duplicar objetos idênticos. Para
+compatibilidade, `campos.evidencias` nesse delta tem a mesma semântica aditiva;
+lista vazia não exclui evidências. Não combinar as duas formas no mesmo objeto.
+Quando somente acrescentar evidências, `campos` pode ser omitido. Rejeitar
+listas ou objetos malformados e manter a conferência literal, de páginas e
+escopo após expandir e consolidar. Essa união não se aplica a outros arrays,
+IDs ou fichas completas; os demais controles de imutabilidade, revisão e
+reconciliação permanecem. Não completar informações por suposição.
+
+No delta do inventário, ao refinar explicitamente `limites` de um bloco ou unidade,
+enviar o objeto completo, conservando as chaves e a estrutura das referências existentes.
+O servidor mantém os limites novos recebidos e guarda na lista `evidencias`
+do mesmo bloco/unidade os objetos exatos das evidências anteriores deslocadas
+dos limites, preservando ordem e atributos e sem duplicar objetos idênticos
+já presentes. Não inferir limites nem substituir valores por normalização.
+Limite existente apagado ou malformado continua inválido.
+As citações antigas e novas passam pelas mesmas validações de literalidade,
+páginas e escopo; conservar ambas não comprova revisão nem resolve divergências
+automaticamente. Evidências removidas de outros campos continuam rejeitadas,
+com campo anterior e objeto exato ausente no diagnóstico privado enviado à
+única correção. Conferir também o orçamento do inventário consolidado, sem
+descartar evidências para caber no limite.
+
+Evidências idênticas podem ser transmitidas uma vez e reutilizadas por
+referências locais à chamada. Não resumir, normalizar ou truncar os trechos.
+Rejeitar referências desconhecidas, redefinições e encadeamentos; verificar
+literalmente as evidências novas e limitar a amplificação antes de expandir.
+Expandir os objetos antes de aplicar os validadores V8 existentes. Fichas em
+revisão, inventário, diagnóstico e resposta rejeitada continuam disponíveis
+integralmente por essa representação reversível, assim como as páginas
+obrigatórias. Preservar no diagnóstico a resposta de transporte original e
+seu dicionário para auditoria; referências rejeitadas não podem adquirir outro
+significado na chamada de correção. Usar grupos adaptativos conservadores. Permitir até
+dois lotes operacionais independentes por análise em chamadas concorrentes;
+a continuação e a correção dentro de um mesmo lote permanecem sequenciais.
+O limite concorrente é de duas chamadas ao provedor em voo, não de dois lotes
+com trabalho iniciado. Um lote em espera de retentativa ou com chamada
+bloqueada por contexto sobreposto conserva seu gerador, progresso, pacote e
+orçamentos. Uma vaga livre pode atender outro lote independente dos lotes já
+iniciados; nenhuma chamada em voo é interrompida ou deixa de contar no limite.
+Priorizar a retomada de lotes iniciados quando estiverem elegíveis. Esperas
+de retentativa consideram o tempo já transcorrido durante o trabalho dos
+demais lotes, sem renovar tentativas. Não iniciar nova chamada após falha
+persistente e manter as regras de drenagem e armazenamento abaixo.
+Na saída, a IA pode compartilhar valores integrais e exatamente idênticos de
+campos das fichas em `campos_compartilhados`, usando referências locais
+`$campo` explícitas em cada campo. Aplicável a ato, dispositivo, decisão,
+objeto, composição, entidades, processos, petições, apresentações, ressalvas,
+relações e campos adicionais. IDs, destino, categoria, páginas da ficha,
+justificativa e conferência de integridade permanecem individuais. A
+referência substitui o valor completo, sem herança, união ou sobrescrita;
+diferenças e evidências são preservadas. O dicionário vale somente para a
+resposta atual e não admite encadeamento, referência desconhecida ou mistura
+de referência e atributos. Conferir a amplificação antes de copiar e
+reconstruir cada ficha integralmente antes de validar, revisar, persistir ou
+gerar os artefatos. Valores inline continuam aceitos. O diagnóstico conserva
+a resposta de transporte original; a correção recebe valores resolvidos e
+referências inválidas identificadas sem permitir sua vinculação a outro valor.
+
+Aumentar apenas após grupo aceito com avanço, preenchido com registros
+compactos curtos, apoiado em métricas reais de saída e duração. Entrega de contexto,
+respostas rejeitadas, sem avanço ou sem métricas não justificam crescimento.
+Respostas extensas, lentas ou completas reduzem/conservam o próximo grupo;
+após redução ou correção, aguardar dois sucessos antes de crescer novamente.
+Guardar a política por lote no checkpoint e revalidá-la antes de retomada.
+Uma divisão em alvos menores conserva a política aprendida. Não inventar
+medidas ao migrar versões anteriores: elas recomeçam em oito.
+
+Retentativa de transporte repete exatamente o pacote e não muda o tamanho.
+Uma correção mantém o limite do grupo rejeitado e seu orçamento único. Saída
+truncada pode reduzir o próximo pedido pelos tamanhos 16/12/8/4/2/1, sem
+usar dados incompletos, dispensar conferência ou renovar outros orçamentos.
+Na correção, truncamento continua erro explícito para preservar o grupo.
+Não contornar um limite de contexto cortando páginas ou dados obrigatórios.
+Unidades restantes permanecem no inventário pendente. O documento só encerra
+com todas as páginas e reconciliações concluídas.
+
+Um único coordenador deve validar e persistir as mudanças dos lotes, mantendo
+o bloqueio exclusivo do checkpoint para toda a análise. Somente o I/O do
+provedor pode ocorrer em threads. Um lote não altera o estado de outro; cada
+evento pertence ao recorte onde começa sua unidade e páginas compartilhadas
+servem apenas como contexto. Conferir conflitos globais antes de aceitar
+registros e manter leitura de páginas inteiras, buscas e revisão inversa.
+Janelas, evidências, páginas de unidades conhecidas e pedidos de contexto
+sobrepostos exigem chamadas sequenciais. Uma ampliação pode suspender o
+paralelismo do lote até a chamada sobreposta terminar; não presume revisão
+ou independência semântica apenas pela separação das páginas.
+
+Lotes podem terminar fora da ordem de leitura. Preservar sua partição completa,
+sem lacunas nem sobreposição de alvos, e gravar/restaurar listas ordenadas por
+página. Uma retomada revalida também esses resultados e não refaz lotes já
+fechados. O resultado final deve estar em ordem documental e só pode ser
+montado quando todos os lotes e reconciliações terminarem. Nenhum lote pode
+sobrescrever o progresso salvo por outro.
+
+Após falha persistente, não despachar novas chamadas. Aguardar as já em voo,
+validar e guardar as respostas aproveitáveis antes de retornar o erro. Se o
+armazenamento ficar incerto, impedir novas promoções. Retentativas, correções,
+buscas, ampliações e falta de progresso continuam com seus orçamentos por
+lote, sem renovação por outra resposta terminar. Conferir o prazo opcional
+novamente no despacho de chamadas que aguardaram dependências; o padrão
+continua sem prazo global. Amostras internas podem ter orçamento explícito
+por lote, em cópias privadas; esse orçamento não é recebido pela rota
+operacional, não gera relatório parcial e não altera limites da aplicação.
+
+Recuperar contexto adicional em janelas de páginas inteiras, com pacote de
+dados de até 480.000 bytes UTF-8, incluindo continuidade, diagnóstico e resposta
+anterior na correção. Manter as páginas-alvo e as evidências das fichas e do
+histórico; na correção, incluir também as páginas reais citadas pelo grupo
+rejeitado. Conferir o orçamento antes de persistir uma ampliação. Guardar
+separadamente páginas solicitadas, entregues e ainda pendentes; solicitar o
+documento integral não deve obrigar seu envio numa única chamada. A entrega
+de uma janela não comprova sua revisão nem permite eliminar o restante da fila.
+Uma resposta rejeitada deve manter sua janela disponível na próxima retomada;
+um limite de saída não deve descartar pedidos de contexto já aceitos.
+
+Separar entrega histórica da presença na chamada atual. Uma página já
+entregue e ausente da janela pode ser explicitamente reenfileirada para
+releitura, sem apagar o histórico. Guardar fila e contador no checkpoint,
+com até três pedidos que acrescentem releituras desde o último avanço
+documental validado. Entregar páginas, trocar a janela técnica, retentar
+transporte ou retomar manualmente não renova esse contador nem os demais
+orçamentos. Avanço validado libera o orçamento próprio de releitura,
+conservando páginas ainda pendentes. Releituras não consomem o limite de
+ampliações para páginas novas nem autorizam encerrar revisão automaticamente.
+
+Pesquisar identificadores literalmente no Markdown integral e informar método,
+quantidade de páginas examinadas e páginas com ocorrências. Priorizar essas
+páginas e suas vizinhas, inclusive para identificadores confirmados nas fichas
+em revisão. Zero ocorrências de uma substring exata não comprova ausência
+documental ou semântica. Preservar os pedidos pendentes após falha e retomada,
+sem declarar buscas ou conferências não realizadas. Se nem uma página inteira
+com a continuidade obrigatória couber, interromper com progresso preservado.
+
+Busca conhecida reutiliza o resultado local salvo, sem nova varredura da
+fonte. Quando solicitada, reenfileirar suas páginas encontradas e vizinhas
+ausentes da chamada; não repetir as já atendidas no mesmo ciclo de releitura
+ao avançar pelas janelas de uma fila. Pedido explícito de página ausente
+permanece sujeito ao orçamento próprio de releitura. Listas vazias nos campos
+opcionais de pedido não são solicitações: validar as fichas recebidas na
+mesma resposta, exigindo os campos obrigatórios e mantendo a correção única.
+
+Buscas literais locais não consomem o limite de ampliações explícitas de
+páginas. Permitir até três pedidos que acrescentem páginas por
+`contexto_necessario` desde o último avanço validado do grupo. Novos registros,
+fichas concluídas ou avanço de cobertura/inventário reabrem esse orçamento;
+repetir achados, entregar contexto ou executar buscas não comprovam esse avanço.
+Conferir o tamanho e salvar o novo pedido antes de interromper por esse limite,
+preservando as páginas ainda pendentes na retomada. Buscas locais continuam
+limitadas a 16 termos por pedido e 256 termos por lote, com janelas técnicas
+de chamadas e timeout individual. Repetição sem nova busca, releitura admitida
+ou página pendente deve interromper. Páginas presentes na chamada não devem
+ser reenviadas apenas porque foram pedidas novamente.
+
+Antes de rejeitar um pedido de contexto, guardar em diagnóstico privado a
+resposta de transporte, o pedido, a janela efetivamente enviada, os estados
+anterior/proposto do contexto, motivo específico e vínculo à tentativa e à
+execução. Erros desse contrato são de validação de contexto, com referência
+ANV8D no histórico; o detalhe documental não é público. Falha de preservação
+é erro de armazenamento. O diagnóstico não adiciona chamadas ou gravações
+em respostas normais aceitas nem amplia o orçamento de correção.
+
+Pendências explícitas mantêm uma ficha ou inventário em aberto mesmo se o
+estado declarado pelo modelo disser `revisada`; preservar essa declaração
+sem interpretá-la como sucesso nem apagar a pendência automaticamente. A
+validação final continua exigindo revisão concluída e ausência de pendências
+técnicas. Uma busca literal bem-sucedida não substitui a conferência inversa.
+Cada grupo admite uma correção estrutural/literal, informando conjuntamente
+as falhas conhecidas dos registros daquele grupo. As chamadas são organizadas
+em janelas técnicas de até 32 solicitações por lote. Ao completar uma janela,
+recarregar e revalidar o checkpoint salvo e continuar automaticamente o mesmo
+lote, na mesma tentativa do documento, sem intervenção no painel. Manter o
+bloqueio de concorrência e os estados de correção, ausência de progresso,
+buscas e ampliações; a troca de janela não renova esses orçamentos nem promove
+páginas ou inventários a concluídos. Os diagnósticos mantêm a contagem total
+de chamadas do lote, inclusive quando houver várias janelas.
+
+Falhas de conexão, timeout individual e HTTP 408, 429, 500, 502, 503 ou 504
+admitem até três tentativas da mesma chamada: a inicial e duas novas, com
+esperas de 5 e 15 segundos. Revalidar o checkpoint antes de repetir e manter
+o mesmo pacote, incluindo diagnóstico e resposta anterior se for correção.
+Uma retentativa de transporte não concede nova correção estrutural/literal
+nem deve refazer lotes concluídos. Falha persistente após três tentativas
+termina em erro explícito com progresso preservado. Erros de crédito ou
+autorização, saída inválida, armazenamento e validação não entram nesse retry.
+
+Permanecem limites de contexto, buscas, ampliações e timeout por chamada;
+duas respostas consecutivas sem progresso interrompem a continuação
+preservando o checkpoint. O PDF final V8 só pode
+ser gerado após todas as páginas e inventários estarem efetivamente fechados
+e as verificações mecânicas passarem.
+
+Os checkpoints privados devem guardar lotes concluídos e registros já
+validados de lotes pendentes. Sua identidade inclui protocolo, hash do Markdown,
+modelo, prompt, instruções e implementação da análise. A retomada revalida o
+conteúdo contra a mesma fonte antes de reutilizá-lo. Escritas devem ser
+atômicas e sincronizadas; análises simultâneas da mesma identidade são
+bloqueadas. Corrupção ou ausência de um estado previamente registrado
+interrompe a análise com erro de armazenamento antes de nova chamada de IA.
+Mudança de identidade usa um estado separado e preserva o anterior.
+Uma migração entre implementações conhecidas exige ação explícita do operador,
+backup, análise parada, mesma fonte/protocolo/modelo/V8, bloqueio das duas
+identidades e revalidação integral do estado. Registrar a origem na nova
+identidade, manter o original e não sobrescrever outro progresso no destino.
+Não há migração automática nem seleção de checkpoint pela interface pública.
+
+O endpoint gratuito de trial da NVIDIA
+pode ser chamado somente pelo workflow manual de avaliação, separado e inativo,
+com fixture sintético sem dados reais. Esse workflow exige credencial protegida
+no n8n e valida estrutura, página e evidência do fixture; não processa uploads
+nem substitui a análise no fluxo real. Não há fallback automático entre
+provedores. A habilitação do OpenRouter exige autorização para o material
+enviado e revisão dos termos e da privacidade antes do uso operacional.
 
 ### RF-05 — Identificação regulatória
 
@@ -228,6 +500,11 @@ O workflow pode usar JSON temporário por lote para consolidar achados, páginas
 e evidências. Esse JSON não é um artefato final: a saída persistida do MVP é o
 relatório Markdown e seu PDF. A prioridade executiva do relatório representa a
 prioridade das ações, não uma medida de confiança ou certeza semântica da IA.
+
+No modo V8, o ZIP de verificação contém os controles da revisão. Respostas
+rejeitadas também são preservadas separadamente como diagnóstico privado
+previsto em RF-04, assim como os checkpoints dos lotes e grupos validados;
+não são relatórios finais nem registros de `analysis_results`.
 
 ### RF-07 — Cobertura documental e qualidade das evidências
 
@@ -309,6 +586,16 @@ opcional e configuração de destinatários. O detalhe deve permitir visualizar 
 relatório PDF e seu Markdown antes do envio. Registros antigos podem manter um
 artefato JSON por compatibilidade; o fluxo atual não o gera.
 
+Enquanto o detalhe do protocolo estiver aberto, a interface deve atualizar
+automaticamente o andamento, a etapa atual, as tentativas e os erros, incluindo
+o conteúdo de `#history`, sem exigir atualização manual da página. Novas etapas,
+falhas e a conclusão devem aparecer conforme forem registradas pelo fluxo,
+inclusive após uma retomada. A exibição deve refletir o estado persistido,
+sem antecipar sucesso nem perder o histórico das tentativas anteriores.
+As consultas automáticas não devem apagar destinatários, observações em edição
+ou a aba de visualização selecionada. Falha na consulta deve ser identificada
+como problema de atualização da tela, preservando o último estado recebido.
+
 ### RF-16 — Gateway de upload
 
 O gateway deve validar o conteúdo do arquivo, calcular SHA-256, impedir
@@ -337,7 +624,82 @@ segura em cookie. O acesso legado por token privado pode permanecer disponível
 para compatibilidade operacional, mas não deve expor o token na interface de
 login.
 
-### RF-20 — Contexto determinístico rastreável
+### RF-20 — Gerar somente Markdown em testes locais
+
+O operador pode iniciar uma interface de conversão independente em
+`127.0.0.1:18080`, enviar um PDF textual de até 100 MiB e baixar o Markdown
+completo em UTF-8. Esse modo reutiliza o conversor versionado, preserva os
+marcadores de página e o corpo extraído, informa SHA-256 do PDF e do Markdown,
+versões e avisos, e não executa OCR ou análise regulatória.
+
+O exportador deve manter os avisos também no arquivo baixado, antes das
+páginas e identificados como notas da ferramenta, não como texto do PDF.
+Metadados devem ser escapados; conteúdo documental deve ser exibido como texto,
+sem executar HTML ou instruções. Texto não extraível, falha parcial e problemas
+visíveis na extração não podem ser apresentados como ausência de informação.
+
+Esse modo não chama n8n, Ollama ou APIs externas, não usa PostgreSQL/credenciais,
+não persiste documentos no volume operacional e não altera estados ou regras
+de download do relatório final. Não possui autenticação e deve permanecer
+restrito ao loopback, sem proxy, túnel ou exposição pública. Não deve registrar
+corpo de documento em logs; arquivos temporários de upload devem ser fechados.
+
+O download é uma fonte para teste manual, não um relatório final ou documento
+processado com sucesso no fluxo principal. Compartilhar o arquivo em qualquer
+serviço externo depende de autorização para aquele conteúdo e de conferência
+dos avisos e da fonte. A aplicação não faz esse compartilhamento. A integração
+futura com a API OpenAI e a escolha de modelo não fazem parte desta entrega.
+
+Aceite específico: upload/conversão/download funcionando no navegador; hashes
+e páginas verificáveis; avisos presentes no arquivo; erro de entrada não gera
+download; nenhuma chamada de IA ou dependência da stack operacional.
+
+---
+
+### RF-21 — Retomar processamento pelo último artefato íntegro
+
+Para documentos em `erro`, o botão **Reprocessar** deve solicitar uma nova
+tentativa do mesmo protocolo, com registro do operador e preservação das
+tentativas, erros e versões anteriores. A retomada não depende de destinatários
+e não solicita envio de e-mail.
+
+Ao clicar em **Reprocessar**, a interface deve abrir uma tela de confirmação
+perguntando se o cliente deseja retomar o processamento a partir do último
+ponto salvo, com as ações **Cancelar** e **Confirmar reprocessamento**.
+Somente a confirmação explícita deve disparar a solicitação de retomada.
+Cancelar ou fechar a confirmação não deve iniciar uma tentativa nem alterar
+o estado do documento.
+
+O servidor identifica o último ponto de recuperação verificável no armazenamento:
+
+- Sem Markdown persistido: retomar pela conversão do PDF original íntegro.
+- Com Markdown paginado íntegro: reutilizar sua versão, hash, páginas e avisos;
+  continuar na análise, sem converter o PDF novamente.
+- Com relatório Markdown validado e vinculado à fonte: continuar na geração ou
+  persistência do PDF, sem nova análise. No V8, recuperar o PDF do ZIP íntegro
+  da mesma revisão; não renderizar o V8 como relatório genérico.
+- Com PDF íntegro e vinculado ao relatório: reutilizá-lo na finalização.
+
+A escolha de etapa, arquivos e versões ocorre no servidor. Caminhos enviados
+pelo navegador não podem selecionar outra fonte. Ausência, corrupção ou
+divergência de um checkpoint registrado deve produzir erro explícito;
+relatórios sem vínculo verificável não são reutilizados. Um relatório anterior
+a uma nova conversão não substitui a análise dessa nova tentativa.
+
+Solicitações simultâneas não podem iniciar duas tentativas. O documento só
+volta a `aguardando_envio` depois da persistência dos artefatos obrigatórios.
+A tentativa de e-mail usa uma ação separada. A retomada abrange artefatos
+persistidos; resultados parciais internos da IA que não foram salvos não são
+checkpoints e precisam ser refeitos a partir do Markdown.
+
+No V8, quando houver checkpoint privado compatível, a mesma retomada a partir
+do Markdown reutiliza os lotes concluídos e continua as unidades pendentes.
+O navegador continua sem escolher arquivos ou lotes. Falha posterior na
+renderização pode reutilizar toda a análise já concluída. Execuções anteriores
+à implantação desse controle, sem lotes guardados, não têm recuperação
+retroativa de seu progresso em memória.
+
+### RF-22 — Contexto determinístico rastreável
 
 Depois de persistir o Markdown paginado, o gateway deve relê-lo do armazenamento
 privado e procurar um conjunto versionado de termos regulatórios literais e
@@ -355,9 +717,10 @@ explicitar que a repetição de um identificador não prova igualdade de status.
 A varredura usa somente o Markdown persistido; ausência de um termo da lista
 de regras não prova que o documento não contenha um achado relevante.
 
-### RF-21 — Auditoria de lacunas e validação em Python
+### RF-23 — Auditoria de lacunas e validação em Python
 
-A IA deve revisar todas as páginas em lotes para propor fatos que não estejam
+No workflow híbrido v2, a IA deve revisar todas as páginas em lotes para propor
+fatos que não estejam
 representados nas observações determinísticas. Cada candidato precisa trazer
 fato, categoria, página e trecho literal. O gateway deve aceitar o candidato
 para a síntese somente se a página existir, pertencer ao lote de origem e
@@ -403,6 +766,14 @@ Um processamento só pode ser marcado como concluído quando as etapas obrigató
 O mesmo arquivo não deve gerar processamentos duplicados de forma não
 intencional. O gateway deve deduplicar pelo SHA-256 e o workflow deve usar a
 reivindicação transacional do PostgreSQL para impedir execuções concorrentes.
+
+Ao reenviar um PDF já cadastrado, a API deve identificar explicitamente que
+retornou o protocolo existente. A tela de upload deve informar que nenhum
+processamento novo foi iniciado e oferecer acesso ao detalhe desse protocolo.
+Seu status e mensagem anteriores são preservados e identificados como dados
+do protocolo existente; não apresentar o cancelamento antigo como falha do
+novo envio. Reenvio não autoriza retomada nem reinício; **Reprocessar** segue
+a confirmação e a recuperação definidas no RF-21.
 
 ### RN-08 — Registro de falhas
 
@@ -458,7 +829,7 @@ e a página de origem. A regra só confirma a ocorrência literal. Não pode inf
 deferimento, indeferimento, cancelamento, identidade de atos ou consequência
 regulatória a partir de uma palavra ou de um identificador repetido.
 
-### RN-18 — Candidatos da IA precisam de citação verificável
+### RN-18 — Candidatos da IA no fluxo híbrido precisam de citação verificável
 
 Nenhum candidato proposto pela IA pode entrar na síntese final sem passar pela
 validação Python da página e do trecho literal contra o Markdown persistido.
@@ -476,14 +847,20 @@ O ambiente deve ser executável em servidor Linux utilizando Docker.
 
 ### RNF-02 — Privacidade operacional
 
-A análise local por Ollama permanece disponível. Uma integração NVIDIA para
-documentos reais depende de licença/assinatura de produção e de termos que
-permitam o dado governamental específico; a autorização do usuário, por si só,
-não substitui essa permissão. Antes da integração, confirme retenção, uso para
-treinamento/melhoria, controles de acesso e localização do processamento. A API
-Trial gratuita usa somente fixture artificial e nunca recebe documentos,
-identificadores internos ou dados pessoais/governamentais sem permissão expressa
-do endpoint. Credenciais devem ficar no cofre n8n, nunca no export ou Git.
+A análise ocorre localmente por Ollama por padrão. Quando selecionado o modo
+OpenRouter autorizado, somente o Markdown paginado é enviado ao Terra. A
+chave não passa pelo navegador nem pelo n8n; fica no ambiente do serviço que
+chama a API. A avaliação com a
+API Trial gratuita da NVIDIA usa apenas um texto artificial fixo, sem documento
+real, identificador interno ou dado pessoal. O workflow de avaliação é manual,
+separado e inativo por padrão; sua credencial fica somente no armazenamento
+protegido do n8n. O endpoint de trial não pode ser usado para processar o PDF
+governamental recebido.
+
+A futura integração NVIDIA de produção depende das condições de licença,
+privacidade e autorização registradas no LOG.md em 26/10/2026; o Trial
+continua exclusivo para fixture sintético. Essa integração não é habilitada
+pela seleção de provedor do Anvisa V8.
 
 ### RNF-03 — Manutenibilidade
 
@@ -497,6 +874,10 @@ Falhas de integração, extração, análise e envio precisam ser identificávei
 
 Uma falha intermediária não deve obrigar o reprocessamento manual de todo o fluxo quando for tecnicamente possível retomar a partir da etapa adequada.
 
+O RF-21 define a retomada autenticada pelo painel, com validação de integridade,
+reserva exclusiva da tentativa e auditoria. O ajuste de um limite externo não
+reinicia automaticamente uma execução encerrada com erro.
+
 ### RNF-06 — Segurança
 
 Tokens, senhas, chaves e credenciais devem ser armazenados por mecanismos adequados do ambiente e nunca em arquivos públicos do repositório.
@@ -505,11 +886,25 @@ Tokens, senhas, chaves e credenciais devem ser armazenados por mecanismos adequa
 
 A conversão PDF → Markdown deve ser executada por serviço local versionado, testável e implantável via Docker, com health check, timeout e contrato HTTP interno. O serviço deve validar a estrutura do PDF com `pdfplumber`, manter leitura textual eficiente para documentos extensos e retornar avisos de layout sem ocultar falhas.
 
+### RNF-08 — Meta de desempenho sem interrupção por duração total
+
+O prazo de 90 minutos é uma meta operacional de desempenho, não um limite de
+execução ou regra para encerrar a análise. Ultrapassar essa duração não deve
+interromper um documento que continua avançando. No caminho V8, o prazo global
+fica desabilitado por padrão no renderizador e na espera HTTP do n8n.
+Permanecem timeout por chamada ao provedor, contexto/buscas, detecção de
+ausência de progresso, integridade e persistência dos checkpoints. Completar
+32 chamadas no lote aciona continuação automática; timeout ou falha temporária
+aciona as tentativas controladas do RF-04. Erros persistentes e violações das
+demais proteções continuam exigindo erro explícito com progresso preservado.
+
 ---
 
 ## 10. Modelo mínimo do relatório regulatório
 
-O relatório em Markdown deve conter as seções fixas pedidas pelo prompt ativo:
+O relatório V8 usa o título e a ordem definidos no prompt aprovado: índice
+de assunto/página de origem, resumo, fichas por categoria e pendências. As
+seções abaixo continuam válidas para o relatório executivo do Ollama:
 
 1. resumo executivo;
 2. respostas às perguntas de negócio;
@@ -592,7 +987,7 @@ Qualquer item fora desta lista de requisitos deve ser tratado como alteração d
 
 RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança
 semântica da IA não fazem parte do caminho ativo nem dos critérios de aceite do
-MVP. A leitura determinística do RF-20 é uma etapa lexical simples, não usa
+MVP. A leitura determinística do RF-22 é uma etapa lexical simples, não usa
 embeddings nem é RAG. Código, tabelas e exports relacionados a RAG ou a esquemas
 JSON históricos permanecem como capacidade opcional/legada e não são chamados
 pelo workflow atual. A prioridade executiva continua no relatório porque orienta
@@ -623,8 +1018,9 @@ O MVP poderá ser considerado entregue quando:
 4. o Markdown possuir metadados, hash e marcadores de página;
 5. o Markdown for persistido e associado ao PDF de origem;
 6. a análise usar somente o Markdown paginado persistido como fonte documental;
-7. o provedor aprovado para o ambiente processar o conteúdo; se for NVIDIA,
-   comprovar licença de produção e permissão para o tipo de dado;
+7. o provedor configurado processar o conteúdo; na opção OpenRouter, usar
+   Terra, o V8 aprovado e apenas o Markdown documental autorizado; uma futura
+   opção NVIDIA exige licença de produção e permissão para o tipo de dado;
 8. todas as páginas forem analisadas e os achados temporários forem consolidados;
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
@@ -640,6 +1036,11 @@ O MVP poderá ser considerado entregue quando:
 20. o workflow analisar todas as páginas em lotes limitados e interromper o relatório se um lote falhar;
 21. páginas e evidências literais forem conferidas automaticamente e citações inválidas forem marcadas como pendentes, sem bloquear o estado `aguardando_envio`;
 22. o relatório final puder ser baixado somente após conclusão válida.
+
+Os critérios 23–24 aplicam-se ao contexto determinístico dos ramos Ollama;
+os critérios 25–29, à auditoria do workflow híbrido v2. O modo Anvisa V8
+mantém as validações específicas do RF-04.
+
 23. um identificador repetido em páginas diferentes preservar todas as ocorrências e seus trechos, sem unir status ou atos por inferência;
 24. marcadores de página ausentes ou fora de ordem forem rejeitados pela leitura determinística, e as menções encontradas aparecerem no relatório como localizações literais, não decisões.
 25. a primeira passagem Python processar todas as páginas do Markdown salvo e registrar a versão do conjunto de regras;
@@ -688,11 +1089,11 @@ servir a uma futura capacidade opcional de RAG e à fila de candidatos, mas não
 automaticamente no treinamento supervisionado. Apenas análises corrigidas e
 aprovadas em revisão humana podem formar exemplos de treinamento.
 
-## Decisão histórica sobre o fluxo da versão v1 — 2026-10-02
+## Fluxo operacional com Ollama v1 — decisão de 2026-10-02
 
-Esta seção registra o desenho da versão v1, anterior à arquitetura híbrida
-descrita no RF-21. A v1 continua sendo a versão observada na VPS na consulta de
-26/10/2026; o export v2 híbrido permanece inativo no repositório.
+Esta seção descreve o ramo Ollama do v1, que mantém a opção Anvisa V8 em
+ramo separado. O v2 híbrido tem export próprio e aplica o RF-23. A fotografia
+da VPS de 27/10/2026 e os testes locais de novembro são estados distintos.
 
 O processamento percorre uma cadeia linear, mas analisa o documento completo em
 lotes para manter cada chamada ao modelo dentro de um limite controlado:
@@ -740,9 +1141,11 @@ Markdown persistido
   -> validação do relatório, PDF e aguardando_envio
 ```
 
-A versão local está representada em
+A implementação está representada em
 `workflows/automacao-regulatoria-internal-v2-hybrid.json` e foi criada inativa.
 O endpoint de validação usa o Markdown persistido e seu hash. Nenhum documento
 real foi usado para a alteração nem para os testes sintéticos. Essa decisão
-define o comportamento esperado do produto; não significa que o workflow já
-esteja ativo na VPS.
+aplica-se ao workflow híbrido v2; não substitui o contrato
+Anvisa V8. O registro de 27/10/2026 no LOG.md confirma a publicação do v2 na
+VPS e a reprovação de qualidade do ensaio sintético. Isso não homologa o V8
+local nem comprova o estado atual da VPS.

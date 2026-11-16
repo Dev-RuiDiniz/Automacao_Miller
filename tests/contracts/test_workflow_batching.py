@@ -69,7 +69,9 @@ def test_workflow_adds_cross_page_context_and_literal_terms_to_report() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-internal-v1.json").read_text(encoding="utf-8"))
     nodes = {node["name"]: node for node in workflow["nodes"]}
     assert "Gateway - Build deterministic context" in nodes
-    assert workflow["connections"]["State - Markdown persisted"]["main"][0][0]["node"] == "Gateway - Build deterministic context"
+    assert workflow["connections"]["State - Markdown persisted"]["main"][0][0]["node"] == "State - Analysis started"
+    assert workflow["connections"]["Use OpenRouter V8?"]["main"][0][0]["node"] == "OpenRouter - Analyze and render V8"
+    assert workflow["connections"]["Use OpenRouter V8?"]["main"][1][0]["node"] == "Gateway - Build deterministic context"
     assert workflow["connections"]["Gateway - Build deterministic context"]["main"][0][0]["node"] == "Prepare analysis batches"
     assert nodes["Gateway - Build deterministic context"]["parameters"]["url"].endswith("/deterministic-context' }}")
 

@@ -9,7 +9,9 @@ from typing import Any
 import pdfplumber
 from pypdf import PdfReader
 
-CONVERTER_VERSION = "0.3.0"
+from .reading_order import WORD_X_TOLERANCE_RATIO, extract_ordered_text
+
+CONVERTER_VERSION = "0.4.0"
 STRUCTURED_TABLE_HINTS = (
     "NOME DA EMPRESA",
     "NOME DO MEDICAMENTO",
@@ -72,6 +74,7 @@ def _page_markdown(
     extracted_text: str | None,
     pdfplumber_page: Any,
     warnings: list[str],
+    detected_tables: list[Any] | None = None,
 ) -> tuple[str, bool]:
     text = _clean_text(extracted_text or "")
 
@@ -88,7 +91,12 @@ def _page_markdown(
 
         if _should_extract_structured_tables(text):
             try:
-                tables = pdfplumber_page.extract_tables() or []
+                tables = (
+                    [table.extract(x_tolerance_ratio=WORD_X_TOLERANCE_RATIO) for table in detected_tables]
+                    if detected_tables is not None else pdfplumber_page.extract_tables(
+                        table_settings={"text_x_tolerance_ratio": WORD_X_TOLERANCE_RATIO},
+                    )
+                ) or []
             except Exception as exc:  # pragma: no cover - depends on PDF layout
                 warnings.append(
                     f"Página {page_number}: falha de detecção de tabelas: {type(exc).__name__}"
@@ -131,21 +139,55 @@ def convert_pdf_bytes(
             if len(reader.pages) != page_count:
                 raise ConversionError("INVALID_PDF", "A contagem de páginas diverge entre os leitores PDF.")
             for page_number, pdfplumber_page in enumerate(pdf.pages, start=1):
+                page_warnings: list[str] = []
                 try:
-                    extracted_text = reader.pages[page_number - 1].extract_text()
-                except Exception as exc:  # pragma: no cover - malformed page internals
-                    warnings.append(
-                        f"Página {page_number}: falha de extração textual: {type(exc).__name__}"
+                    layout_warnings: list[str] = []
+                    extracted_text, tables = extract_ordered_text(pdfplumber_page, layout_warnings)
+                    page_warnings.extend(
+                        f"Página {page_number}: {warning}" for warning in dict.fromkeys(layout_warnings)
                     )
-                    extracted_text = ""
+                except Exception as exc:  # pragma: no cover - malformed page internals
+                    reading_warning = (
+                        f"Página {page_number}: ordem de leitura espacial não reconstruída "
+                        f"({type(exc).__name__}); "
+                    )
+                    tables = None
+                    try:
+                        extracted_text = reader.pages[page_number - 1].extract_text()
+                    except Exception as exc:
+                        page_warnings.append(
+                            f"Página {page_number}: falha de extração textual: {type(exc).__name__}"
+                        )
+                        extracted_text = ""
+                    if extracted_text and extracted_text.strip():
+                        reading_warning += (
+                            "texto preservado na ordem interna do PDF. "
+                            "Confira colunas e vínculos com o original antes de analisar."
+                        )
+                    else:
+                        reading_warning += (
+                            "a extração alternativa não recuperou texto. "
+                            "Falha de leitura não significa ausência de informação no PDF."
+                        )
+                    page_warnings.append(reading_warning)
+                warnings.extend(page_warnings)
                 block, has_content = _page_markdown(
                     page_number,
                     extracted_text,
                     pdfplumber_page,
                     warnings,
+                    tables,
                 )
+                if page_warnings:
+                    marker, _, content = block.partition("\n\n")
+                    notes = "\n\n".join(
+                        f"> Aviso do conversor (não é texto do documento): {warning}"
+                        for warning in page_warnings
+                    )
+                    block = f"{marker}\n\n{notes}\n\n{content}"
                 page_blocks.append(block)
                 extractable_pages += int(has_content)
+                pdfplumber_page.close()
     except Exception as exc:
         raise ConversionError("INVALID_PDF", "Não foi possível abrir ou ler o PDF.") from exc
 

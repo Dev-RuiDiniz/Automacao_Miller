@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 
@@ -9,15 +10,29 @@ def test_remote_vps_status_is_dated_and_not_presented_as_current() -> None:
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     log = (ROOT / "LOG.md").read_text(encoding="utf-8")
 
-    assert "**Atualizado em:** 27 de outubro de 2026" in roadmap
-    assert "A última consulta da VPS foi em 26/10/2026" in roadmap
-    assert "Verificação por SSH em 26/10/2026" in roadmap
-    assert "**Estado:** homologação incompleta" in roadmap
+    # A data de manutenção pode avançar sem alterar a data histórica da VPS.
+    assert re.search(r"^\*\*Atualizado em:\*\* \d{1,2} de [a-zç]+ de \d{4}$", roadmap, re.MULTILINE)
+    assert "as últimas informações confirmadas da VPS são de 27 de outubro de 2026" in roadmap
+    assert "A VPS não foi consultada durante esta atualização" in roadmap
+    assert "Verificação por SSH, gateway e painel autenticado do n8n em 27/10/2026" in roadmap
     assert "n8n 2.30.5" in roadmap
-    assert "O banco tem 3 documentos em `aguardando_envio`, 6 em `erro` e nenhum em processamento" in roadmap
+    assert "O banco tem 10 documentos: 4 em `aguardando_envio` e 6 em `erro`" in roadmap
     assert "A senha administrativa root foi exposta anteriormente" in roadmap
     assert "A chave de API NVIDIA exposta também precisa ser revogada" in roadmap
     assert "## 2026-10-26 — Verificação e sincronização" in log
+
+
+def test_local_markdown_mode_does_not_start_operational_services() -> None:
+    compose = (ROOT / "deploy" / "markdown-local" / "compose.yml").read_text(encoding="utf-8")
+    assert "name: miller-markdown-local" in compose
+    assert re.findall(r"^  ([a-z-]+):$", compose, re.MULTILINE) == ["markdown-local"]
+    assert '"127.0.0.1:18080:8080"' in compose
+    assert "infra.pdf_converter.local_app:app" in compose
+    assert "infra/pdf_converter/Dockerfile" in compose
+    for forbidden in ("depends_on:", "volumes:", "environment:", "env_file:"):
+        assert forbidden not in compose
+    ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert {".env", ".env.*", ".aws", ".git", "tmp"} <= set(ignore)
 
 
 def test_product_docs_match_active_markdown_report_flow() -> None:
@@ -29,6 +44,9 @@ def test_product_docs_match_active_markdown_report_flow() -> None:
     assert "a saída persistida do MVP é o" in prd
     assert "RAG, embeddings, `quality_checks`, análise JSON persistida e nota de confiança" in prd
     assert "prioridade das ações, não uma medida de confiança" in prd
+    assert "A saída persistida é o relatório" in readme
+    assert "RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo" in readme
+    assert "não confiança" in readme
     assert "A leitura por regras pode deixar passar formas de escrita que não conhece" in readme
     assert "A versão híbrida ainda usa IA em todos os lotes" in readme
     assert "RAG, embeddings e treinamento de modelo estão fora do caminho ativo" in readme
@@ -58,6 +76,11 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "ARTIFACT_STORAGE_DIR" in compose
     assert "N8N_RESTRICT_FILE_ACCESS_TO" in compose
     assert "PDF_CONVERTER_TIMEOUT_SECONDS:-300" in compose
+    renderer_service = compose.split("  report-renderer:\n", 1)[1].split("\n  upload-gateway:", 1)[0]
+    assert "OPENROUTER_API_KEY:" in renderer_service
+    assert "automacao_miller_diagnostics_data:/data/diagnostics" in renderer_service
+    assert "/data/diagnostics" not in n8n_service
+    assert "OPENROUTER_API_KEY" not in n8n_service
     assert "automacao_miller_submission_data:" in compose
     assert '"${ARTIFACTS_GID:-10002}"' in compose
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
@@ -228,6 +251,32 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert workflow["connections"]["Loop Over Items"]["main"][0][0]["node"] == "Merge batch findings and prepare report"
     assert workflow["connections"]["Loop Over Items"]["main"][1][0]["node"] == "Ollama - Analyze each batch"
     assert workflow["connections"]["Ollama - Analyze each batch"]["main"][0][0]["node"] == "Loop Over Items"
+
+    edges = workflow["connections"]
+    assert edges["State - Markdown persisted"]["main"][0][0]["node"] == "State - Analysis started"
+    for stage, following in [
+        ("State - Conversion started", "Internal Storage - Read PDF"),
+        ("State - Checkpoint loading", "Gateway - Load checkpoint"),
+        ("State - Analysis started", "Select report provider"),
+        ("State - PDF preparation", "Prepare report PDF payload"),
+    ]:
+        assert edges[stage]["main"][0][0]["node"] == following
+        query = next(node for node in workflow["nodes"] if node["name"] == stage)["parameters"]["query"]
+        assert "a.execution_id" in query and "$execution.id" in query
+        assert "a.status = 'em_processamento'" in query and "d.status = 'em_processamento'" in query
+    assert [row[0]["node"] for row in edges["Use OpenRouter V8?"]["main"]] == [
+        "OpenRouter - Analyze and render V8", "Gateway - Build deterministic context",
+    ]
+    assert edges["Gateway - Build deterministic context"]["main"][0][0]["node"] == "Prepare analysis batches"
+    assert edges["Internal Storage - Write V8 bundle"]["main"][0][0]["node"] == "Prepare report Markdown file"
+    assert edges["OpenRouter - Prepare PDF"]["main"][0][0]["node"] == "Internal Storage - Write report PDF"
+    assert "OPENROUTER_API_KEY" not in json.dumps(workflow)
+    analyze = next(node for node in workflow["nodes"] if node["name"] == "OpenRouter - Analyze and render V8")
+    diagnostic_body = analyze["parameters"]["bodyParametersJson"]
+    assert "diagnostic_context:" in diagnostic_body
+    assert "submission_id: source.submission_id" in diagnostic_body
+    assert "attempt_number: Number(source.attempt_number)" in diagnostic_body
+    assert "execution_id: String($execution.id)" in diagnostic_body
 
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "status = 'aguardando_envio'" in report_state["parameters"]["query"]

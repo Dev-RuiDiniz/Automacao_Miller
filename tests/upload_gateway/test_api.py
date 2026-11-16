@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 
@@ -86,6 +87,25 @@ def test_upload_returns_protocol_and_status(tmp_path: Path) -> None:
     assert status.json()["submission_id"] == body["submission_id"]
 
 
+def test_detail_exposes_persisted_stage_without_changing_attempt_history(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    item = client.post("/api/v1/submissions", headers=headers,
+                       files={"file": ("sintetico.pdf", b"%PDF-1.7 progresso", "application/pdf")}).json()
+    submission_id = item["submission_id"]
+    assert item["current_stage"] == "recebido"
+    history = [{"attempt_number": 1, "status": "erro", "current_stage": "analise_markdown"}]
+    gateway.store.attempts[submission_id] = history
+    for stage in ["recuperando_checkpoint", "convertendo_pdf", "analise_markdown", "preparando_pdf", "relatorio_pronto"]:
+        gateway.store.update(submission_id, current_stage=stage)
+        response = client.get(f"/api/v1/submissions/{submission_id}", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["current_stage"] == stage
+        assert response.json()["submission"]["current_stage"] == stage
+        assert response.json()["attempts"] == history
+    assert len(gateway.store.attempts[submission_id]) == 1
+
+
 def test_upload_rejects_non_pdf_and_oversized_pdf(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path)
     headers = {"X-Landing-Token": "landing-test"}
@@ -104,7 +124,40 @@ def test_duplicate_hash_returns_existing_protocol(tmp_path: Path) -> None:
     second = client.post("/api/v1/submissions", headers=headers, files=payload)
     assert first.status_code == 202
     assert second.status_code == 200
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is True
     assert second.json()["submission_id"] == first.json()["submission_id"]
+
+
+def test_duplicate_of_interrupted_document_preserves_history_without_dispatch(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    payload = {"file": ("a.pdf", b"%PDF-1.7 mesmo documento", "application/pdf")}
+    first = client.post('/api/v1/submissions', headers=headers, files=payload).json()
+    sid = first['submission_id']
+    message = 'Processamento interrompido a pedido do usuário; progresso salvo preservado.'
+    gateway.store.update(sid, status='erro', message=message)
+    gateway.store.attempts[sid] = [{'attempt_number': 1, 'status': 'erro'}]
+    monkeypatch.setenv('N8N_SUBMISSION_WEBHOOK_URL', 'http://n8n-ficticio.test/webhook')
+
+    async def forbidden(*args, **kwargs):
+        raise AssertionError('Upload duplicado não deve despachar processamento.')
+
+    monkeypatch.setattr(gateway.httpx.AsyncClient, 'post', forbidden)
+    response = client.post('/api/v1/submissions', headers=headers, files=payload)
+    assert response.status_code == 200
+    assert response.json()['duplicate'] is True
+    assert response.json()['submission_id'] == sid
+    assert response.json()['message'] == message and response.json()['status'] == 'erro'
+    assert len(gateway.store.attempts[sid]) == 1 and len(gateway.store.items) == 1
+
+
+def test_duplicate_without_existing_protocol_does_not_return_unregistered_id(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    monkeypatch.setattr(gateway.store, 'create', lambda *_: None)
+    result = client.post('/api/v1/submissions', headers={"X-Landing-Token": "landing-test"},
+                         files={"file": ('a.pdf', b'%PDF-1.7 teste', 'application/pdf')})
+    assert result.status_code == 503 and 'protocolo' in result.json()['detail']
 
 
 def test_report_is_only_available_after_completion(tmp_path: Path) -> None:
@@ -218,6 +271,224 @@ def test_internal_report_validation_checks_source_evidence_and_coverage(tmp_path
     )
     assert incomplete.status_code == 200
     assert incomplete.json()["coverage"]["complete"] is False
+
+
+def test_deterministic_context_requires_internal_token_and_reads_saved_markdown(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    markdown = "## Página 1\nProcesso 25351.123456/2024-78 deferido.\n## Página 2\nProcesso 25351.123456/2024-78 cancelado."
+    markdown_path = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    markdown_path.parent.mkdir(parents=True)
+    markdown_path.write_text(markdown, encoding="utf-8")
+    gateway.store.artifacts[submission_id].append({
+        "artifact_id": 2,
+        "artifact_type": "markdown",
+        "version": 1,
+        "storage_key": str(markdown_path.relative_to(tmp_path)).replace("\\", "/"),
+        "sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "size_bytes": markdown_path.stat().st_size,
+        "mime_type": "text/markdown",
+        "created_at": gateway.now(),
+    })
+
+    url = f"/internal/submissions/{submission_id}/deterministic-context"
+    denied = client.post(url)
+    response = client.post(url, headers={"X-Internal-Token": "internal-test"})
+
+    assert denied.status_code == 403
+    assert response.status_code == 200
+    assert response.json()["page_count"] == 2
+    assert response.json()["source_markdown_sha256"]
+    assert response.json()["cross_page_links"][0]["pages"] == [1, 2]
+
+
+def test_ai_audit_validation_reads_persisted_markdown_and_rejects_unmatched_quotes(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    markdown = "## Página 1\nAto publicado: produto A deferido.\n## Página 2\nExigência do produto B."
+    markdown_path = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    markdown_path.parent.mkdir(parents=True)
+    markdown_path.write_text(markdown, encoding="utf-8")
+    gateway.store.artifacts[submission_id].append({
+        "artifact_id": 2,
+        "artifact_type": "markdown",
+        "version": 1,
+        "storage_key": str(markdown_path.relative_to(tmp_path)).replace("\\", "/"),
+        "sha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "size_bytes": markdown_path.stat().st_size,
+        "mime_type": "text/markdown",
+        "created_at": gateway.now(),
+    })
+    payload = {
+        "candidates": [
+            {"fato": "O produto A foi deferido.", "pagina": 1, "evidencia": "produto A deferido", "lote_paginas": [1]},
+            {"fato": "O produto C foi aprovado.", "pagina": 1, "evidencia": "produto C aprovado", "lote_paginas": [1]},
+        ],
+    }
+    url = f"/internal/submissions/{submission_id}/validate-ai-audit"
+
+    denied = client.post(url, json=payload)
+    response = client.post(url, headers={"X-Internal-Token": "internal-test"}, json=payload)
+
+    assert denied.status_code == 403
+    assert response.status_code == 200
+    assert response.json()["validated_count"] == 1
+    assert response.json()["pending_count"] == 1
+    assert response.json()["validated_candidates"][0]["evidencia"] == "produto A deferido"
+    assert response.json()["pending_candidates"][0]["reason"] == "evidência não localizada na página indicada"
+
+
+def test_ai_audit_validation_rejects_changed_markdown_hash(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    markdown = "## Página 1\nAto deferido."
+    markdown_path = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    markdown_path.parent.mkdir(parents=True)
+    markdown_path.write_text(markdown, encoding="utf-8")
+    gateway.store.artifacts[submission_id].append({
+        "artifact_id": 2,
+        "artifact_type": "markdown",
+        "version": 1,
+        "storage_key": str(markdown_path.relative_to(tmp_path)).replace("\\", "/"),
+        "sha256": "a" * 64,
+        "size_bytes": markdown_path.stat().st_size,
+        "mime_type": "text/markdown",
+        "created_at": gateway.now(),
+    })
+
+    response = client.post(
+        f"/internal/submissions/{submission_id}/validate-ai-audit",
+        headers={"X-Internal-Token": "internal-test"},
+        json={"candidates": []},
+    )
+
+    assert response.status_code == 409
+
+
+def test_deterministic_context_rejects_changed_markdown_hash(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    markdown = "## Página 1\nMedicamento deferido."
+    markdown_path = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    markdown_path.parent.mkdir(parents=True)
+    markdown_path.write_text(markdown, encoding="utf-8")
+    gateway.store.artifacts[submission_id].append({
+        "artifact_id": 2,
+        "artifact_type": "markdown",
+        "version": 1,
+        "storage_key": str(markdown_path.relative_to(tmp_path)).replace("\\", "/"),
+        "sha256": "a" * 64,
+        "size_bytes": markdown_path.stat().st_size,
+        "mime_type": "text/markdown",
+        "created_at": gateway.now(),
+    })
+
+    response = client.post(
+        f"/internal/submissions/{submission_id}/deterministic-context",
+        headers={"X-Internal-Token": "internal-test"},
+    )
+
+    assert response.status_code == 409
+
+
+def test_deterministic_context_rejects_missing_markdown_hash(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    markdown_path = tmp_path / "objects" / "aa" / "bb" / "markdown-v1.md"
+    markdown_path.parent.mkdir(parents=True)
+    markdown_path.write_text("## Página 1\nPrazo de manifestação.", encoding="utf-8")
+    gateway.store.artifacts[submission_id].append({
+        "artifact_id": 2,
+        "artifact_type": "markdown",
+        "version": 1,
+        "storage_key": str(markdown_path.relative_to(tmp_path)).replace("\\", "/"),
+        "sha256": "",
+        "size_bytes": markdown_path.stat().st_size,
+        "mime_type": "text/markdown",
+        "created_at": gateway.now(),
+    })
+
+    response = client.post(
+        f"/internal/submissions/{submission_id}/deterministic-context",
+        headers={"X-Internal-Token": "internal-test"},
+    )
+
+    assert response.status_code == 409
+    assert "ausente ou inválido" in response.json()["detail"]
+
+
+def test_deterministic_context_uses_latest_markdown_version(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+    submission_id = created["submission_id"]
+    paths = [tmp_path / "objects" / "aa" / "bb" / f"markdown-v{version}.md" for version in (1, 2)]
+    contents = ["## Página 1\nPrazo antigo.", "## Página 1\nPrazo atualizado."]
+    for version, (path, content) in enumerate(zip(paths, contents, strict=True), start=1):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        gateway.store.artifacts[submission_id].append({
+            "artifact_id": version + 1,
+            "artifact_type": "markdown",
+            "version": version,
+            "storage_key": str(path.relative_to(tmp_path)).replace("\\", "/"),
+            "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "size_bytes": path.stat().st_size,
+            "mime_type": "text/markdown",
+            "created_at": gateway.now(),
+        })
+
+    response = client.post(
+        f"/internal/submissions/{submission_id}/deterministic-context",
+        headers={"X-Internal-Token": "internal-test"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["anchors"][0]["evidence"] == "Prazo atualizado."
+
+
+def test_deterministic_context_requires_persisted_markdown(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    created = client.post(
+        "/api/v1/submissions",
+        headers={"X-Landing-Token": "landing-test"},
+        files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")},
+    ).json()
+
+    response = client.post(
+        f"/internal/submissions/{created['submission_id']}/deterministic-context",
+        headers={"X-Internal-Token": "internal-test"},
+    )
+
+    assert response.status_code == 409
 
 
 def test_operational_pages_require_session_or_private_token(tmp_path: Path) -> None:

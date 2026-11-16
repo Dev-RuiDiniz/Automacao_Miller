@@ -1,4 +1,6 @@
 # Prompt/contrato de extração regulatória v1
+> Versão histórica: não é o prompt ativo. O fluxo vigente usa prompts/regulatory-extraction-v5.md. Não selecione esta versão no workflow atual sem decisão registrada no LOG.md.
+
 
 ## Regra de entrada
 

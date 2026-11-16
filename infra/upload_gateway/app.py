@@ -9,6 +9,7 @@ import json
 import os
 import secrets
 import time
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -23,8 +24,10 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 
 from infra.upload_gateway.storage import original_key, resolve_storage_key, storage_root
+from infra.upload_gateway.checkpoints import CheckpointError, LABELS, load_checkpoint
+from infra.regulatory_analysis.deterministic_context import build_deterministic_context
 from infra.regulatory_analysis.quality import validate_analysis
-from infra.regulatory_analysis.report_validation import validate_report_references
+from infra.regulatory_analysis.report_validation import validate_ai_audit_candidates, validate_report_references
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
 STATUSES = {"recebido", "processando", "aguardando_revisao", "aguardando_envio", "concluido", "erro"}
@@ -50,6 +53,7 @@ class Submission:
     message: str | None
     created_at: str
     updated_at: str
+    current_stage: str = "recebido"
 
 
 class SubmissionStore(Protocol):
@@ -72,6 +76,7 @@ class InMemoryStore:
         self.document_recipients: dict[str, list[str]] = {}
         self.deliveries: dict[int, dict[str, Any]] = {}
         self.next_id = 1
+        self.resume_lock = threading.RLock()
 
     def initialize(self) -> None:
         return None
@@ -95,6 +100,27 @@ class InMemoryStore:
 
     def get(self, submission_id: str) -> Submission | None:
         return self.items.get(submission_id)
+
+    def checkpoint_artifacts(self, submission_id: str) -> list[dict[str, Any]]:
+        return self.artifacts.get(submission_id, [])
+
+    def request_processing_resume(self, submission_id: str, actor: str, stage: str, expected_updated_at: str) -> None:
+        with self.resume_lock:
+            item = self.get(submission_id)
+            if item is None:
+                raise KeyError(submission_id)
+            if item.status != "erro" or item.updated_at != expected_updated_at or any(a["status"] == "em_processamento" for a in self.attempts.get(submission_id, [])):
+                raise ValueError("processamento_em_andamento")
+            if any(d["submission_id"] == submission_id and d["status"] in {"solicitado", "enviando"} for d in self.deliveries.values()):
+                raise ValueError("envio_em_andamento")
+            self.add_review(submission_id, "reprocessamento_autorizado", "Retomada a partir de " + LABELS[stage] + ".", actor)
+            self.update(submission_id, current_stage="retomada_solicitada", message="Retomada solicitada a partir de " + LABELS[stage] + ".")
+
+    def fail_processing_dispatch(self, submission_id: str) -> None:
+        with self.resume_lock:
+            item = self.get(submission_id)
+            if item and item.status == "recebido" and getattr(item, "current_stage", "") == "retomada_solicitada":
+                self.update(submission_id, status="erro", message="Falha ao iniciar a retomada. Tente novamente.")
 
     def find_by_hash(self, sha256: str) -> Submission | None:
         return next((item for item in self.items.values() if item.sha256 == sha256), None)
@@ -296,7 +322,7 @@ class PostgresStore:
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (source_sha256) DO NOTHING
                     RETURNING submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key,
-                              report_storage_key, message, created_at, updated_at
+                              report_storage_key, message, created_at, updated_at, current_stage
                     """,
                     (
                         submission.submission_id,
@@ -328,10 +354,38 @@ class PostgresStore:
     def get(self, submission_id: str) -> Submission | None:
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute(
-                "SELECT submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at FROM automacao_miller.documents WHERE submission_id = %s",
+                "SELECT submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at, current_stage FROM automacao_miller.documents WHERE submission_id = %s",
                 (submission_id,),
             ).fetchone()
         return self._row(row)
+
+    def checkpoint_artifacts(self, submission_id: str) -> list[dict[str, Any]]:
+        with psycopg.connect(self.database_url) as connection:
+            rows = connection.execute(
+                "SELECT artifact_id, artifact_type, version, storage_key, sha256, size_bytes, metadata FROM automacao_miller.artifacts WHERE submission_id = %s ORDER BY version DESC",
+                (submission_id,),
+            ).fetchall()
+        return [dict(zip(("artifact_id", "artifact_type", "version", "storage_key", "sha256", "size_bytes", "metadata"), row)) for row in rows]
+
+    def request_processing_resume(self, submission_id: str, actor: str, stage: str, expected_updated_at: str) -> None:
+        with psycopg.connect(self.database_url) as connection:
+            row = connection.execute("SELECT status, updated_at FROM automacao_miller.documents WHERE submission_id = %s FOR UPDATE", (submission_id,)).fetchone()
+            if row is None:
+                raise KeyError(submission_id)
+            active = connection.execute("SELECT 1 FROM automacao_miller.processing_attempts WHERE submission_id = %s AND status = 'em_processamento' LIMIT 1", (submission_id,)).fetchone()
+            pending_delivery = connection.execute("SELECT 1 FROM automacao_miller.email_deliveries WHERE submission_id = %s AND status IN ('solicitado', 'enviando') LIMIT 1", (submission_id,)).fetchone()
+            if row[0] != "erro" or row[1] != datetime.fromisoformat(expected_updated_at) or active or pending_delivery:
+                raise ValueError("operacao_em_andamento")
+            note = "Retomada a partir de " + LABELS[stage] + "."
+            connection.execute(
+                "INSERT INTO automacao_miller.human_reviews (submission_id, reason, decision, reviewer, notes, reviewed_at) VALUES (%s, 'retomada de processamento', 'reprocessamento_autorizado', %s, %s, NOW())",
+                (submission_id, actor, note),
+            )
+            connection.execute("UPDATE automacao_miller.documents SET status = 'recebido', current_stage = 'retomada_solicitada', message = %s, updated_at = NOW() WHERE submission_id = %s", (note, submission_id))
+
+    def fail_processing_dispatch(self, submission_id: str) -> None:
+        with psycopg.connect(self.database_url) as connection:
+            connection.execute("UPDATE automacao_miller.documents SET status = 'erro', message = 'Falha ao iniciar a retomada. Tente novamente.', updated_at = NOW() WHERE submission_id = %s AND status = 'recebido' AND current_stage = 'retomada_solicitada'", (submission_id,))
 
     def list_documents(self, query: str = "", status: str | None = None, page: int = 1, page_size: int = 25, date_from: str | None = None, date_to: str | None = None) -> tuple[list[Submission], int]:
         conditions = ["TRUE"]
@@ -352,7 +406,7 @@ class PostgresStore:
         params.extend([page_size, offset])
         sql = f"""
             SELECT submission_id, source_filename, source_sha256, size_bytes, status,
-                   source_storage_key, report_storage_key, message, created_at, updated_at,
+                   source_storage_key, report_storage_key, message, created_at, updated_at, current_stage,
                    COUNT(*) OVER() AS total_count
             FROM automacao_miller.documents
             WHERE {' AND '.join(conditions)}
@@ -361,8 +415,8 @@ class PostgresStore:
         """
         with psycopg.connect(self.database_url) as connection:
             rows = connection.execute(sql, params).fetchall()
-        total = int(rows[0][10]) if rows else 0
-        return [self._row(row[:10]) for row in rows if self._row(row[:10])], total
+        total = int(rows[0][11]) if rows else 0
+        return [self._row(row[:11]) for row in rows if self._row(row[:11])], total
 
     def detail(self, submission_id: str) -> dict[str, Any]:
         item = self.get(submission_id)
@@ -479,7 +533,7 @@ class PostgresStore:
     def find_by_hash(self, sha256: str) -> Submission | None:
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute(
-                "SELECT submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at FROM automacao_miller.documents WHERE source_sha256 = %s",
+                "SELECT submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at, current_stage FROM automacao_miller.documents WHERE source_sha256 = %s",
                 (sha256,),
             ).fetchone()
         return self._row(row)
@@ -492,7 +546,7 @@ class PostgresStore:
         values = [*changes.values(), submission_id]
         with psycopg.connect(self.database_url) as connection:
             row = connection.execute(
-                f"UPDATE automacao_miller.documents SET {assignments} WHERE submission_id = %s RETURNING submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at",
+                f"UPDATE automacao_miller.documents SET {assignments} WHERE submission_id = %s RETURNING submission_id, source_filename, source_sha256, size_bytes, status, source_storage_key, report_storage_key, message, created_at, updated_at, current_stage",
                 values,
             ).fetchone()
         return self._row(row)
@@ -707,6 +761,7 @@ def public_submission(item: Submission) -> dict[str, Any]:
     return {
         "submission_id": item.submission_id,
         "status": item.status,
+        "current_stage": item.current_stage,
         "filename": item.filename,
         "sha256": item.sha256,
         "size_bytes": item.size_bytes,
@@ -831,7 +886,9 @@ async def create_submission(file: UploadFile = File(...)) -> JSONResponse:
         existing = store.find_by_hash(item.sha256)
         if existing and existing.source_key != source_key:
             source_path.unlink(missing_ok=True)
-        return JSONResponse(status_code=200, content=public_submission(existing) if existing else {"submission_id": submission_id, "status": "recebido"})
+        if existing is None:
+            raise HTTPException(status_code=503, detail="Não foi possível localizar o protocolo já cadastrado. Tente novamente.")
+        return JSONResponse(status_code=200, content={**public_submission(existing), "duplicate": True})
 
     webhook = settings()["n8n_webhook_url"]
     if webhook:
@@ -843,7 +900,7 @@ async def create_submission(file: UploadFile = File(...)) -> JSONResponse:
         except httpx.HTTPError:
             store.update(submission_id, status="recebido", message="Aguardando despacho para o n8n.")
 
-    return JSONResponse(status_code=202, content=public_submission(store.get(submission_id) or item))
+    return JSONResponse(status_code=202, content={**public_submission(store.get(submission_id) or item), "duplicate": False})
 
 
 @app.get("/api/v1/submissions", dependencies=[Depends(require_landing_access)])
@@ -870,6 +927,68 @@ def list_artifacts(submission_id: str) -> dict[str, Any]:
     if item is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
     return {"items": store.detail(submission_id)["artifacts"]}
+
+
+def processing_checkpoint(submission_id: str) -> dict[str, Any]:
+    item = store.get(submission_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    try:
+        return load_checkpoint(item, store.checkpoint_artifacts(submission_id))
+    except CheckpointError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+
+
+@app.get("/api/v1/submissions/{submission_id}/resume", dependencies=[Depends(require_landing_access)])
+def resume_preview(submission_id: str) -> dict[str, str]:
+    item = store.get(submission_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    if item.status != "erro":
+        raise HTTPException(status_code=409, detail="A retomada está disponível somente para documentos com erro.")
+    checkpoint = processing_checkpoint(submission_id)
+    return {"stage": checkpoint["resume_stage"], "label": LABELS[checkpoint["resume_stage"]]}
+
+
+@app.post("/api/v1/submissions/{submission_id}/reprocess", status_code=202, dependencies=[Depends(require_landing_access)])
+def resume_processing(submission_id: str, request: Request) -> JSONResponse:
+    item = store.get(submission_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    expected_updated_at = item.updated_at
+    preview = resume_preview(submission_id)
+    if not settings()["n8n_webhook_url"]:
+        raise HTTPException(status_code=503, detail="O processamento ainda não foi configurado.")
+    try:
+        store.request_processing_resume(submission_id, actor_for(request), preview["stage"], expected_updated_at)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from None
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Já existe uma operação em andamento ou o documento não está mais em erro.") from None
+    try:
+        dispatch_webhook(settings()["n8n_webhook_url"], {"submission_id": submission_id, "source": "processing_resume"})
+    except HTTPException:
+        store.fail_processing_dispatch(submission_id)
+        if store.get(submission_id).status == "erro":
+            raise
+    return JSONResponse(status_code=202, content={"submission": public_submission(store.get(submission_id)), "resumed_from": preview})
+
+
+@app.post("/internal/submissions/{submission_id}/resume-context", dependencies=[Depends(require_internal_access)])
+def resume_context(submission_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    item = store.get(submission_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    attempts = store.detail(submission_id)["attempts"]
+    if (type(payload.get("attempt_number")) is not int or not isinstance(payload.get("execution_id"), str)
+            or not payload["execution_id"] or item.status != "em_processamento") or not any(
+        a["status"] == "em_processamento" and a["attempt_number"] == payload.get("attempt_number")
+        and a["execution_id"] == payload.get("execution_id") for a in attempts
+    ):
+        raise HTTPException(status_code=409, detail="A tentativa de retomada não está ativa.")
+    checkpoint = processing_checkpoint(submission_id)
+    checkpoint["attempt_number"] = payload["attempt_number"]
+    return checkpoint
 
 
 @app.get("/api/v1/submissions/{submission_id}/artifacts/{artifact_type}", dependencies=[Depends(require_landing_access)])
@@ -1045,7 +1164,8 @@ def validate_submission_report(submission_id: str, payload: dict[str, Any]) -> d
         detail = store.detail(submission_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
-    artifact = next((item for item in detail["artifacts"] if item["artifact_type"] == "markdown"), None)
+    markdown_artifacts = [item for item in detail["artifacts"] if item["artifact_type"] == "markdown"]
+    artifact = max(markdown_artifacts, key=lambda item: int(item.get("version", 0)), default=None)
     if artifact is None:
         raise HTTPException(status_code=409, detail="Markdown original ainda não foi persistido.")
     try:
@@ -1059,6 +1179,77 @@ def validate_submission_report(submission_id: str, payload: dict[str, Any]) -> d
     except (OSError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=422, detail="Markdown original não pôde ser lido.") from exc
     return validate_report_references(report_markdown, source_markdown, pages_processed)
+
+
+@app.post("/internal/submissions/{submission_id}/deterministic-context", dependencies=[Depends(require_internal_access)])
+def deterministic_submission_context(submission_id: str) -> dict[str, Any]:
+    if store.get(submission_id) is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    try:
+        detail = store.detail(submission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
+    markdown_artifacts = [item for item in detail["artifacts"] if item["artifact_type"] == "markdown"]
+    artifact = max(markdown_artifacts, key=lambda item: int(item.get("version", 0)), default=None)
+    if artifact is None:
+        raise HTTPException(status_code=409, detail="Markdown original ainda não foi persistido.")
+    try:
+        markdown_path = resolve_storage_key(artifact["storage_key"])
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.") from exc
+    if not markdown_path.is_file():
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.")
+    try:
+        markdown = markdown_path.read_text(encoding="utf-8")
+        context = build_deterministic_context(markdown)
+        expected_sha256 = str(artifact.get("sha256") or "").lower()
+        if len(expected_sha256) != 64 or any(character not in "0123456789abcdef" for character in expected_sha256):
+            raise HTTPException(status_code=409, detail="Hash do Markdown persistido ausente ou inválido.")
+        if context["source_markdown_sha256"] != expected_sha256:
+            raise HTTPException(status_code=409, detail="Hash do Markdown persistido não confere.")
+        return context
+    except (OSError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="Markdown original não pôde ser lido.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/internal/submissions/{submission_id}/validate-ai-audit", dependencies=[Depends(require_internal_access)])
+def validate_submission_ai_audit(submission_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if store.get(submission_id) is None:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list):
+        raise HTTPException(status_code=422, detail="candidates precisa ser uma lista.")
+    try:
+        detail = store.detail(submission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
+    markdown_artifacts = [item for item in detail["artifacts"] if item["artifact_type"] == "markdown"]
+    artifact = max(markdown_artifacts, key=lambda item: int(item.get("version", 0)), default=None)
+    if artifact is None:
+        raise HTTPException(status_code=409, detail="Markdown original ainda não foi persistido.")
+    try:
+        markdown_path = resolve_storage_key(artifact["storage_key"])
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.") from exc
+    if not markdown_path.is_file():
+        raise HTTPException(status_code=404, detail="Markdown original não encontrado.")
+    try:
+        source_markdown = markdown_path.read_text(encoding="utf-8")
+        context = build_deterministic_context(source_markdown)
+        expected_sha256 = str(artifact.get("sha256") or "").lower()
+        if context["source_markdown_sha256"] != expected_sha256:
+            raise HTTPException(status_code=409, detail="Hash do Markdown persistido não confere.")
+        return {
+            "submission_id": submission_id,
+            "source_markdown_sha256": expected_sha256,
+            **validate_ai_audit_candidates(candidates, source_markdown),
+        }
+    except (OSError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="Markdown original não pôde ser lido.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/internal/submissions/{submission_id}/status", dependencies=[Depends(require_internal_access)])

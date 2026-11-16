@@ -4,6 +4,11 @@ Este roteiro valida a stack desde o recebimento do PDF até a criação do relat
 Markdown/PDF. O teste termina em `aguardando_envio`. O fluxo de envio e a
 reconciliação ficam inativos; nenhum e-mail real é enviado.
 
+Este guia cobre a rota local com Ollama. Ele não testa o modo Anvisa V8 via
+OpenRouter nem a retomada dos checkpoints V8. Para essa configuração isolada,
+use [o guia da stack completa local](../deploy/full-local/README.md). Nenhum dos
+dois roteiros altera ou comprova o estado da VPS.
+
 ## O que precisa estar instalado
 
 - Docker Desktop iniciado e com recursos suficientes. O perfil padrão tem

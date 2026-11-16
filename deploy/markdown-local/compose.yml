@@ -1,0 +1,25 @@
+name: miller-markdown-local
+
+services:
+  markdown-local:
+    build:
+      context: ../..
+      dockerfile: infra/pdf_converter/Dockerfile
+    command:
+      - uvicorn
+      - infra.pdf_converter.local_app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --no-access-log
+    ports:
+      - "127.0.0.1:18080:8080"
+    mem_limit: 512m
+    cpus: 2
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Sem banco, IA, credenciais ou volumes de documentos do ambiente operacional.

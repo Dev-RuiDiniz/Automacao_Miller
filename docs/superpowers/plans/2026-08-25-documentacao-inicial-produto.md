@@ -1,4 +1,6 @@
 # Documentação Inicial do Produto — Plano de Implementação
+> Plano histórico de documentação inicial, concluído em 2026-08-25. Para o estado e as instruções atuais, consulte os documentos da raiz do repositório.
+
 
 > **Para agentes:** executar as etapas em ordem, validando o diff antes do commit.
 

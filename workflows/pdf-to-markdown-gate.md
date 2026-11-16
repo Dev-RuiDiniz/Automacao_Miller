@@ -1,52 +1,35 @@
-# Gate n8n: PDF → Markdown
+# Gate n8n: PDF → Markdown no fluxo atual
 
-Este documento define a sequência obrigatória do workflow até a disponibilização do Markdown para a análise.
+Este documento descreve a etapa entre o upload pela landing e o início da análise. O Google Drive não participa deste fluxo.
 
 ## Sequência
 
-1. Google Drive baixa o PDF e preserva o ID do arquivo.
-2. O nó HTTP Request chama `POST {{$env.PDF_CONVERTER_BASE_URL}}/v1/convert`.
-3. O arquivo binário é enviado no campo `file`.
-4. `source_document_id` recebe o ID do arquivo no Drive.
-5. O workflow valida:
-   - `status == "converted"`;
-   - `markdown` não vazio;
-   - `metadata.source_sha256` presente;
-   - `metadata.page_count` maior que zero.
-6. O Markdown é salvo na pasta configurada em `GOOGLE_DRIVE_MARKDOWN_FOLDER_ID`.
-7. O próximo nó recebe o Markdown persistido e não o PDF original.
-8. Qualquer falha segue para o caminho de erro/revisão, sem chamar o Ollama e sem marcar o documento como concluído.
+1. A pessoa autorizada envia um PDF pela landing.
+2. O gateway valida o arquivo, calcula o SHA-256, evita duplicação acidental e grava o original no volume privado.
+3. O gateway cria o protocolo e o registro inicial no PostgreSQL.
+4. O gateway chama o webhook interno do n8n com o protocolo.
+5. O n8n reserva o documento no PostgreSQL. Se outra execução já o reservou, encerra sem iniciar um segundo processamento.
+6. O n8n lê o PDF do volume privado e chama POST /v1/convert no conversor local.
+7. O campo file recebe o PDF. O campo source_document_id recebe o protocolo interno da landing; ele não é um ID do Google Drive.
+8. O workflow confirma que status é converted, que o Markdown não está vazio, que o SHA-256 existe e que a contagem de páginas é maior que zero.
+9. O workflow guarda o Markdown paginado no volume privado e registra o artefato no PostgreSQL.
+10. Só depois da persistência do Markdown o n8n inicia a análise pelo Ollama.
 
-## Contrato de dados entre nós
+## Contrato do conversor
 
-```json
-{
-  "source_document_id": "id-do-drive",
-  "source_filename": "documento.pdf",
-  "markdown_file_name": "documento.md",
-  "markdown": "conteúdo convertido",
-  "source_sha256": "hash-do-pdf",
-  "page_count": 128,
-  "converter_version": "0.3.0",
-  "warnings": []
-}
-```
+A resposta inclui status, Markdown, nome de origem, SHA-256 do PDF, SHA-256 do Markdown, quantidade de páginas, versão do conversor e avisos de layout. O Markdown contém metadados e um marcador de página para todas as páginas. Uma página sem texto recebe uma indicação de conteúdo não extraível; o documento inteiro falha se nenhuma página tiver conteúdo textual.
 
-O conversor valida a estrutura com `pdfplumber` e usa a extração textual por
-palavras do `pypdf` para manter tempo previsível em DOU extensos. Quando o
-texto indicar uma possível tabela, ele é preservado em bloco Markdown e um
-aviso de layout acompanha o resultado; a reconstrução geométrica não pode ser
-tratada como garantida.
+O conversor não faz OCR. Se o arquivo for inválido, não tiver texto extraível ou não puder ser lido, a análise não começa. Uma possível tabela pode gerar um aviso se não for possível reconstruir sua geometria com segurança.
 
-## Regras de erro
+## Tratamento de falhas
 
-| Situação | Destino | Chama Ollama? | Concluído? |
-|---|---|---:|---:|
-| Conversão bem-sucedida | Persistência e extração | Sim, após persistência | Somente no fim |
-| PDF inválido | Erro técnico | Não | Não |
-| PDF sem camada textual | Erro/revisão | Não | Não |
-| Markdown vazio | Erro técnico | Não | Não |
-| Falha ao salvar Markdown | Erro de armazenamento | Não | Não |
-| Avisos de layout | Extração com revisão conforme confiança | Sim | Conforme validação |
+| Situação | Resultado |
+|---|---|
+| Upload inválido | Rejeitar a entrada e mostrar o erro ao usuário |
+| PDF duplicado | Retornar o protocolo existente sem criar processamento concorrente |
+| Conversor falha ou retorna Markdown vazio | Registrar erro de extração; não chamar o Ollama |
+| Markdown não pode ser persistido | Registrar erro de armazenamento; não chamar o Ollama |
+| Conversão válida com aviso de layout | Preservar o aviso e continuar com a limitação explícita |
+| Lote do Ollama falha ou cobertura fica incompleta | Interromper o relatório; não apresentar resultado parcial como completo |
 
-Nenhum ID de credencial deve ser versionado neste arquivo. A configuração das credenciais Google permanece dentro do n8n.
+Falhas devem seguir o workflow de erro e permanecer ligadas ao protocolo. Não transforme falha técnica em “informação não localizada”.

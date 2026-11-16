@@ -40,6 +40,67 @@ def _check_reference(page: int | None, evidence: str, pages: dict[int, str]) -> 
     return item
 
 
+def validate_ai_audit_candidates(
+    candidates: Any,
+    source_markdown: str,
+) -> dict[str, Any]:
+    """Aceita candidatos da IA somente quando página e citação existem na fonte salva."""
+    pages = source_pages(source_markdown)
+    validated: list[dict[str, Any]] = []
+    pending: list[dict[str, Any]] = []
+    seen: set[tuple[int, str]] = set()
+
+    for index, candidate in enumerate(candidates if isinstance(candidates, list) else []):
+        if not isinstance(candidate, dict):
+            pending.append({"index": index, "reason": "candidato não é um objeto JSON"})
+            continue
+
+        page = candidate.get("pagina")
+        evidence = candidate.get("evidencia")
+        fact = str(candidate.get("fato") or "").strip()
+        batch_pages = candidate.get("lote_paginas")
+        if not isinstance(page, int) or isinstance(page, bool) or page < 1:
+            pending.append({"index": index, "candidate": candidate, "reason": "página inválida"})
+            continue
+        if page not in pages:
+            pending.append({"index": index, "candidate": candidate, "reason": "página não existe no Markdown original"})
+            continue
+        if not isinstance(batch_pages, list) or not batch_pages:
+            pending.append({"index": index, "candidate": candidate, "reason": "lote de origem ausente ou inválido"})
+            continue
+        if page not in batch_pages:
+            pending.append({"index": index, "candidate": candidate, "reason": "página não pertence ao lote enviado à IA"})
+            continue
+        if not fact or not isinstance(evidence, str) or not evidence.strip():
+            pending.append({"index": index, "candidate": candidate, "reason": "fato ou evidência ausente"})
+            continue
+
+        normalized_evidence = " ".join(evidence.split())
+        normalized_page = " ".join(pages[page].split())
+        if normalized_evidence not in normalized_page:
+            pending.append({"index": index, "candidate": candidate, "reason": "evidência não localizada na página indicada"})
+            continue
+
+        key = (page, normalized_evidence)
+        if key in seen:
+            continue
+        seen.add(key)
+        validated.append({
+            "titulo": str(candidate.get("titulo") or fact).strip(),
+            "fato": fact,
+            "categoria": str(candidate.get("categoria") or "não classificada").strip(),
+            "pagina": page,
+            "evidencia": normalized_evidence,
+        })
+
+    return {
+        "validated_candidates": validated,
+        "pending_candidates": pending,
+        "validated_count": len(validated),
+        "pending_count": len(pending),
+    }
+
+
 def validate_report_references(
     report_markdown: str,
     source_markdown: str,

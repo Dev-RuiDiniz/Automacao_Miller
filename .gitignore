@@ -26,6 +26,7 @@ temp/
 *.cache
 
 # Local/private document staging
+/output/
 tests/fixtures/private/
 tests/fixtures/incoming/
 *.working.pdf

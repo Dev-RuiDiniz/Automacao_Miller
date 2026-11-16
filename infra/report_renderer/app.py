@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import hmac
 import io
 import json
@@ -17,7 +18,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from . import anvisa_pdf, anvisa_v8
+from . import analysis_checkpoint, anvisa_pdf, anvisa_v8, diagnostics, incremental
 
 REPORT_VERSION = "1.3.0"
 BRAND_NAVY = "#123B5D"
@@ -694,7 +695,7 @@ def render_markdown_report(payload: dict[str, Any]) -> Response:
     return Response(
         content=pdf,
         media_type="application/pdf",
-        headers={"X-Report-Version": REPORT_VERSION},
+        headers={"X-Report-Version": REPORT_VERSION, "X-Report-Sha256": hashlib.sha256(pdf).hexdigest()},
     )
 
 
@@ -716,18 +717,32 @@ def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = He
         or not isinstance(warnings, list) or any(not isinstance(warning, str) for warning in warnings)):
         raise HTTPException(status_code=422, detail="VALIDAÇÃO: Markdown paginado e seus metadados são obrigatórios.")
     try:
-        timeout = int(os.environ.get("OPENROUTER_TIMEOUT_SECONDS", "5400"))
-        if not 1 <= timeout <= 14400:
+        context = diagnostics.diagnostic_context(payload.get("diagnostic_context"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Contexto de diagnóstico inválido.") from None
+    try:
+        timeout = int(os.environ.get("OPENROUTER_TIMEOUT_SECONDS", "0"))
+        if not 0 <= timeout <= 14400:
             raise ValueError
     except ValueError:
         raise HTTPException(status_code=503, detail="IA: OPENROUTER_TIMEOUT_SECONDS inválido.") from None
     try:
-        records, coverage = anvisa_v8.analyze(markdown, page_count, expected_hash, key, timeout)
+        writer = diagnostics.DiagnosticWriter(hashlib.sha256(markdown.encode()).hexdigest(), context)
+        identity = incremental.identity(hashlib.sha256(markdown.encode()).hexdigest(), page_count)
+        with analysis_checkpoint.AnalysisCheckpoint(identity, context.get("submission_id", "avulsa")) as checkpoint:
+            records, coverage = anvisa_v8.analyze(markdown, page_count, expected_hash, key, timeout,
+                                                 diagnostic_sink=writer, checkpoint_store=checkpoint)
         coverage["fonte"]["nome"] = filename
         coverage["avisos"] = warnings
     except anvisa_v8.AnvisaError as exc:
         status = 502 if str(exc).startswith("IA:") else 422
         raise HTTPException(status_code=status, detail=str(exc)) from None
+    except diagnostics.DiagnosticStorageError:
+        raise HTTPException(status_code=500, detail="ARMAZENAMENTO: falha ao preservar o diagnóstico privado da análise.") from None
+    except analysis_checkpoint.CheckpointBusyError:
+        raise HTTPException(status_code=409, detail="IA: já existe uma análise desta fonte em execução.") from None
+    except analysis_checkpoint.CheckpointStorageError:
+        raise HTTPException(status_code=500, detail="ARMAZENAMENTO: falha ao ler, validar ou preservar o checkpoint privado.") from None
     try:
         report_markdown, pdf, checks = anvisa_pdf.render(records, coverage, filename, warnings)
         coverage["verificacao_pdf"] = checks
@@ -740,9 +755,12 @@ def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = He
         "prompt_version": anvisa_v8.PROMPT_VERSION,
         "report_markdown": report_markdown,
         "report_pdf_base64": base64.b64encode(pdf).decode("ascii"),
+        "report_pdf_sha256": hashlib.sha256(pdf).hexdigest(),
         "bundle_base64": base64.b64encode(bundle).decode("ascii"),
+        "bundle_sha256": hashlib.sha256(bundle).hexdigest(),
         "report_context": {"provider": "openrouter", "model": anvisa_v8.MODEL,
                            "prompt_sha256": anvisa_v8.PROMPT_HASH, "source_sha256": expected_hash,
                            "pages_analyzed": page_count, "pdf": checks,
+                            "analysis_checkpoint": coverage["processamento_incremental"],
                            "references_confirmed": coverage["evidencias_literais_conferidas"]},
     }

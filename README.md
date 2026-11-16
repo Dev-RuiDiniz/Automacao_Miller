@@ -35,6 +35,10 @@ Dependendo do que estiver escrito no PDF, o relatório pode organizar medicament
 
 O sinal de cobertura informa quantas páginas foram analisadas e quantas referências foram localizadas. Ele não é uma nota de confiança da IA.
 
+A referência de 90 minutos é uma meta de desempenho. A análise V8 pode
+continuar além desse tempo; o prazo global fica desabilitado por padrão,
+mantendo limites técnicos por chamada e salvamento do progresso.
+
 A saída persistida é o relatório técnico em Markdown e sua versão PDF. RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo. O sinal mede localização de evidências, não confiança semântica da IA. Referências pendentes aparecem como pendentes e não bloqueiam, por si só, a geração do relatório ou a solicitação de envio. Uma falha técnica ou uma página não analisada interrompe a geração de um relatório completo.
 
 No modo Anvisa V8, o PDF começa pelo índice de assuntos e páginas da fonte.
@@ -68,6 +72,13 @@ docker compose --env-file /dev/null -f deploy/markdown-local/compose.yml down
 
 Detalhes e limites em [infra/pdf_converter/README.md](infra/pdf_converter/README.md).
 
+### Stack completa no computador local
+
+Use [o guia da stack completa local](deploy/full-local/README.md) para iniciar
+os seis serviços e acessar a landing em `http://127.0.0.1:18085` e o n8n em
+`http://127.0.0.1:25678`. Esse modo carrega o `.env` e permite selecionar o
+OpenRouter. O Compose complementar mantém os dados locais em volumes próprios.
+
 ### Fluxo completo pela landing
 
 1. Entre na landing com o acesso fornecido por um administrador.
@@ -77,6 +88,19 @@ Detalhes e limites em [infra/pdf_converter/README.md](infra/pdf_converter/README
 5. Confirme os destinatários no painel.
 6. Clique para solicitar o envio.
 7. Se o estado mudar para **Concluído**, baixe o PDF pelo próprio painel.
+
+Se o processamento terminar em **Com erro**, corrija a causa indicada e clique
+em **Reprocessar** no mesmo protocolo e confirme a retomada na tela apresentada.
+Cancelar ou fechar essa confirmação não inicia o fluxo. O sistema confere o último artefato salvo
+e continua dali: um Markdown íntegro evita repetir a conversão; um relatório
+íntegro evita repetir a análise. O histórico e as versões anteriores são
+preservados. Para falha de e-mail, use **Tentar envio novamente**.
+
+O detalhe do protocolo mostra a etapa atual e atualiza automaticamente o
+andamento, as tentativas e os erros a cada cinco segundos enquanto a página
+estiver visível. As atualizações preservam o formulário e a aba selecionada.
+Durante a chamada de IA, a etapa permanece em análise até o fluxo registrar
+o próximo ponto; a tela não estima percentual de conclusão.
 
 O operador pode conferir o relatório antes do envio. Essa conferência é opcional; enviar o e-mail continua sendo uma ação manual.
 
@@ -90,8 +114,27 @@ no build do renderizador e conferido por SHA-256 antes da chamada.
 No ambiente de teste, reconstrua o `report-renderer`, recrie o n8n para ler a
 configuração e importe o workflow interno atualizado. Comece com um PDF
 sintético. Use `PDF_CONVERTER_TIMEOUT_SECONDS=1200` para arquivos grandes como
-o caso de 198 páginas já convertido localmente. Veja os detalhes em
+o caso de 198 páginas já convertido localmente. Se o modo OpenRouter já estiver
+configurado, a troca de modelo exige apenas reconstruir e recriar o
+`report-renderer`. Veja os detalhes em
 [workflows/README.md](workflows/README.md#modo-anvisa-v8-com-openrouter).
+
+No V8, blocos densos são reduzidos e grupos pequenos são solicitados desde a
+primeira chamada. Eventos completos são salvos; fichas ainda em revisão ficam
+separadas para continuação, com IDs, evidências e histórico preservados.
+Ao completar 32 chamadas no lote, a análise revalida o checkpoint e continua
+automaticamente. Falhas temporárias de comunicação têm até três tentativas
+por chamada, com esperas de 5 e 15 segundos; falhas persistentes continuam
+registradas, preservando o progresso para retomada.
+Buscas literais no Markdown localizam contexto relevante; páginas adicionais
+são entregues inteiras em janelas limitadas, com fila preservada após falhas.
+Uma busca sem ocorrência exata não substitui a conferência documental.
+Os lotes e registros validados são salvos em checkpoint privado;
+ao usar **Reprocessar** no mesmo protocolo, a análise reutiliza o progresso
+compatível com a fonte, o modelo e a versão das instruções/código. O PDF final
+continua dependendo da cobertura completa. Esse reaproveitamento vale para
+execuções feitas após a implantação dos checkpoints; progresso antigo que
+existia apenas em memória não pode ser recuperado retroativamente.
 
 ## O que o sistema não faz
 

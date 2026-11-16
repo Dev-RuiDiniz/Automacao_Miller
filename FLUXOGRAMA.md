@@ -43,15 +43,51 @@ flowchart TD
     H --> I{PostgreSQL conseguiu reservar o documento?}
     I -- Não --> I1[Encerrar chamada repetida<br/>Evitar duas execuções do mesmo arquivo]
     I -- Sim --> J[Registrar tentativa]
-    J --> K[Converter PDF para Markdown paginado]
+    J --> RC{Retomada solicitada?}
+    RC -- Não --> K[Converter PDF para Markdown paginado]
+    RC -- Sim --> CP{Último checkpoint íntegro}
+    CP -- Somente PDF original --> K
+    CP -- Markdown salvo --> OR
+    CP -- Relatório Markdown comum --> V
+    CP -- Relatório V8 e ZIP --> V8R[Recuperar PDF verificado da revisão]
+    V8R --> W
+    CP -- PDF do relatório salvo --> W
+    CP -- Artefato divergente --> X
     K --> L{Conversão e cobertura de páginas estão completas?}
     L -- Não --> X[Registrar erro técnico<br/>Não criar relatório parcial]
     L -- Sim --> M[Guardar Markdown e metadados]
     M --> OR{Provedor configurado}
-    OR -- OpenRouter --> TERRA[Terra aplica o V8 ao Markdown em blocos]
-    TERRA --> VV{Cobertura, registros e evidências válidos?}
-    VV -- Não --> X
-    VV -- Sim --> V8[Montar PDF com índice, fichas e ZIP de verificação]
+    OR -- OpenRouter --> CPAI[Carregar e revalidar progresso privado da análise]
+    CPAI -- Erro de integridade --> X
+    CPAI -- Análise já concluída --> V8
+    CPAI -- Lotes pendentes --> DENS[Selecionar lote menor ou próximo grupo de eventos]
+    DENS --> CPDEP{Contexto dos lotes permite concorrência?}
+    CPDEP -- Sim --> CPPOOL[Ocupar até duas vagas de API com lotes independentes]
+    CPDEP -- Não --> CPSER[Despachar um lote e preservar dependências]
+    CPPOOL --> CPTRAN[Enviar índice de fichas e evidências compartilhadas]
+    CPSER --> CPTRAN
+    CPTRAN --> TERRA[Terra aplica o V8 e devolve fichas e alterações de inventário]
+    TERRA --> EXTRAN[Expandir evidências e consolidar inventário no servidor]
+    TERRA -- Falha temporária --> CPRETRY{Retentativa disponível?}
+    CPRETRY -- Não --> X
+    CPRETRY -- Sim --> CPWAIT[Preservar lote e aguardar retentativa<br/>Vaga livre pode atender outro lote independente]
+    CPWAIT --> CPDEP
+    EXTRAN --> VV{Grupo, cobertura e inventário consistentes?}
+    VV -- Não --> DG[Guardar bloco, resposta e diagnóstico privado]
+    DG -- Falha de armazenamento --> X
+    DG -- Salvo --> PC{Correção ainda disponível no grupo?}
+    PC -- Não --> X
+    PC -- Sim --> CR[Enviar falhas conhecidas do grupo e resposta anterior à IA]
+    CR --> TERRA
+    VV -- Sim --> SPAI[Salvar eventos completos e fichas em revisão separadamente<br/>Preservar IDs, evidências e histórico]
+    SPAI -- Falha de armazenamento --> X
+    SPAI -- Salvo --> LOT{Lote concluído?}
+    LOT -- Não --> CONTIA{Há progresso e limites disponíveis?}
+    CONTIA -- Sim --> DENS
+    CONTIA -- Não --> X
+    LOT -- Sim --> FINIA{Todos os lotes concluídos?}
+    FINIA -- Não --> DENS
+    FINIA -- Sim --> V8[Montar PDF com índice, fichas e ZIP de verificação]
     V8 --> W
     OR -- Ollama --> N[Dividir o Markdown em lotes de até 6.000 caracteres]
     N --> O[Enviar um lote por vez ao Ollama local]
@@ -78,18 +114,55 @@ flowchart TD
     M -. Markdown .-> FS
     W -. relatórios .-> FS
     X --> ER[Workflow de erro registra etapa e motivo]
+    ER --> RET[Operador clica Reprocessar no protocolo]
+    RET --> CONF{Confirmar reprocessamento?}
+    CONF -- Não --> OBS[Acompanhar protocolo sem iniciar tentativa]
+    CONF -- Sim --> AUD[Conferir checkpoint e registrar autorização<br/>Bloquear solicitações simultâneas]
+    AUD --> H
     AC --> DB
     AB --> DB
 ```
 
 ## O que acontece nos casos especiais
 
-- **Arquivo duplicado:** o sistema mostra o protocolo que já existe; não inicia outro processamento automático.
+- **Arquivo duplicado:** o upload informa que o PDF já foi enviado, identifica o status como pertencente ao protocolo existente e oferece **Abrir protocolo existente**. Não inicia outro processamento automático. Cancelamento ou erro anterior permanece no histórico; uma retomada exige confirmação em **Reprocessar**.
 - **PDF inválido ou sem texto selecionável:** encerra com erro. Esta versão não faz OCR.
-- **Falha em qualquer lote ou página:** encerra como erro e não apresenta um relatório parcial como se estivesse completo.
+- **Falha técnica em lote ou página:** encerra como erro e não apresenta um relatório parcial como completo. O V8 guarda os lotes e registros já validados para nova retomada.
+- **Retomada após erro:** o botão Reprocessar continua do último artefato íntegro registrado, com nova tentativa e histórico preservado. Com Markdown salvo, não converte o PDF novamente. Com relatório salvo, evita uma nova análise. Resultados parciais não persistidos da IA precisam ser refeitos.
+- **Checkpoint ausente ou alterado:** mostra erro de armazenamento/integridade e bloqueia a retomada. A conferência também ocorre antes do despacho pelo botão.
 - **Citação não encontrada, com página errada ou diferente do original:** no Ollama aparece como pendente; no V8 o bloco precisa ser corrigido antes de gerar o PDF.
+- **Rejeição V8:** guarda campo, página, motivo, evidência e resposta em diagnóstico privado associado à tentativa. Pede uma única correção direcionada por grupo; se falhar novamente, encerra com referência segura no histórico. Uma coincidência após normalizar espaços continua rejeitada.
+- **Estrutura V8 inválida:** identifica campo, valor recebido e condição esperada no diagnóstico privado. Excluídos e duplicados aceitam `justificativa` compacta; incluídos e pendentes exigem `justificativa_destino` e ficha completa. O histórico de novas falhas preserva mensagem e descrição do n8n.
+- **Lote V8 parcial:** solicita grupos pequenos desde a primeira chamada, reduz alvos densos e salva os eventos completos. Fichas em revisão ficam separadas e são priorizadas na continuação, preservando IDs, evidências e versões anteriores. Uma pendência explícita mantém o trabalho aberto mesmo com rótulo revisada. Ao completar 32 chamadas, o checkpoint é revalidado e o lote continua automaticamente, sem renovar os orçamentos de correção ou falta de progresso. Duas respostas sem progresso ou excesso de contexto interrompem com checkpoint guardado. A meta de 90 minutos não interrompe a duração total da análise.
+- **Contexto V8:** busca identificadores literalmente no Markdown integral e entrega páginas inteiras em janelas de até 480.000 bytes de dados, incluindo continuidade e correção. A fila distingue páginas solicitadas e entregues; o restante permanece pendente na retomada. Entrega e busca literal não equivalem a revisão semântica. O lote só fecha após entregar o contexto solicitado e validar a resposta de conferência.
+- **Transporte V8:** fichas concluídas sempre por índice; evidências idênticas podem compartilhar referências locais. A IA devolve alterações do inventário vinculadas à base, sem excluir unidades ou evidências. Um coordenador único reconstrói os objetos e salva os lotes sem sobrescrever outros, antes da validação final V8. Referências e versões inválidas recebem diagnóstico e uma única correção. Fichas, inventários e páginas obrigatórias permanecem integrais; o índice não comprova leitura nem relaxa a conferência. Grupos começam em oito e podem crescer a 12/16 após compactos aceitos com métricas; completas/revisões ficam em até oito. O máximo de cada chamada é conferido no servidor e a política é preservada na retomada. Até dois lotes sem contexto sobreposto podem aguardar a API em paralelo; continuações do mesmo lote são sequenciais. Lotes concluídos fora de ordem permanecem guardados e o relatório espera todos. Evidências do delta são acrescentadas por união, preservando as anteriores e a conferência literal.
+- **Limites de recuperação V8:** buscas locais não consomem ampliações explícitas de páginas. Até três ampliações são admitidas desde o último avanço validado do grupo; novos registros, fichas concluídas ou cobertura/inventário concluídos reabrem esse orçamento. O pedido pendente fica salvo antes de interromper. Repetições sem trabalho novo, contexto e quantidade de buscas continuam protegendo a execução; a troca da janela de 32 chamadas não renova essas proteções.
+- **Falha temporária do OpenRouter:** cada chamada tem timeout de 360 segundos e até três tentativas, com esperas de 5 e 15 segundos. Antes de repetir o mesmo pacote, revalidar o checkpoint; lotes concluídos não são refeitos. Falhas de crédito/autorização e validação não recebem esse retry. Falha persistente após a terceira tentativa termina em erro explícito com progresso salvo.
+- **Retomada interna V8:** reutiliza lotes e grupos do mesmo protocolo, fonte e versão de análise, após revalidação. Estados ficam em volume privado e persistem após recriar o contêiner. Progresso antigo não salvo continua indisponível.
 - **Falha do Gmail:** a entrega fica registrada como falha. O operador pode pedir nova tentativa controlada; o download oficial só abre após um envio confirmado.
 - **Dúvida sobre o conteúdo:** o operador pode abrir o PDF original e conferir. Essa revisão é opcional para cada relatório.
+
+No transporte de saída V8, campos integrais idênticos das fichas podem usar
+um dicionário `campos_compartilhados` e referências locais `$campo`. Cada
+referência é explícita, sem herança nem união. O servidor confere limites,
+reconstrói valores e evidências e só então valida, revisa e guarda as fichas
+completas. IDs, destino, páginas, justificativas e conferência de integridade
+permanecem individuais. Referências inválidas não são reinterpretadas na correção.
+
+Refinamentos explícitos dos limites do inventário conservam as chaves e
+referências existentes. Citações anteriores deslocadas são guardadas em
+`evidencias` no mesmo bloco/unidade, mantendo os limites novos recebidos.
+Todas as evidências continuam sujeitas à conferência literal, sem promover
+revisão ou resolver divergências automaticamente. Limite apagado ou evidência
+removida de outro campo continua sendo erro com correção única.
+
+Na recuperação de contexto V8, uma página entregue no passado pode estar
+ausente da chamada atual. Releituras explícitas são reenfileiradas com histórico
+e contador preservados, usando cache das buscas conhecidas. Pedidos vazios
+permitem validar fichas da mesma resposta. Repetição de páginas presentes
+e excesso de releitura sem avanço continuam rejeitados, guardando pedido,
+resposta e janela no diagnóstico privado ANV8D. Paralelismo, tamanho do pacote
+e validação da fonte permanecem os mesmos.
 
 ## Os estados, em palavras comuns
 

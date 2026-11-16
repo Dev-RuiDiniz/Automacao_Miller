@@ -73,6 +73,41 @@ ou operação e só é injetada no serviço `report-renderer`. Não guarde o val
 no Git, nos exports do n8n ou no navegador. O administrador do ambiente deve
 configurar e testar a chave; a integração não altera a credencial NVIDIA.
 
+Os diagnósticos de validação V8 ficam em `/data/diagnostics`, no volume privado
+exclusivo do renderizador. Somente o operador com acesso administrativo ao
+ambiente deve consultá-los e realizar seu backup protegido. Arquivos usam
+permissão `600` e diretórios `700`; o histórico mostra a referência `ANV8D-...`
+sem expor a transcrição. Esses arquivos não devem ir ao Git ou a chamados
+públicos. Consulte [o guia local](deploy/full-local/README.md) para localização.
+
+O subdiretório privado `checkpoints` guarda também o progresso dos lotes V8,
+com a mesma restrição de acesso. O backup deve incluir o volume inteiro.
+Esses estados não são credenciais nem artefatos públicos do protocolo e não
+devem ser editados para simular páginas ou unidades concluídas.
+Esses checkpoints incluem fichas ainda em revisão e suas versões anteriores,
+com o mesmo acesso privado. Uma migração deve usar a ferramenta do operador,
+com backup e revalidação; ela não altera credenciais nem fica acessível na landing.
+O estado privado também inclui termos de busca literal, páginas com ocorrências
+e a fila de contexto solicitado/entregue. Trate esses dados como conteúdo
+documental protegido; não publique o arquivo de estado para diagnosticar falhas.
+
+## Ambiente completo local — 11/11/2026
+
+- **Landing:** `http://127.0.0.1:18085`; usuário e senha gerados em
+  `.env.local-access`, ignorado pelo Git e protegido com permissão `600`.
+  A aplicação usa somente `LANDING_PASSWORD_HASH` do `.env` protegido.
+- **n8n local:** `http://127.0.0.1:25678`; conta administrativa local gerada,
+  com e-mail e senha no mesmo arquivo protegido. PostgreSQL configurado no
+  cofre do n8n; Gmail OAuth ainda não configurado.
+- **OpenRouter:** chave preexistente preservada no `.env`, com permissão `600`,
+  e injetada somente no `report-renderer`. O n8n recebeu a seleção de provedor,
+  sem receber a chave. A análise real pela API ainda não foi testada.
+- **Isolamento:** projeto Docker `miller-full-local`; portas somente no
+  loopback e volumes próprios. Nenhum acesso da VPS foi alterado.
+- **Configuração anterior:** cópia protegida em `.env.before-full-local`,
+  também ignorada pelo Git. Esses arquivos não devem ser anexados a chamados,
+  exportações de workflows ou commits.
+
 ## Como trocar um segredo
 
 1. Identifique o sistema e quem administra a credencial.

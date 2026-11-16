@@ -86,6 +86,25 @@ def test_upload_returns_protocol_and_status(tmp_path: Path) -> None:
     assert status.json()["submission_id"] == body["submission_id"]
 
 
+def test_detail_exposes_persisted_stage_without_changing_attempt_history(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    item = client.post("/api/v1/submissions", headers=headers,
+                       files={"file": ("sintetico.pdf", b"%PDF-1.7 progresso", "application/pdf")}).json()
+    submission_id = item["submission_id"]
+    assert item["current_stage"] == "recebido"
+    history = [{"attempt_number": 1, "status": "erro", "current_stage": "analise_markdown"}]
+    gateway.store.attempts[submission_id] = history
+    for stage in ["recuperando_checkpoint", "convertendo_pdf", "analise_markdown", "preparando_pdf", "relatorio_pronto"]:
+        gateway.store.update(submission_id, current_stage=stage)
+        response = client.get(f"/api/v1/submissions/{submission_id}", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["current_stage"] == stage
+        assert response.json()["submission"]["current_stage"] == stage
+        assert response.json()["attempts"] == history
+    assert len(gateway.store.attempts[submission_id]) == 1
+
+
 def test_upload_rejects_non_pdf_and_oversized_pdf(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path)
     headers = {"X-Landing-Token": "landing-test"}
@@ -104,7 +123,40 @@ def test_duplicate_hash_returns_existing_protocol(tmp_path: Path) -> None:
     second = client.post("/api/v1/submissions", headers=headers, files=payload)
     assert first.status_code == 202
     assert second.status_code == 200
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is True
     assert second.json()["submission_id"] == first.json()["submission_id"]
+
+
+def test_duplicate_of_interrupted_document_preserves_history_without_dispatch(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    headers = {"X-Landing-Token": "landing-test"}
+    payload = {"file": ("a.pdf", b"%PDF-1.7 mesmo documento", "application/pdf")}
+    first = client.post('/api/v1/submissions', headers=headers, files=payload).json()
+    sid = first['submission_id']
+    message = 'Processamento interrompido a pedido do usuário; progresso salvo preservado.'
+    gateway.store.update(sid, status='erro', message=message)
+    gateway.store.attempts[sid] = [{'attempt_number': 1, 'status': 'erro'}]
+    monkeypatch.setenv('N8N_SUBMISSION_WEBHOOK_URL', 'http://n8n-ficticio.test/webhook')
+
+    async def forbidden(*args, **kwargs):
+        raise AssertionError('Upload duplicado não deve despachar processamento.')
+
+    monkeypatch.setattr(gateway.httpx.AsyncClient, 'post', forbidden)
+    response = client.post('/api/v1/submissions', headers=headers, files=payload)
+    assert response.status_code == 200
+    assert response.json()['duplicate'] is True
+    assert response.json()['submission_id'] == sid
+    assert response.json()['message'] == message and response.json()['status'] == 'erro'
+    assert len(gateway.store.attempts[sid]) == 1 and len(gateway.store.items) == 1
+
+
+def test_duplicate_without_existing_protocol_does_not_return_unregistered_id(tmp_path: Path, monkeypatch) -> None:
+    client = make_client(tmp_path)
+    monkeypatch.setattr(gateway.store, 'create', lambda *_: None)
+    result = client.post('/api/v1/submissions', headers={"X-Landing-Token": "landing-test"},
+                         files={"file": ('a.pdf', b'%PDF-1.7 teste', 'application/pdf')})
+    assert result.status_code == 503 and 'protocolo' in result.json()['detail']
 
 
 def test_report_is_only_available_after_completion(tmp_path: Path) -> None:

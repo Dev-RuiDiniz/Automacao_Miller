@@ -47,13 +47,13 @@
             {
               "id": "error-category",
               "name": "error_category",
-              "value": "={{ (String($json.execution?.error?.message || '').startsWith('IA:') || String($json.execution?.lastNodeExecuted || '').includes('OpenRouter - Analyze')) ? 'ia' : ((String($json.execution?.error?.message || '').startsWith('EXTRACTION:') || String($json.execution?.error?.message || '').startsWith('EXTRAÇÃO:')) ? 'extração' : ((String($json.execution?.error?.message || '').startsWith('VALIDACAO:') || String($json.execution?.error?.message || '').startsWith('VALIDAÇÃO:') || String($json.execution?.lastNodeExecuted || '').includes('Validate report Markdown') || String($json.execution?.lastNodeExecuted || '').includes('Merge batch findings and prepare report')) ? 'validação' : 'infraestrutura')) }}",
+              "value": "={{ (() => { const error = $json.execution?.error || {}; const text = [error.message, error.description].filter(value => typeof value === 'string').join(' '); const stage = String($json.execution?.lastNodeExecuted || ''); const normalized = text.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toUpperCase(); if (normalized.includes('VALIDACAO:') || /\\bANV8D-[a-f0-9]{32}\\b/.test(text) || stage.includes('Validate report Markdown') || stage.includes('Merge batch findings and prepare report')) return 'validação'; if (normalized.includes('EXTRACTION:') || normalized.includes('EXTRACAO:')) return 'extração'; if (normalized.includes('ARMAZENAMENTO:')) return 'infraestrutura'; if (/\\bIA:/.test(normalized) || stage.includes('OpenRouter - Analyze')) return 'ia'; return 'infraestrutura'; })() }}",
               "type": "string"
             },
             {
               "id": "error-message",
               "name": "error_message",
-              "value": "={{ $json.execution?.error?.message || 'falha nao detalhada' }}",
+              "value": "={{ (() => { const error = $json.execution?.error || {}; const parts = [error.message, error.description].filter(value => typeof value === 'string' && value.trim()).map(value => value.trim()); return [...new Set(parts)].join(' — ') || 'falha não detalhada'; })() }}",
               "type": "string"
             },
             {

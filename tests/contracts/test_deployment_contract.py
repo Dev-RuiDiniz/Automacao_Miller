@@ -75,6 +75,8 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "PDF_CONVERTER_TIMEOUT_SECONDS:-300" in compose
     renderer_service = compose.split("  report-renderer:\n", 1)[1].split("\n  upload-gateway:", 1)[0]
     assert "OPENROUTER_API_KEY:" in renderer_service
+    assert "automacao_miller_diagnostics_data:/data/diagnostics" in renderer_service
+    assert "/data/diagnostics" not in n8n_service
     assert "OPENROUTER_API_KEY" not in n8n_service
     assert "automacao_miller_submission_data:" in compose
     assert '"${ARTIFACTS_GID:-10002}"' in compose
@@ -243,13 +245,29 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert workflow["connections"]["Ollama - Analyze each batch"]["main"][0][0]["node"] == "Loop Over Items"
 
     edges = workflow["connections"]
-    assert edges["State - Markdown persisted"]["main"][0][0]["node"] == "Select report provider"
+    assert edges["State - Markdown persisted"]["main"][0][0]["node"] == "State - Analysis started"
+    for stage, following in [
+        ("State - Conversion started", "Internal Storage - Read PDF"),
+        ("State - Checkpoint loading", "Gateway - Load checkpoint"),
+        ("State - Analysis started", "Select report provider"),
+        ("State - PDF preparation", "Prepare report PDF payload"),
+    ]:
+        assert edges[stage]["main"][0][0]["node"] == following
+        query = next(node for node in workflow["nodes"] if node["name"] == stage)["parameters"]["query"]
+        assert "a.execution_id" in query and "$execution.id" in query
+        assert "a.status = 'em_processamento'" in query and "d.status = 'em_processamento'" in query
     assert [row[0]["node"] for row in edges["Use OpenRouter V8?"]["main"]] == [
         "OpenRouter - Analyze and render V8", "Prepare analysis batches",
     ]
     assert edges["Internal Storage - Write V8 bundle"]["main"][0][0]["node"] == "Prepare report Markdown file"
     assert edges["OpenRouter - Prepare PDF"]["main"][0][0]["node"] == "Internal Storage - Write report PDF"
     assert "OPENROUTER_API_KEY" not in json.dumps(workflow)
+    analyze = next(node for node in workflow["nodes"] if node["name"] == "OpenRouter - Analyze and render V8")
+    diagnostic_body = analyze["parameters"]["bodyParametersJson"]
+    assert "diagnostic_context:" in diagnostic_body
+    assert "submission_id: source.submission_id" in diagnostic_body
+    assert "attempt_number: Number(source.attempt_number)" in diagnostic_body
+    assert "execution_id: String($execution.id)" in diagnostic_body
 
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
     assert "status = 'aguardando_envio'" in report_state["parameters"]["query"]

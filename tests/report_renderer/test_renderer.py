@@ -4,6 +4,7 @@ import json
 import zipfile
 from io import BytesIO
 
+import pytest
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 from reportlab.pdfgen.canvas import Canvas
@@ -87,7 +88,7 @@ def pdf_text(content: bytes) -> str:
     return "\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(content)).pages)
 
 
-def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_path) -> None:
+def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_path, diagnostics_root) -> None:
     synthetic = BytesIO()
     document = Canvas(synthetic)
     for page in range(1, 9):
@@ -128,6 +129,7 @@ def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_
             assert "protocolo-nao-enviado" not in request.data.decode()
             assert "sigiloso-teste.pdf" not in request.data.decode()
             assert "chave-ficticia" not in request.data.decode()
+            assert "execucao-nao-enviada" not in request.data.decode()
             data = json.loads(body["messages"][-1]["content"])
             targets = data["paginas_alvo"]
             calls.append(targets)
@@ -142,7 +144,15 @@ def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_
                     result["reconciliacao_anexos"] = [{"estado_revisao": "revisada", "unidades_fonte": [{"ids_eventos": [rid]}]}]
                     if "ajuste_tecnico" not in data:
                         result["registros"] = [dict(record, ato=field("Citação inexistente", 1))]
-            return BytesIO(json.dumps({"model": anvisa_v8.MODEL,
+                    else:
+                        diagnostic = data["diagnostico_validacao"]
+                        assert diagnostic["campo"] == "/registros/0/ato/evidencias/0"
+                        assert diagnostic["pagina"] == 1 and diagnostic["registro_id"] == rid
+                        assert diagnostic["motivo"] == "trecho_nao_localizado"
+                        assert diagnostic["trecho_rejeitado"] == "Citação inexistente"
+                        assert data["resposta_anterior"]["registros"][0]["ato"]["evidencias"][0]["trecho_literal"] == "Citação inexistente"
+                        assert anvisa_v8.CORRECTION_INSTRUCTIONS in [m["content"] for m in body["messages"]]
+            return BytesIO(json.dumps({"model": anvisa_v8.MODEL, "id": "gen-sintetico-" + str(len(calls)),
                 "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(result)}}]}).encode())
 
     monkeypatch.setenv("INTERNAL_API_TOKEN", "token-interno-ficticio")
@@ -151,13 +161,18 @@ def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_
     response = client.post("/v1/analyze-anvisa-v8", headers={"X-Internal-Token": "token-interno-ficticio"}, json={
         "markdown": source, "page_count": 8, "markdown_sha256": converted["metadata"]["markdown_sha256"],
         "source_filename": "sigiloso-teste.pdf", "warnings": [],
+        "diagnostic_context": {"submission_id": "protocolo-nao-enviado", "attempt_number": 2,
+                               "execution_id": "execucao-nao-enviada"},
     })
     assert response.status_code == 200, response.text
     assert calls == [list(range(1, 6)), [1, 2], [3, 4, 5], [6, 7, 8], [6, 7, 8], [6, 7, 8]]
     payload = response.json()
     assert payload["prompt_version"] == "V8-autossuficiente"
+    assert payload["report_context"]["model"] == "openai/gpt-6.1-terra"
     assert payload["report_context"]["pdf"]["entradas_indice"] == 2
     pdf = base64.b64decode(payload["report_pdf_base64"])
+    assert payload["report_pdf_sha256"] == hashlib.sha256(pdf).hexdigest()
+    assert payload["bundle_sha256"] == hashlib.sha256(base64.b64decode(payload["bundle_base64"])).hexdigest()
     text = pdf_text(pdf)
     assert text.index("Índice de assuntos") < text.index("Resumo executivo") < text.index("Ficha " + rid)
     assert "25351.000001/2026-00" in text
@@ -171,6 +186,34 @@ def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_
         assert [row["pagina"] for row in coverage["paginas"]] == list(range(1, 9))
         assert coverage["artefatos_finais_pdf_jsonl"]["relatorio_anvisa_v8.pdf"]["sha256"] == hashlib.sha256(pdf).hexdigest()
     (tmp_path / "relatorio_anvisa_v8_sintetico.pdf").write_bytes(pdf)
+    files = list(diagnostics_root.rglob("ANV8D-*.json"))
+    assert len(files) == 1
+    diagnostic = json.loads(files[0].read_text())
+    assert diagnostic["context"]["attempt_number"] == 2
+    assert diagnostic["context"]["execution_id"] == "execucao-nao-enviada"
+    assert diagnostic["generation_id"] == "gen-sintetico-5"
+    assert diagnostic["bloco"]["paginas_alvo"] == [6, 7, 8]
+    assert diagnostic["falha"]["campo"] == "/registros/0/ato/evidencias/0"
+    assert diagnostic["resposta_rejeitada"]["registros"][0]["ato"]["valor"] == "Citação inexistente"
+    assert files[0].stat().st_mode & 0o777 == 0o600
+    assert files[0].parent.stat().st_mode & 0o777 == 0o700
+    assert "chave-ficticia" not in files[0].read_text()
+
+
+@pytest.mark.parametrize("returned_model", ["openai/gpt-6.1-terra-20261026", "openai/gpt-6.1-sol"])
+def test_anvisa_v8_checks_provider_model_identity(monkeypatch, returned_model) -> None:
+    class MockOpenRouter:
+        def open(self, request, timeout):
+            return BytesIO(json.dumps({"model": returned_model, "choices": [
+                {"finish_reason": "stop", "message": {"content": "{}"}}
+            ]}).encode())
+
+    monkeypatch.setattr(anvisa_v8, "build_opener", lambda *_: MockOpenRouter())
+    if returned_model == "openai/gpt-6.1-terra-20261026":
+        assert anvisa_v8._request([], "chave-ficticia", 10) == {}
+    else:
+        with pytest.raises(anvisa_v8.AnvisaError, match="modelo Terra solicitado"):
+            anvisa_v8._request([], "chave-ficticia", 10)
 
 
 def test_anvisa_v8_rejects_unauthorized_missing_key_and_wrong_source_hash(monkeypatch) -> None:
@@ -264,6 +307,7 @@ def test_render_markdown_endpoint_returns_readable_pdf() -> None:
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert response.headers["x-report-version"] == "1.3.0"
+    assert response.headers["x-report-sha256"] == hashlib.sha256(response.content).hexdigest()
     text = pdf_text(response.content)
     assert "Technical report" in text
     assert "Technical opinion" in text

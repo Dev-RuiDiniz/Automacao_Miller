@@ -1,12 +1,31 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 16 de novembro de 2026
+**Atualizado em:** 21 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
-**Regra de leitura:** as últimas informações confirmadas da VPS são de 27 de outubro de 2026. A VPS não foi consultada durante esta atualização. “Último estado conhecido” não significa “estado atual”.
+
+## VPS do cliente — verificada em 21/11/2026
+
+O commit `3cac700` foi instalado em `srv2147368.hstgr.cloud` em uma stack
+nova com seis serviços saudáveis. `https://reportai.info` serve a landing
+privada com certificado válido. O n8n permanece acessível por túnel SSH.
+Foram verificados login, logout, cookie seguro, restrição de rotas internas e
+o backup inicial do banco e dos artefatos.
+
+O modo Anvisa V8 está configurado para OpenRouter. Os quatro workflows estão
+importados e inativos e o n8n registra zero execuções. A chave do cliente
+está pendente. O comando `miller-configurar-openrouter` aplica a chave e
+publica a entrada do V8 e o workflow de erros. O OAuth do Gmail, a criação do
+proprietário do n8n, a restauração isolada e a homologação de ponta a ponta
+seguem como etapas operacionais. Consulte [ACESSOS.md](ACESSOS.md).
 
 ## Leitura em um minuto
 
-A base do produto existe, mas a homologação ainda está incompleta. A última verificação da VPS, em 27/10/2026, encontrou o repositório no commit `29a6b4b`, com o v2 híbrido publicado. Um PDF sintético percorreu o fluxo até `aguardando_envio`, sem e-mail. O teste técnico passou; a qualidade do relatório falhou ao omitir a sequência concessão/cancelamento e sugerir renovação após o cancelamento. Em 16/11 as PRs #5 e #3 foram integradas ao `main`, mas não implantadas. O envio manual, a reconciliação, a landing pública, a restauração e a homologação V8 completa continuam pendentes.
+A homologação ainda está incompleta. Na VPS de testes, a verificação de
+27/10/2026 encontrou o commit `29a6b4b` com o v2 híbrido publicado. Um PDF
+sintético chegou a `aguardando_envio`, com qualidade reprovada por omitir a
+sequência concessão/cancelamento e sugerir renovação após o cancelamento. Em
+16/11, as PRs #5 e #3 foram integradas ao `main`. A VPS do cliente recebeu
+essa versão em 21/11.
 
 **Na VPS, não envie documentos reais pelo v2 híbrido nem declare o projeto
 concluído antes de fechar os itens P0 e P1 e obter o aceite operacional.**
@@ -19,8 +38,8 @@ a conclusão real de ponta a ponta continua pendente.
 
 ### Repositório
 
-- Último registro verificável da VPS: em 27/10/2026, o checkout `/opt/automacao-miller` estava no commit `29a6b4b`. É uma fotografia histórica; não houve consulta à VPS em 16/11.
-- Em 16/11/2026, a PR #5 foi mesclada por squash no commit `2aabff7`, trazendo a opção Anvisa V8/OpenRouter e a retomada otimizada por checkpoints. A PR #3 foi atualizada sobre essa base e mesclada com o guia local. Essas alterações estão no GitHub `main`; não foram implantadas na VPS.
+- Em 27/10/2026, o checkout `/opt/automacao-miller` da VPS de testes estava no commit `29a6b4b`. É uma fotografia histórica.
+- Em 16/11/2026, a PR #5 foi mesclada por squash no commit `2aabff7`, trazendo a opção Anvisa V8/OpenRouter e a retomada otimizada por checkpoints. A PR #3 foi atualizada sobre essa base e mesclada com o guia local. O commit `3cac700` incorpora essas alterações e está instalado na VPS do cliente.
 - A PR #3 documenta o teste local com Ollama em `docs/TESTE_LOCAL.md`, com a landing limitada a `127.0.0.1:8085` e os workflows de envio e reconciliação inativos. A stack completa local com V8/OpenRouter tem guia separado em `deploy/full-local/README.md`.
 - O export versionado do workflow permanece inativo no Git; o workflow v2 publicado no n8n foi verificado separadamente.
 - A suíte local passou em 27/10/2026: 94 testes aprovados e dois avisos de depreciação do evento `on_event` do FastAPI. O teste ponta a ponta da VPS está descrito abaixo.
@@ -1316,7 +1335,7 @@ exigem validação separada. O tempo local parte do Markdown e não mede a meta
 operacional de 90 minutos. Não houve mudança de prompt ativo, modelo, API,
 n8n, Docker ou VPS; integração futura depende de nova decisão.
 
-### VPS — fotografia verificada em 27/10/2026
+### VPS de testes — fotografia verificada em 27/10/2026
 
 Verificação por SSH, gateway e painel autenticado do n8n em 27/10/2026:
 

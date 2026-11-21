@@ -7,7 +7,14 @@ Anvisa V8/OpenRouter e retomada por checkpoints, use
 [deploy/full-local/README.md](../deploy/full-local/README.md). Nenhum desses
 roteiros ativa workflows na VPS.
 
-## Estado observado na VPS em 27/10/2026
+## Estado observado na VPS do cliente em 21/11/2026
+
+Os exports de processamento interno v1, erros, envio manual e reconciliação
+estão importados e inativos. Os nós de banco foram vinculados à credencial
+PostgreSQL do cliente. O n8n registra zero execuções. O processamento Anvisa
+V8 aguarda a chave da OpenRouter e o envio aguarda OAuth do Gmail.
+
+## Estado observado na VPS de testes em 27/10/2026
 
 O n8n tem seis workflows registrados. Estão publicados Automação Regulatória - Duas Passagens e Automacao Regulatoria - Erros Internos. Automacao Regulatoria - Repositorio Interno (v1) foi despublicado. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM continuam inativos.
 

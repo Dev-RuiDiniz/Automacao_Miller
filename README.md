@@ -184,17 +184,21 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - **Renderizador:** transforma o relatório Markdown em PDF.
 - **Gmail:** envia o relatório somente após solicitação do operador.
 
-A configuração de implantação está em [deploy/README.md](deploy/README.md). A operação dos workflows está em [workflows/README.md](workflows/README.md).
+O roteiro da VPS do cliente está em [DEPLOY.md](DEPLOY.md). A configuração geral da stack está em [deploy/README.md](deploy/README.md), e a operação dos workflows está em [workflows/README.md](workflows/README.md).
 
 ## Situação conhecida do projeto
 
-A última fotografia da VPS é de **27/10/2026**: v2 híbrido e workflow de
+Em **21/11/2026**, o commit `3cac700` foi instalado na VPS do cliente. A
+landing privada está disponível em `https://reportai.info`. Os workflows
+estão inativos enquanto o Anvisa V8 aguarda a chave OpenRouter. O estado dos
+acessos e as pendências estão no [ROADMAP.md](ROADMAP.md).
+
+Na **VPS de testes**, a fotografia de **27/10/2026** registrou v2 híbrido e workflow de
 erros publicados, v1 despublicado, envio manual e reconciliação inativos.
 O proprietário do n8n foi criado e houve backup protegido. O ensaio sintético
 chegou a **Aguardando envio**, mas reprovou qualidade ao não preservar a sequência
-concessão/cancelamento. A landing pública HTTPS, a restauração do backup e a
-homologação do envio continuam pendentes. Essa fotografia não confirma o estado
-atual da VPS, que não foi consultada durante a resolução dos conflitos.
+concessão/cancelamento. Nessa data, a landing HTTPS, a restauração do backup e
+a homologação do envio estavam pendentes.
 
 Em 16/11/2026, as PRs #5 e #3 foram integradas ao GitHub `main`: o repositório
 agora contém a opção Anvisa V8/OpenRouter com checkpoints e o guia de teste local
@@ -211,10 +215,9 @@ O workflow e a documentação não provam, sozinhos, que os fluxos estão ativos
 ## O que falta antes de produção
 
 As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem
-retomar o V8 local pelo mesmo protocolo quando solicitado, corrigir e repetir
-o fixture híbrido antes de documentos reais na VPS, concluir segurança,
-backup e HTTPS e homologar envio e reconciliação. As chaves NVIDIA expostas
-continuam pendentes de revogação.
+configurar a chave OpenRouter e homologar a análise, a restauração, o envio e
+a reconciliação na VPS do cliente. O roteiro da VPS de testes e a retomada
+local do V8 têm pendências próprias no roadmap.
 
 ## Infraestrutura de referência
 

@@ -22,6 +22,8 @@ Antes de mudar código, workflows ou infraestrutura, leia nesta ordem:
 
 Para mudanças apenas documentais, leia também os documentos que serão corrigidos e as partes correspondentes da implementação.
 
+Para implantação, atualização da VPS ou configuração dos acessos de produção, leia [DEPLOY.md](DEPLOY.md) antes de alterar o ambiente. O guia registra o estado verificado, o procedimento de atualização e as pendências de operação.
+
 A fonte de verdade é: código e workflows para o comportamento implementado; PRD.md para o comportamento esperado; ROADMAP.md para as próximas tarefas; LOG.md para o histórico. Se houver conflito, registre e resolva a divergência. README.md, FLUXOGRAMA.md e ACESSOS.md explicam o projeto, mas não substituem o PRD.
 
 ## 4. Mantenha o escopo

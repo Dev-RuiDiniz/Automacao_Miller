@@ -4,9 +4,29 @@ Este arquivo explica **quem precisa acessar o quê e onde a credencial deve fica
 
 Guarde valores reais no cofre aprovado, no arquivo de ambiente protegido do servidor ou nas credenciais internas do serviço, conforme a seção. Registre aqui somente o estado, o local e as pendências.
 
-## Resumo do estado verificado em 27/10/2026
+## VPS do cliente — verificada em 21/11/2026
 
-Esta fotografia é da VPS. Os acessos da stack local são descritos em seção
+- Acesso administrativo por chave SSH confirmado para `root` em
+  `srv2147368.hstgr.cloud` (`2.25.172.95`). O código está em
+  `/opt/automacao-miller` e o `.env` tem permissão `600`.
+- A landing exige login e está publicada em `https://reportai.info` pelo
+  Caddy. O gateway e o editor do n8n escutam no loopback nas portas `8085` e
+  `25678`. Use um túnel SSH para administrar o n8n. A criação do proprietário
+  do n8n permanece pendente.
+- O usuário inicial da landing é `operador`. A senha inicial está no arquivo
+  `/root/.automacao-miller-landing-inicial`, com permissão `600` na VPS.
+- A credencial PostgreSQL está no cofre do n8n. Os quatro workflows foram
+  importados como inativos. O envio manual requer OAuth da conta Gmail do
+  cliente.
+- O renderizador aguarda `OPENROUTER_API_KEY`. O administrador insere a chave
+  de forma interativa com `miller-configurar-openrouter`. O comando valida a
+  chave, aplica a configuração e publica a entrada e o tratamento de erros.
+- O backup inicial do PostgreSQL e dos artefatos está em
+  `/opt/backups/automacao-miller`, com hashes conferidos.
+
+## Ambiente de testes — fotografia de 27/10/2026
+
+As seções numeradas abaixo descrevem a VPS de testes. Os acessos da stack local são descritos em seção
 separada, com a data de configuração. Nenhuma credencial ou ambiente externo
 foi consultado nesta resolução de merge; a pausa local de 15/11 e os testes
 posteriores à configuração inicial estão no ROADMAP.md.

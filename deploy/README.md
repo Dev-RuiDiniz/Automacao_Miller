@@ -1,5 +1,5 @@
 # Implantação da stack de homologação
-Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. A última fotografia registrada da VPS é de 27/10/2026; confirme o estado real e faça backup antes de qualquer comando que altere containers ou dados.
+Antes de implantar ou alterar a stack, confira [ROADMAP.md](../ROADMAP.md) para saber o que foi validado e [ACESSOS.md](../ACESSOS.md) para configurar credenciais com segurança. O estado da VPS do cliente foi verificado em 21/11/2026 e está descrito nesses arquivos. Confirme o estado real e faça backup antes de alterar containers ou dados.
 
 
 Esta stack usa n8n, PostgreSQL, Ollama, os serviços locais de conversão e
@@ -18,7 +18,7 @@ o inicia.
 - [Conversor local de Markdown](../infra/pdf_converter/README.md): converte e
   baixa o texto paginado sem n8n, banco ou provedor de IA.
 
-Na consulta de 26/10/2026, os seis containers do Miller estavam saudáveis, mas somente os workflows de processamento e erro estavam ativos. Envio e reconciliação estavam inativos, o proprietário do n8n não estava configurado e o diretório de backup esperado não existia. O gateway não tinha publicação HTTP/HTTPS no host. Isso não é uma stack pronta para uso externo ou produção.
+Na VPS de testes, a consulta de 26/10/2026 encontrou os seis containers do Miller saudáveis e os workflows de processamento e erro ativos. Envio e reconciliação estavam inativos, o proprietário do n8n não estava configurado e o diretório de backup esperado não existia. O gateway estava restrito à rede Docker.
 
 Em 27/10, foram registrados a criação do proprietário, o backup e a publicação
 do v2 híbrido na VPS. A homologação técnica sintética passou, mas a qualidade

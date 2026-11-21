@@ -6511,3 +6511,27 @@ Impacto:
 As duas PRs e as atualizações documentais estão versionadas em `main`. O V8
 está disponível no código, mas não está confirmado como implantado ou ativo na
 VPS. O usuário deve consultar ROADMAP.md antes de retomar a operação.
+
+## 2026-11-21 — Instala o Miller na VPS do cliente
+
+O commit `3cac700` foi transferido a `srv2147368.hstgr.cloud`, em uma
+instalação nova com Docker e Compose dos repositórios Ubuntu. Após autorização
+do usuário, o registro A de `reportai.info` passou a apontar para `2.25.172.95`,
+com TTL de 60 segundos exigido pelo painel. O Caddy passou a servir a landing
+por HTTPS e a redirecionar `www.reportai.info` para o domínio principal.
+
+Foram verificados os seis serviços saudáveis, o certificado da landing, os
+redirecionamentos, o acesso privado, o login, o logout, o cookie seguro e os
+hashes do backup inicial. Os 15 testes locais de contrato de implantação
+passaram com o commit implantado.
+
+Foram importados quatro workflows inativos com credencial PostgreSQL própria.
+O n8n foi configurado para Anvisa V8 via OpenRouter. O comando
+`miller-configurar-openrouter` ficou no servidor para validar e aplicar a chave
+de forma interativa e publicar o processamento e o tratamento de erros. A
+pedido do usuário, a validação terminou com zero execuções no n8n. A chave do
+cliente, a configuração administrativa do n8n e o OAuth do Gmail seguem
+pendentes. O Gmail ficou para depois da indicação da conta pelo cliente ou
+pelo líder técnico. O backup fica na VPS e a restauração isolada segue por
+verificar. O roteiro das próximas implantações foi consolidado em
+[DEPLOY.md](DEPLOY.md) e referenciado em [AGENTS.md](AGENTS.md).

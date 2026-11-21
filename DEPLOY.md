@@ -1,5 +1,29 @@
 # Implantação da Automação Miller
 
+## Checklist de liberação ao cliente
+
+Status baseado na verificação da VPS em 21/11/2026.
+
+### Concluído
+
+- [x] Instalar o Miller na VPS do cliente e verificar os seis serviços Docker.
+- [x] Publicar `reportai.info` com HTTPS e validar o redirecionamento de `www`.
+- [x] Configurar o usuário `operador` e validar login, logout e acesso restrito.
+- [x] Importar os quatro workflows inativos e vincular a credencial PostgreSQL.
+- [x] Selecionar OpenRouter para o Anvisa V8 e preparar o comando de instalação da chave.
+- [x] Criar o backup na VPS e conferir os hashes do banco e dos artefatos.
+
+### Pendente para liberar
+
+- [ ] **OpenRouter.** Receber a chave do cliente, instalá-la na VPS e confirmar a publicação dos workflows de processamento e de erros.
+- [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
+- [ ] **Gmail.** Confirmar a conta de produção com o cliente ou líder técnico, autorizar o OAuth no n8n e vincular a credencial ao workflow de envio manual.
+- [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `aguardando_envio`.
+- [ ] **Teste final de envio.** Enviar o relatório sintético pelo painel a um destinatário autorizado. Confirmar o recebimento pelo Gmail, o registro da entrega, o status `concluido` e a liberação do download após a conclusão.
+- [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar a reconciliação.
+- [ ] **Recuperação.** Guardar uma cópia protegida do backup fora da VPS e testar a restauração em ambiente isolado.
+- [ ] **Aceite.** Registrar os resultados dos testes finais e obter o aceite operacional antes de liberar o uso ao cliente.
+
 ## Estado verificado em 21/11/2026
 
 | Item | Configuração da VPS do cliente |

@@ -46,6 +46,48 @@ privada, login, logout e cookie seguro. Os hashes dos backups do PostgreSQL e
 dos artefatos foram conferidos. A análise de ponta a ponta aguarda a chave
 OpenRouter e a autorização para executar o teste.
 
+## Revisão de segurança após a configuração
+
+A revisão de 21/11/2026 usou consultas HTTPS sem credenciais e verificações
+somente leitura na VPS do cliente, com o commit `3cac700` implantado.
+
+- **Acesso público.** A página de login, o `/healthz` e os arquivos estáticos,
+  incluindo o HTML do painel, responderam `200`. O HTML contém a estrutura da
+  interface. A fila, os destinatários e as rotas de visualização e download de
+  relatórios responderam `403` sem credenciais.
+- **Serviços internos.** O Caddy devolveu `404` para as rotas internas e a
+  documentação da API. O n8n e a porta direta do gateway estavam vinculados ao
+  loopback da VPS. O n8n tinha quatro workflows importados, todos inativos.
+- **PostgreSQL.** A porta `5432` estava sem publicação no host Docker e a
+  tentativa de conexão externa expirou. O próprio host e o conversor PDF
+  alcançaram a porta pela rede compartilhada da stack. As conexões por essa
+  rede exigiam autenticação `SCRAM-SHA-256`. O gateway e o n8n usavam a mesma
+  conta de superusuário. Uma credencial comprometida daria controle sobre toda
+  a instância. [Configuração da stack](docker-compose.yml)
+
+### Itens para avaliar após concluir a configuração
+
+- [ ] **Isolar o PostgreSQL e reduzir privilégios.** Criar uma rede Docker para
+  o banco e os serviços que precisam acessá-lo. Separar as contas do gateway e
+  do n8n e conceder a cada uma apenas as permissões necessárias. Validar o
+  processamento, a consulta no painel e o envio com as novas contas.
+- [ ] **Proteger o upload antes de ler o arquivo.** A versão do FastAPI
+  implantada começa a processar o corpo antes de verificar a sessão e o Caddy
+  ativo não aplicava limite de tamanho. Antecipar a autenticação e impor um
+  limite ao corpo no proxy para reduzir o risco de indisponibilidade.
+  [Gateway](infra/upload_gateway/app.py)
+- [ ] **Revisar o token legado.** O token estava configurado e era aceito na
+  URL. Esse uso pode deixar a credencial no histórico ou em logs. Confirmar
+  se alguma integração depende dele e retirar o suporte pela URL.
+  [Gateway](infra/upload_gateway/app.py)
+- [ ] **Limitar tentativas de login.** O código do gateway e a configuração
+  ativa do Caddy não apresentaram limite de tentativas. Aplicar o limite e
+  conferir que o acesso legítimo continua funcionando.
+- [ ] **Revalidar a exposição pública.** Após as mudanças, conferir o bloqueio
+  das rotas privadas sem credenciais, a ausência de publicação da porta do
+  PostgreSQL e a necessidade de manter o `/healthz` e o HTML do painel
+  acessíveis publicamente.
+
 ## Acessos e arquivos locais
 
 Use uma chave SSH autorizada com a identidade da VPS confirmada. A sessão

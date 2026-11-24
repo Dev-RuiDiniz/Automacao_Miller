@@ -12,8 +12,8 @@ Pense numa esteira:
 6. Python confere a página e a citação de cada sugestão da IA; o que não comprovar fica de fora da síntese.
 7. A IA usa as observações e sugestões aceitas para escrever o relatório.
 8. O sistema confere as referências finais e gera o PDF.
-9. O trabalho fica esperando um operador, que decide se e para quem enviar.
-10. O download oficial só é liberado depois que o Gmail confirma o envio.
+9. O sistema armazena o PDF no volume privado e conclui o protocolo.
+10. O painel autenticado exibe **Baixar relatório PDF**.
 
 A leitura por regras registra palavras literais e trechos com páginas. Ela não
 decide se um ato foi aprovado, negado ou cancelado; a repetição de um número de
@@ -41,7 +41,7 @@ Abrir 127.0.0.1:18080 → selecionar PDF textual → converter localmente
   → eventual teste manual em serviço externo, somente com material autorizado
 ```
 
-Sem n8n, banco, Ollama, API de IA ou envio de e-mail. O arquivo inclui os avisos
+Modo isolado do n8n, banco, Ollama e APIs de IA. O arquivo inclui os avisos
 antes das páginas. Sem OCR: páginas sem texto não comprovam ausência de dados.
 
 ## Fluxo principal
@@ -131,14 +131,9 @@ flowchart TD
     T -- Não --> X
     T -- Sim --> U[Marcar citações comprovadas e pendentes]
     U --> V[Gerar PDF do relatório]
-    V --> W[Guardar Markdown e PDF<br/>Marcar Aguardando envio]
-    W --> Y[Operador abre e confere o relatório se desejar]
-    Y --> Z[Operador solicita envio e confirma destinatários]
-    Z --> AA[Workflow separado envia pelo Gmail]
-    AA --> AB{Gmail confirmou o envio?}
-    AB -- Não --> AC[Registrar falha da entrega<br/>Permitir nova tentativa controlada]
-    AB -- Sim --> AD[Marcar Concluído]
-    AD --> AE[Liberar download oficial no painel]
+    V --> W[Guardar Markdown e PDF e registrar o artefato]
+    W --> AD[Marcar Concluído]
+    AD --> AE[Exibir Baixar relatório PDF no painel]
 
     G -. original e artefatos .-> DB[(PostgreSQL: estados e histórico)]
     G -. PDF e relatórios .-> FS[(Volume privado: arquivos)]
@@ -171,7 +166,6 @@ flowchart TD
 - **Falha temporária do OpenRouter:** cada chamada tem timeout de 360 segundos e até três tentativas, com esperas de 5 e 15 segundos. Antes de repetir o mesmo pacote, revalidar o checkpoint; lotes concluídos não são refeitos. Falhas de crédito/autorização e validação não recebem esse retry. Falha persistente após a terceira tentativa termina em erro explícito com progresso salvo.
 - **Retomada interna V8:** reutiliza lotes e grupos do mesmo protocolo, fonte e versão de análise, após revalidação. Estados ficam em volume privado e persistem após recriar o contêiner. Progresso antigo não salvo continua indisponível.
 - **Citação candidata inválida no v2 híbrido:** Python marca como pendente e não passa o candidato para a síntese.
-- **Falha do Gmail:** a entrega fica registrada como falha. O operador pode pedir nova tentativa controlada; o download oficial só abre após um envio confirmado.
 - **Dúvida sobre o conteúdo:** o operador pode abrir o PDF original e conferir. Essa revisão é opcional para cada relatório.
 
 No transporte de saída V8, campos integrais idênticos das fichas podem usar
@@ -200,8 +194,7 @@ e validação da fonte permanecem os mesmos.
 
 - **Recebido:** o sistema guardou o arquivo e criou o protocolo.
 - **Em processamento:** a esteira está convertendo e analisando o conteúdo.
-- **Aguardando envio:** o relatório foi criado; falta o operador solicitar o e-mail.
-- **Concluído:** o Gmail confirmou o envio.
+- **Concluído:** o relatório foi validado e o PDF está armazenado para download no painel.
 - **Com erro:** uma etapa técnica não terminou. O motivo deve aparecer no histórico do protocolo.
 
 ## Provedor NVIDIA
@@ -218,8 +211,8 @@ registrar provedor/modelo. Não há fallback automático para Ollama.
 
 ## Onde cada peça mora
 
-- **PostgreSQL:** protocolos, estados, tentativas, entregas e erros.
+- **PostgreSQL:** protocolos, estados, tentativas e erros.
 - **Volume privado Docker:** PDF original, Markdown paginado e relatórios Markdown/PDF.
-- **n8n:** sequência de trabalho e integração atual com Ollama/Gmail, além do
+- **n8n:** sequência de trabalho e integração com Ollama e com o renderizador Anvisa V8, além do
   futuro endpoint NVIDIA NIM de produção após homologação.
 - **Gateway:** entrada, login, painel, visualização e controle de download.

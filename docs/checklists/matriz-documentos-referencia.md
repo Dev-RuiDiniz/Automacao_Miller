@@ -33,7 +33,7 @@ O PDF original recebido para validação permanece fora do Git. Só documentos a
 | DOC-007 | Falha do Ollama durante um lote | Erro ligado à tentativa; não criar relatório parcial | Há 1 documento em erro na etapa Ollama; causa e recuperação ainda pendentes |
 | DOC-008 | Falha do renderizador PDF | Erro explícito; não marcar como concluído | Pendente na VPS atual |
 | DOC-009 | Falha de armazenamento do volume privado | Erro explícito e artefatos anteriores preservados | Pendente na VPS atual |
-| DOC-010 | Falha do Gmail | Registrar entrega com erro; download oficial permanece bloqueado até envio confirmado | Pendente na VPS atual |
+| DOC-010 | PDF final e download | Exibir o botão após conclusão com PDF persistido e baixar o relatório pelo painel autenticado | Homologação na VPS pendente |
 | DOC-011 | Arquivo duplicado e reprocessamento autorizado | Evitar duplicidade; reprocessar somente com autorização registrada | Pendente na VPS atual |
 | DOC-012 | Retomada após falha | Retomar a etapa suportada sem esconder a falha anterior | Pendente na VPS atual |
 | DOC-013 | PDF extenso de 142 páginas | Cobrir todas as páginas, validar referências e concluir com status conhecido | Falha em análise pelo Ollama registrada; novo processamento depende de diagnóstico e autorização |

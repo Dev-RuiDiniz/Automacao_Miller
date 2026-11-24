@@ -68,9 +68,8 @@ permanece no `.env` e é injetada somente no renderizador.
 Os quatro workflows internos são importados conforme
 [o guia dos workflows](../../workflows/README.md). Para o teste local, publique
 somente processamento e erros, associados à credencial PostgreSQL local.
-Envio e reconciliação permanecem inativos. O Gmail exige configuração OAuth
-própria antes de testar a entrega manual; ele não é necessário para visualizar
-o relatório em `aguardando_envio`.
+Mantenha a reconciliação inativa neste roteiro. Assim que o protocolo ficar
+**Concluído**, use **Baixar relatório PDF** no detalhe para conferir o resultado.
 
 Com OpenRouter selecionado, não é necessário baixar um modelo Ollama. O
 serviço permanece na stack por ser uma dependência declarada do n8n.

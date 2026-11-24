@@ -10,8 +10,8 @@ o inicia.
 ## Testes locais
 
 - [Teste local com Ollama](../docs/TESTE_LOCAL.md): stack padrão, landing em
-  `127.0.0.1:8085`, processamento até `aguardando_envio`; envio Gmail e
-  reconciliação ficam inativos.
+  `127.0.0.1:8085`, processamento até `concluido` e download no painel.
+  A reconciliação fica inativa nesse roteiro.
 - [Stack completa local](full-local/README.md): ambiente isolado para testar
   também o modo Anvisa V8 com OpenRouter, em portas locais próprias. Não altera
   nem confirma a implantação na VPS.
@@ -78,9 +78,9 @@ docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB
   < deploy/postgres/init/002_internal_repository.sql
 ```
 
-Em uma instalação já existente, aplique também
-`deploy/postgres/init/003_panel_operations.sql` para criar destinatários,
-destinatários por documento, entregas de e-mail e o status `aguardando_envio`.
+Para atualizar do fluxo anterior para download direto, aplique a migração
+[006_report_download.sql](postgres/init/006_report_download.sql) conforme
+[o procedimento de atualização](../DEPLOY.md#atualizar-a-versão-na-mesma-vps).
 
 ## Repositório e permissões
 
@@ -109,11 +109,10 @@ repositório e mantém o documento em erro.
 
 ## Workflows
 
-Importe os quatro exports internos descritos em `workflows/README.md`:
-processamento, envio manual, reconciliação e erros. Associe somente PostgreSQL
-e Gmail, configure os webhooks `N8N_SUBMISSION_WEBHOOK_URL` e
-`N8N_REPORT_EMAIL_WEBHOOK_URL` e valide uma execução completa antes de ativar os
-workflows. Os exports que usam Drive devem permanecer inativos como histórico.
+Importe o processamento interno escolhido, os erros e a reconciliação,
+conforme [os exports internos](../workflows/README.md). Associe PostgreSQL,
+configure `N8N_SUBMISSION_WEBHOOK_URL` e valide uma execução sintética antes de
+liberar a operação. Os exports que usam Drive são históricos e ficam inativos.
 
 O export atualizado do processamento chama a rota interna de contexto
 determinístico no gateway. Ela usa `INTERNAL_API_TOKEN` e o Markdown já salvo;
@@ -121,9 +120,8 @@ não requer serviço, modelo ou variável adicional. Após atualizar o código,
 reconstrua o gateway e valide o nó com o fixture sintético antes de importar ou
 ativar o workflow no n8n.
 
-O processamento termina em `aguardando_envio`. O operador confere os artefatos
-no painel, escolhe os destinatários e solicita o envio. O download oficial fica
-bloqueado até o workflow registrar a confirmação do Gmail e `concluido`.
+O processamento termina em `concluido` após salvar o PDF. O operador pode
+visualizar o relatório e clicar em **Baixar relatório PDF** no detalhe.
 
 ## Operação e backup
 

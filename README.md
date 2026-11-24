@@ -17,7 +17,7 @@ A IA ajuda a ler e resumir. Ela não decide o que a empresa deve fazer e não su
 5. O sistema confere se as páginas foram cobertas e se as citações aparecem no texto original.
 6. O sistema monta um relatório em Markdown e PDF.
 7. O operador encontra o relatório no painel e pode conferi-lo.
-8. O operador solicita o envio por Gmail. Só depois de o Gmail confirmar o envio o documento fica concluído e o download oficial é liberado.
+8. O protocolo fica **Concluído** após o armazenamento do PDF e o painel libera **Baixar relatório PDF**.
 
 O desenho visual está em [FLUXOGRAMA.md](FLUXOGRAMA.md). Os requisitos completos estão em [PRD.md](PRD.md).
 
@@ -39,7 +39,7 @@ A referência de 90 minutos é uma meta de desempenho. A análise V8 pode
 continuar além desse tempo; o prazo global fica desabilitado por padrão,
 mantendo limites técnicos por chamada e salvamento do progresso.
 
-A saída persistida é o relatório técnico em Markdown e sua versão PDF. RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo. O sinal mede localização de evidências, não confiança semântica da IA. Referências pendentes aparecem como pendentes e não bloqueiam, por si só, a geração do relatório ou a solicitação de envio. Uma falha técnica ou uma página não analisada interrompe a geração de um relatório completo.
+A saída persistida é o relatório técnico em Markdown e sua versão PDF. RAG, embeddings e `quality_checks` não são chamados pelo workflow ativo. O sinal mede localização de evidências, não confiança semântica da IA. Referências pendentes aparecem como pendentes e não bloqueiam, por si só, a geração do relatório ou a conclusão do processamento. Uma falha técnica ou uma página não analisada interrompe a geração de um relatório completo.
 
 No modo Anvisa V8, o PDF começa pelo índice de assuntos e páginas da fonte.
 As fichas preservam as petições, dispositivos e evidências; inconsistências
@@ -79,35 +79,30 @@ os seis serviços e acessar a landing em `http://127.0.0.1:18085` e o n8n em
 `http://127.0.0.1:25678`. Esse modo carrega o `.env` e permite selecionar o
 OpenRouter. O Compose complementar mantém os dados locais em volumes próprios.
 
-Para testar a rota local padrão com Ollama até `aguardando_envio`, use o
+Para testar a rota local padrão com Ollama até `concluido`, use o
 [roteiro de teste local](docs/TESTE_LOCAL.md), que publica a landing somente em
-`127.0.0.1:8085` e mantém envio e reconciliação inativos. Esse roteiro não
+`127.0.0.1:8085` e mantém a reconciliação inativa. Esse roteiro não
 homologa o modo Anvisa V8/OpenRouter.
 
 ### Fluxo completo pela landing
 
 1. Entre na landing com o acesso fornecido por um administrador.
 2. Envie um PDF com texto selecionável e guarde o protocolo mostrado na tela.
-3. Aguarde o estado **Aguardando envio**. Se aparecer **Com erro**, use o protocolo para localizar a etapa que falhou.
-4. Abra o relatório no painel. Confira o documento original quando uma informação for importante ou uma referência estiver pendente.
-5. Confirme os destinatários no painel.
-6. Clique para solicitar o envio.
-7. Se o estado mudar para **Concluído**, baixe o PDF pelo próprio painel.
+3. Aguarde o estado **Concluído**. Se aparecer **Com erro**, consulte a etapa que falhou no detalhe do protocolo.
+4. Clique em **Baixar relatório PDF** no detalhe do protocolo. A conferência das referências pelo painel é opcional.
 
 Se o processamento terminar em **Com erro**, corrija a causa indicada e clique
 em **Reprocessar** no mesmo protocolo e confirme a retomada na tela apresentada.
 Cancelar ou fechar essa confirmação não inicia o fluxo. O sistema confere o último artefato salvo
 e continua dali: um Markdown íntegro evita repetir a conversão; um relatório
 íntegro evita repetir a análise. O histórico e as versões anteriores são
-preservados. Para falha de e-mail, use **Tentar envio novamente**.
+preservados.
 
 O detalhe do protocolo mostra a etapa atual e atualiza automaticamente o
 andamento, as tentativas e os erros a cada cinco segundos enquanto a página
 estiver visível. As atualizações preservam o formulário e a aba selecionada.
 Durante a chamada de IA, a etapa permanece em análise até o fluxo registrar
 o próximo ponto; a tela não estima percentual de conclusão.
-
-O operador pode conferir o relatório antes do envio. Essa conferência é opcional; enviar o e-mail continua sendo uma ação manual.
 
 ### Usar o V8 com Terra no OpenRouter
 
@@ -149,7 +144,7 @@ existia apenas em memória não pode ser recuperado retroativamente.
 4. **Auditoria de lacunas:** no desenho híbrido, a IA percorre todos os lotes e propõe apenas fatos que podem não estar nas observações das regras. A IA ainda precisa ler todas as páginas; o ganho esperado é reduzir o trabalho de localizar padrões simples, não eliminar a IA.
 5. **Validação dos candidatos:** Python aceita para síntese somente candidatos com página válida e trecho literal encontrado naquela página e no lote correspondente.
 6. **Interpretação e relatório:** a IA recebe observações determinísticas e candidatos aceitos. Ela escreve o relatório; a checagem Python comprova a citação, não a interpretação.
-7. **Conferência final e entrega:** o gateway confere cobertura e referências do relatório. O documento aguarda solicitação manual; Gmail só conclui o envio quando confirmar a entrega.
+7. **Conclusão e download.** Após a validação e o armazenamento do relatório, o workflow conclui o protocolo e o painel habilita o download.
 
 O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado do Docker guarda os PDFs e relatórios. O Google Drive é apenas parte de exports históricos e não participa do fluxo atual.
 
@@ -157,12 +152,11 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 
 - PDF escaneado ou sem texto extraível termina com erro. OCR não está incluído.
 - O relatório é apoio documental, não um parecer definitivo.
-- Uma citação marcada como pendente não bloqueia, pelas regras atuais, a criação ou a solicitação de envio. Isso não significa que o conteúdo esteja correto.
+- Uma citação marcada como pendente não bloqueia, pelas regras atuais, a geração do PDF ou a conclusão. Isso não significa que o conteúdo esteja correto.
 - A NVIDIA API Trial/Developer Catalog recebe somente fixture sintético. Documento real só poderá ser enviado a endpoint de produção se os termos permitirem expressamente aquele tipo de dado e houver autorização específica. A chave enviada no chat está comprometida e não foi configurada.
 - RAG, embeddings e treinamento de modelo estão fora do caminho ativo.
 - A versão híbrida ainda usa IA em todos os lotes para procurar lacunas e para escrever o relatório. A leitura por regras pode deixar passar formas de escrita que não conhece; a validação da citação não prova a interpretação semântica.
 - O modo Anvisa V8 envia o Markdown paginado ao OpenRouter. Use-o somente com documento e destino autorizados, após conferir os termos e a privacidade do provedor; mantenha a chave no `.env` protegido.
-- O envio de e-mail exige uma ação manual e o workflow de envio precisa estar ativo no n8n.
 
 ## O que o sistema não faz
 
@@ -171,7 +165,6 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - Não completa dados, páginas, prazos ou responsáveis que não aparecem na fonte.
 - Não envia documentos reais ao teste gratuito da NVIDIA. Esse teste é isolado, manual e usa somente um texto sintético.
 - Não usa Google Drive, RAG ou embeddings no fluxo ativo. O Drive e os workflows antigos permanecem apenas para histórico e auditoria.
-- Não envia e-mail automaticamente quando o relatório termina.
 
 ## Como o sistema é montado
 
@@ -179,18 +172,19 @@ O PostgreSQL guarda protocolos, estados, tentativas e erros. Um volume privado d
 - **n8n:** coordena as etapas e registra falhas.
 - **Conversor PDF → Markdown:** extrai texto e marca cada página.
 - **Ollama / OpenRouter:** analisam o Markdown no modo configurado.
-- **PostgreSQL:** guarda estados, tentativas, destinatários, erros e referências aos arquivos.
+- **PostgreSQL:** guarda estados, tentativas, erros e referências aos arquivos.
 - **Volume privado do Docker:** guarda o PDF original e os relatórios Markdown e PDF.
 - **Renderizador:** transforma o relatório Markdown em PDF.
-- **Gmail:** envia o relatório somente após solicitação do operador.
 
 O roteiro da VPS do cliente está em [DEPLOY.md](DEPLOY.md). A configuração geral da stack está em [deploy/README.md](deploy/README.md), e a operação dos workflows está em [workflows/README.md](workflows/README.md).
 
 ## Situação conhecida do projeto
 
+O download direto faz parte da versão do repositório de 23/11/2026.
+
 Em **21/11/2026**, o commit `3cac700` foi instalado na VPS do cliente. A
-landing privada está disponível em `https://reportai.info`. Os workflows
-estão inativos enquanto o Anvisa V8 aguarda a chave OpenRouter. O estado dos
+landing privada foi verificada em `https://reportai.info`. Os workflows
+estavam inativos, com o Anvisa V8 aguardando a chave OpenRouter. O estado dos
 acessos e as pendências estão no [ROADMAP.md](ROADMAP.md).
 
 Na **VPS de testes**, a fotografia de **27/10/2026** registrou v2 híbrido e workflow de
@@ -215,7 +209,7 @@ O workflow e a documentação não provam, sozinhos, que os fluxos estão ativos
 ## O que falta antes de produção
 
 As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem
-configurar a chave OpenRouter e homologar a análise, a restauração, o envio e
+configurar a chave OpenRouter e homologar a análise, a restauração, o download e
 a reconciliação na VPS do cliente. O roteiro da VPS de testes e a retomada
 local do V8 têm pendências próprias no roadmap.
 
@@ -229,12 +223,12 @@ O prazo comercial de referência é de até **10 dias úteis** depois da aprova�
 
 - [PRD.md](PRD.md) — o que o produto deve fazer e quais regras precisa respeitar.
 - [ROADMAP.md](ROADMAP.md) — estado conhecido e lista ordenada do que falta.
-- [FLUXOGRAMA.md](FLUXOGRAMA.md) — desenho simples do caminho do PDF até o envio.
+- [FLUXOGRAMA.md](FLUXOGRAMA.md) — desenho simples do caminho do PDF até o download.
 - [ACESSOS.md](ACESSOS.md) — tipos de acesso, onde guardar segredos e o que ainda precisa ser confirmado.
 - [AGENTS.md](AGENTS.md) — como alterar e manter este repositório.
 - [LOG.md](LOG.md) — histórico cronológico de decisões, incidentes e validações.
 - [workflows/README.md](workflows/README.md) — detalhes operacionais dos workflows n8n.
-- [docs/TESTE_LOCAL.md](docs/TESTE_LOCAL.md) — roteiro de teste local com Ollama, sem envio de e-mail.
+- [docs/TESTE_LOCAL.md](docs/TESTE_LOCAL.md) — roteiro de teste local com Ollama e download do relatório.
 - [deploy/full-local/README.md](deploy/full-local/README.md) — stack completa local e modo Anvisa V8 com OpenRouter.
 - [RELATORIO_AUDITORIA_PROJETO.md](RELATORIO_AUDITORIA_PROJETO.md) — auditoria histórica; não substitui a documentação vigente.
 

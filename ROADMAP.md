@@ -1,6 +1,6 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 21 de novembro de 2026
+**Atualizado em:** 23 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 
 ## VPS do cliente — verificada em 21/11/2026
@@ -11,12 +11,20 @@ privada com certificado válido. O n8n permanece acessível por túnel SSH.
 Foram verificados login, logout, cookie seguro, restrição de rotas internas e
 o backup inicial do banco e dos artefatos.
 
-O modo Anvisa V8 está configurado para OpenRouter. Os quatro workflows estão
-importados e inativos e o n8n registra zero execuções. A chave do cliente
-está pendente. O comando `miller-configurar-openrouter` aplica a chave e
-publica a entrada do V8 e o workflow de erros. O OAuth do Gmail, a criação do
-proprietário do n8n, a restauração isolada e a homologação de ponta a ponta
-seguem como etapas operacionais. Consulte [ACESSOS.md](ACESSOS.md).
+Na verificação de 21/11, o modo Anvisa V8 estava configurado para OpenRouter.
+Os quatro workflows estavam importados e inativos, com zero execuções. O
+comando `miller-configurar-openrouter` ficou preparado para aplicar a chave e
+publicar a entrada V8 e o tratamento de erros. A conta proprietária, a
+restauração isolada e a homologação de ponta a ponta permaneciam pendentes. Consulte [ACESSOS.md](ACESSOS.md).
+
+## Download direto do relatório — 23/11/2026
+
+Implementado no repositório. O workflow conclui documento e tentativa depois
+que grava o PDF. O botão **Baixar relatório PDF** aparece no detalhe do
+protocolo concluído quando o arquivo está disponível no volume privado.
+A atualização de ambiente existente usa a migração 006 e os exports atuais.
+A VPS não foi consultada durante esta atualização. Implantação e homologação
+operacional do download seguem pendentes.
 
 ## Leitura em um minuto
 
@@ -49,8 +57,8 @@ a conclusão real de ponta a ponta continua pendente.
 ### Guia local com Ollama — PR #3
 
 A PR #3 foi integrada em 16/11/2026. O guia explica como iniciar a stack local,
-enviar um PDF textual de teste e conferir Markdown/PDF até `aguardando_envio`.
-O override publica a landing apenas em `127.0.0.1:8085`; envio Gmail e
+enviar um PDF textual de teste, conferir Markdown/PDF e baixar o relatório
+após a conclusão. O override publica a landing apenas em `127.0.0.1:8085`. A
 reconciliação ficam inativos. O roteiro cobre o caminho local com Ollama, não o
 modo Anvisa V8/OpenRouter nem a stack da VPS. Os 75 testes e health checks são
 resultados históricos informados pela PR, não foram executados novamente nesta
@@ -1369,8 +1377,8 @@ A cobertura de páginas e a localização literal das citações são checagens 
 - Análise integral por lotes sequenciais de até 6.000 caracteres.
 - Geração de relatório Markdown e PDF.
 - Conferência mecânica de cobertura e citações.
-- Painel, controle de destinatários e solicitação manual de envio no gateway.
-- Exports separados para processamento, envio, reconciliação, erro e avaliação sintética.
+- Painel, conferência opcional e download autenticado do PDF concluído.
+- Exports separados para processamento, reconciliação, erro e avaliação sintética.
 - Scripts de backup e migração no repositório.
 
 Esses itens descrevem a base versionada. O estado da VPS e dos workflows ativos
@@ -1446,7 +1454,7 @@ foi enviado.
    Responsável: administrador do servidor. Mantenha primeiro o acesso por chave SSH validado, troque a senha exposta e guarde o novo valor no cofre aprovado. Não envie a senha pelo chat.
 
 2. **Confirmar a guarda da senha do proprietário do n8n.**
-   Responsável: administrador do n8n. A conta foi criada e o login foi verificado em 27/10. Confirme que a senha definida está guardada no cofre aprovado. Depois reconfirme as credenciais PostgreSQL e Gmail necessárias.
+   Responsável: administrador do n8n. A conta foi criada e o login foi verificado em 27/10. Confirme que a senha definida está guardada no cofre aprovado. Depois reconfirme a credencial PostgreSQL.
 
 3. **Publicar a landing de forma segura.**
    Responsáveis: administrador da VPS e responsável técnico. Defina domínio e proxy HTTPS aprovado, publique somente o gateway, confirme firewall e cookie seguro e teste login/logout. Mantenha a porta 25678 do n8n presa ao loopback. Não exponha o gateway ou o n8n diretamente sem proteção.
@@ -1458,24 +1466,24 @@ foi enviado.
    Responsável: administrador das contas de IA. Revogue a chave NVIDIA exposta e confirme a situação da chave exposta anteriormente; a API Trial permanece restrita ao fixture sintético. Antes de retomar o V8 local, confira a chave e o orçamento do OpenRouter no ambiente protegido, revise os termos aplicáveis ao documento e confirme a autorização do destino. A chave fica somente no `.env` protegido do `report-renderer`, nunca no Git, workflow ou navegador. Para documentos reais via NVIDIA, exija licença de produção e permissão expressa para os dados.
 
 6. **Corrigir as falhas semânticas e estruturais do relatório híbrido.**
-   Responsável: responsável técnico e responsável pelo produto. O teste sintético de 27/10 não preservou a sequência concessão/cancelamento, recomendou renovação após o cancelamento, marcou duas referências como pendentes por formato e ordenou as seções incorretamente. Ajuste prompt e validação, inclua testes de regressão e repita o teste antes de qualquer PDF real. O PRD atual permite que referências pendentes não bloqueiem `aguardando_envio`; a equipe ainda deve decidir se essa regra é aceitável.
+   Responsável: responsável técnico e responsável pelo produto. O teste sintético de 27/10 não preservou a sequência concessão/cancelamento, recomendou renovação após o cancelamento, marcou duas referências como pendentes por formato e ordenou as seções incorretamente. Ajuste prompt e validação, inclua testes de regressão e repita o teste antes de qualquer PDF real. O PRD atual permite que referências pendentes não bloqueiem a conclusão do relatório; a equipe ainda deve decidir se essa regra é aceitável.
 
 ### P1 — fazer o caminho operacional funcionar de ponta a ponta
 
 7. **Triar os documentos operacionais preexistentes.**
    Responsáveis: operador e responsável técnico. Examine os três documentos que já aguardavam envio e os seis em erro antes do fixture sintético. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. Não conte o novo fixture sintético como documento operacional. A tentativa anterior do PDF extenso continua sem nova execução nesta homologação.
 
-8. **Ativar envio manual e reconciliação.**
-   Responsável: administrador do n8n. Importe/publice os exports correspondentes, associe credenciais protegidas, confirme o workflow de erro e valide uma falha controlada. Faça primeiro envio para destinatário de homologação aprovado. Confirme status enviado/concluido, histórico de tentativa e download oficial. Não ative a reconciliação antes de provar que ela não cria execuções repetidas.
+8. **Implantar o download direto e homologar a reconciliação.**
+   Responsável: administrador do n8n. Aplique a migração 006, atualize os exports, associe a credencial PostgreSQL e valide uma falha controlada. Use um PDF sintético para confirmar a conclusão da tentativa e o download no painel. Publique a reconciliação depois de verificar que ela evita execuções repetidas.
 
 9. **Manter a proteção contra comandos embutidos e ampliar os casos de regressão.**
    Responsável: responsável técnico. O fixture de 27/10 continha um pedido para revelar uma chave; o relatório não o seguiu. Esse resultado cobre somente um caso sintético e não garante resistência geral. Preserve este teste e repita-o após qualquer mudança de prompt ou modelo.
 
 10. **Repetir a homologação ponta a ponta após corrigir o relatório.**
-    Responsáveis: responsável técnico e operador. A primeira execução sintética completou upload, conversão, análise e geração dos artefatos, mas falhou em critérios semânticos e estruturais. Repita o fixture de duas páginas e só aprove quando o relatório descrever concessão e cancelamento na ordem correta, não recomendar renovação incompatível, citar as evidências sem pendências indevidas e respeitar a ordem das seções. Confirme novamente `aguardando_envio` e zero entregas de e-mail.
+    Responsáveis: responsável técnico e operador. A primeira execução sintética completou upload, conversão, análise e geração dos artefatos, mas falhou em critérios semânticos e estruturais. Repita o fixture de duas páginas e só aprove quando o relatório descrever concessão e cancelamento na ordem correta, não recomendar renovação incompatível, citar as evidências sem pendências indevidas e respeitar a ordem das seções. Confirme o status `concluido` e o download autenticado do PDF gerado.
 
 11. **Executar a matriz de falhas e retomada.**
-    Responsáveis: responsável técnico e operador. Teste PDF inválido/sem texto, falha do conversor, falha de lote Ollama, falha de validação, renderização, armazenamento, Gmail, duplicidade, reenvio e recuperação de processo parado. Confirme que erro não vira “informação ausente”, que tentativa repetida não duplica trabalho e que download oficial só abre após envio confirmado.
+    Responsáveis: responsável técnico e operador. Teste PDF inválido/sem texto, falha do conversor, falha de lote Ollama, falha de validação, renderização, armazenamento, duplicidade, reenvio e recuperação de processo parado. Confirme que erro não vira “informação ausente”, que tentativa repetida não duplica trabalho e que o download do PDF exige conclusão e sessão válida.
 
 12. **Homologar os caminhos com documentos autorizados.**
     Responsáveis: responsável técnico, operador e representante indicado pelo cliente. No v2 da VPS, repetir primeiro o fixture sintético após corrigir as falhas de interpretação e estrutura; depois avaliar o PDF de 142 páginas em janela autorizada, sem duplicar protocolo. No V8 local, retomar o documento de 198 páginas pelo mesmo protocolo e checkpoint, após conferência dos acessos e confirmação de **Reprocessar**. Em ambos, conferir cobertura, fatos, evidências, duração e qualidade; registrar aceite e limitações. O V8 ainda não tem relatório final homologado.
@@ -1486,7 +1494,7 @@ foi enviado.
     O modelo qwen2.5:3b executa em CPU numa VPS compartilhada de 2 vCPU. A segunda tentativa do PDF de 142 páginas foi interrompida após cerca de 26 minutos, ainda na análise por lotes. O V8 implementa grupos adaptativos e até duas chamadas concorrentes para lotes independentes; a branch registra benchmark controlado sem regressão, mas o relatório real completo ainda não foi concluído. Meça tempo e RAM em PDFs curtos e longos e confirme duração, custo e qualidade em ponta a ponta. Depois de aprovar endpoint NVIDIA de produção, compare primeiro com fixture sintético. Não envie documento real à API Trial nem aumente o paralelismo além do limite implementado sem medição.
 
 14. **Reduzir exposição da landing.**
-    Avalie remover o token legado aceito por URL, adicionar limitação de tentativas no login/upload/envio, proteção CSRF e níveis de acesso quando houver necessidade operacional. Preserve o túnel local do n8n.
+    Avalie remover o token legado aceito por URL, adicionar limitação de tentativas no login e no upload, proteção CSRF e níveis de acesso quando houver necessidade operacional. Preserve o túnel local do n8n.
 
 15. **Definir operação contínua.**
     Aprovar retenção de PDFs, política de backup, alerta de falha, responsável

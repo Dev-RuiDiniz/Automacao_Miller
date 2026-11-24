@@ -191,7 +191,7 @@
       "position": [1980, 0]
     },
     {
-      "parameters": {"conditions": {"boolean": [{"value1": "={{ $json.confidence_status === 'aceitavel' }}", "operation": "isTrue"}]}},
+      "parameters": {"conditions": {"boolean": [{"value1": "={{ $('Validate and classify analysis').item.json.confidence_status === 'aceitavel' }}", "operation": "isTrue"}]}},
       "id": "confidence-gate",
       "name": "Confidence gate",
       "type": "n8n-nodes-base.if",
@@ -243,35 +243,9 @@
       "position": [2860, -100]
     },
     {
-      "parameters": {
-        "jsCode": "const report = $('Report Renderer').item;\nconst analysis = $('Validate and classify analysis').item.json;\nreturn [{ json: { ...$json, confidence_status: analysis.confidence_status, source_document_id: analysis.source_document_id }, binary: report.binary }];"
-      },
-      "id": "report-email-binary",
-      "name": "Reattach report PDF for email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [3080, -100]
-    },
-    {
-      "parameters": {
-        "resource": "message",
-        "operation": "send",
-        "sendTo": "={{ $env.REPORT_RECIPIENTS }}",
-        "subject": "={{ 'Relatorio regulatorio - ' + $('Validate and classify analysis').item.json.source_filename }}",
-        "emailType": "text",
-        "message": "={{ 'Relatorio de apoio documental gerado. Documento: ' + $('Validate and classify analysis').item.json.source_filename + '. Revise o PDF antes de tomar qualquer decisao regulatoria.' }}",
-        "options": {"attachmentsUi": {"attachmentsBinary": [{"property": "data"}]}}
-      },
-      "id": "gmail-send",
-      "name": "Gmail - Send report",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [3300, -100]
-    },
-    {
-      "parameters": {"conditions": {"boolean": [{"value1": "={{ $json.confidence_status === 'aceitavel' }}", "operation": "isTrue"}]}},
-      "id": "post-email-confidence-gate",
-      "name": "Route after email",
+      "parameters": {"conditions": {"boolean": [{"value1": "={{ $('Validate and classify analysis').item.json.confidence_status === 'aceitavel' }}", "operation": "isTrue"}]}},
+      "id": "post-report-confidence-gate",
+      "name": "Route after report upload",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [3520, -100]
@@ -279,7 +253,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE automacao_miller.document_processing SET status = 'concluido', current_stage = 'email_enviado', completed_at = NOW(), updated_at = NOW(), report_file_id = {{ String.fromCharCode(39) + String($('Google Drive - Upload Report').item.json.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} WHERE source_document_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND source_sha256 = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.metadata.source_sha256).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
+        "query": "UPDATE automacao_miller.document_processing SET status = 'concluido', current_stage = 'relatorio_pronto', completed_at = NOW(), updated_at = NOW(), report_file_id = {{ String.fromCharCode(39) + String($('Google Drive - Upload Report').item.json.id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} WHERE source_document_id = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.source_document_id).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }} AND source_sha256 = {{ String.fromCharCode(39) + String($('Validate and classify analysis').item.json.metadata.source_sha256).replaceAll(String.fromCharCode(39), String.fromCharCode(39)+String.fromCharCode(39)) + String.fromCharCode(39) }};"
       },
       "id": "state-complete",
       "name": "State - Completed",
@@ -386,10 +360,8 @@
     "Confidence gate": {"main": [[{"node": "Prepare report payload", "type": "main", "index": 0}], [{"node": "Prepare report payload", "type": "main", "index": 0}]]},
     "Prepare report payload": {"main": [[{"node": "Report Renderer", "type": "main", "index": 0}]]},
     "Report Renderer": {"main": [[{"node": "Google Drive - Upload Report", "type": "main", "index": 0}]]},
-    "Google Drive - Upload Report": {"main": [[{"node": "Reattach report PDF for email", "type": "main", "index": 0}]]},
-    "Reattach report PDF for email": {"main": [[{"node": "Gmail - Send report", "type": "main", "index": 0}]]},
-    "Gmail - Send report": {"main": [[{"node": "Route after email", "type": "main", "index": 0}]]},
-    "Route after email": {"main": [[{"node": "State - Completed", "type": "main", "index": 0}], [{"node": "State - Human review", "type": "main", "index": 0}]]},
+    "Google Drive - Upload Report": {"main": [[{"node": "Route after report upload", "type": "main", "index": 0}]]},
+    "Route after report upload": {"main": [[{"node": "State - Completed", "type": "main", "index": 0}], [{"node": "State - Human review", "type": "main", "index": 0}]]},
     "State - Completed": {"main": [[{"node": "Google Drive - Move completed", "type": "main", "index": 0}]]},
     "Google Drive - Move to review": {},
     "State - Human review": {"main": [[{"node": "Google Drive - Move to review", "type": "main", "index": 0}]]}

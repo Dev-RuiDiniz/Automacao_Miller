@@ -1,8 +1,8 @@
 # Teste local com Docker
 
 Este roteiro valida a stack desde o recebimento do PDF até a criação do relatório
-Markdown/PDF. O teste termina em `aguardando_envio`. O fluxo de envio e a
-reconciliação ficam inativos; nenhum e-mail real é enviado.
+Markdown/PDF e seu download. O teste termina em `concluido` e mantém a
+reconciliação inativa.
 
 Este guia cobre a rota local com Ollama. Ele não testa o modo Anvisa V8 via
 OpenRouter nem a retomada dos checkpoints V8. Para essa configuração isolada,
@@ -52,7 +52,6 @@ PDF_CONVERTER_TIMEOUT_SECONDS=120
 SESSION_COOKIE_SECURE=false
 N8N_SUBMISSION_WEBHOOK_URL=http://n8n:5678/webhook/automacao-regulatoria-internal
 N8N_INTERNAL_PROCESSING_WEBHOOK_URL=http://n8n:5678/webhook/automacao-regulatoria-internal
-N8N_REPORT_EMAIL_WEBHOOK_URL=http://n8n:5678/webhook/automacao-regulatoria-send-report
 UPLOAD_GATEWAY_BASE_URL=http://upload-gateway:8085
 ARTIFACT_STORAGE_DIR=/data/artifacts
 N8N_RESTRICT_FILE_ACCESS_TO=/data/artifacts
@@ -122,12 +121,10 @@ workflows importados. As chamadas ao modelo usam o serviço interno
 `http://ollama:11434` e o modelo `qwen2.5:3b`.
 
 Ative o workflow de processamento interno para que o webhook receba o upload.
-Deixe `automacao-regulatoria-send-report` e
-`automacao-regulatoria-reconcile` inativos neste teste. Assim o sistema não
-chama Gmail nem tenta retomar envios.
+Mantenha a reconciliação inativa durante este teste.
 
 Se os workflows e as credenciais já estão configurados no n8n local, não é
-necessário importá-los novamente.
+necessário importá-los novamente quando os exports já contêm a conclusão direta.
 
 ## 5. Enviar um PDF de teste
 
@@ -144,15 +141,13 @@ use documento sigiloso em um ambiente de desenvolvimento compartilhado.
 
 No painel, abra o protocolo e confirme:
 
-- o estado final é `aguardando_envio`;
+- o estado final é `concluido`;
 - o relatório existe em Markdown e PDF;
 - o sinal mostra cobertura de todas as páginas do documento;
 - cada citação aparece como confirmada ou claramente pendente;
 - uma referência pendente não impede a geração do PDF nem o estado final;
-- o workflow de processamento chegou ao último nó de persistência.
-
-`aguardando_envio` é o resultado esperado deste teste. Não clique em **Enviar
-relatório**. O workflow de envio está inativo e este roteiro não testa Gmail.
+- o workflow de processamento chegou ao último nó de persistência;
+- **Baixar relatório PDF** aparece no detalhe e baixa um arquivo que abre como PDF.
 
 Se quiser conferir diretamente no banco (com os valores padrão do exemplo):
 
@@ -167,8 +162,30 @@ instaladas, execute:
 
 ```powershell
 python -m pytest -q
+node --test tests/upload_gateway/*.mjs
 docker compose @compose config --quiet
 ```
+
+### Teste E2E do download no Chromium
+
+Em Linux ou WSL, com Docker Compose v2.24.4 ou superior e Node.js 20 ou
+superior, instale o Playwright em um diretório temporário e rode na raiz do
+repositório:
+
+```bash
+qa_dir=$(mktemp -d)
+npm install --prefix "$qa_dir" playwright@1.63.0
+"$qa_dir/node_modules/.bin/playwright" install chromium
+NODE_PATH="$qa_dir/node_modules" node --test tests/e2e/test_report_download.mjs
+```
+
+O teste usa PostgreSQL, n8n, gateway, conversor e renderizador em uma stack
+temporária com uma resposta local controlada no lugar do Ollama. Ele confirma
+o download pelo botão após o processamento, o conteúdo e o hash do PDF, o
+bloqueio sem sessão e o comportamento após falha da análise. A stack, as
+credenciais fictícias e os volumes de teste são descartados ao final.
+
+### Diagnóstico
 
 Para ver os registros recentes dos serviços:
 
@@ -181,7 +198,7 @@ está ativo e se o webhook coincide com a `.env`. Se falhar na leitura, confirme
 que o PDF tem texto selecionável. Se o Ollama não encontrar o modelo, repita o
 comando `ollama pull` da etapa 2.
 
-Uma execução local anterior persistiu o PDF e terminou com o protocolo em
+Antes do download direto, uma execução local persistiu o PDF e terminou com o protocolo em
 `aguardando_envio`, mas o histórico do n8n permaneceu como `running` por um erro
 no serviço de estatísticas (`r.firstEvent.getTime is not a function`). Se isso
 se repetir, confira o estado do protocolo e os dois artefatos no painel e

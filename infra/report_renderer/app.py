@@ -584,7 +584,7 @@ def build_report_pdf(metadata: dict[str, Any], analysis: dict[str, Any]) -> byte
             _section_heading("Próximos passos recomendados", styles),
             _paragraph("1. Usar as páginas e evidências indicadas para confirmação quando necessário.", styles["body"]),
             _paragraph("2. Aplicar a síntese técnica para orientar a operação, o compliance e o acompanhamento comercial.", styles["body"]),
-            _paragraph("3. Solicitar o envio pelo painel após conferir os destinatários do relatório.", styles["body"]),
+            _paragraph("3. Baixar o PDF no detalhe do protocolo concluído.", styles["body"]),
             Spacer(1, 2 * mm),
             _notice_box("RESPONSABILIDADE", "Material de apoio documental; não constitui parecer jurídico, médico ou regulatório definitivo.", styles, SURFACE_BLUE),
         ]

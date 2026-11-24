@@ -8,15 +8,14 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'
 const attempt = (number, stage, status = 'em_processamento') => ({attempt_number: number, current_stage: stage,
   status, started_at: `2026-11-12T01:0${number}:00Z`});
 
-async function screen({ emailFailure = false, dispatchError = false, previewError = false } = {}) {
+async function screen({ dispatchError = false, previewError = false, queryToken = '' } = {}) {
   const elements = new Map(), timers = new Map(), documentEvents = {}, windowEvents = {};
   let timerId = 0, failRead = false, readGate = null, dispatchGate = null;
   const data = {
     submission: {submission_id: 'sintetico', filename: 'sintetico.pdf', status: 'erro',
       current_stage: 'analise_markdown', updated_at: '2026-11-12T01:01:00Z'},
-    artifacts: emailFailure ? [{artifact_type: 'report_pdf', version: 1}] : [],
+    artifacts: [], report_available: false,
     attempts: [attempt(1, 'analise_markdown', 'erro')], errors: [], reviews: [],
-    deliveries: emailFailure ? [{status: 'falhou', requested_at: '2026-11-12T01:02:00Z', recipient_emails: ['teste@example.test']}] : [],
   };
   const element = (selector) => {
     if (!elements.has(selector)) {
@@ -28,18 +27,18 @@ async function screen({ emailFailure = false, dispatchError = false, previewErro
         classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c),
           contains: (c) => classes.has(c),
           toggle(c, force) { const add = force ?? !classes.has(c); add ? classes.add(c) : classes.delete(c); return add; } },
-        checkedInputs: [], querySelectorAll() { return this.checkedInputs; },
+        removeAttribute(name) { delete this[name]; },
         showModal() { this.open = true; }, close() { this.open = false; }, scrollIntoView() {} });
     }
     return elements.get(selector);
   };
   const calls = [];
   const tabs = ['report', 'markdown', 'json'].map(name => Object.assign(element('.tab-' + name), {dataset: {tab: name}}));
-  ['#custom-emails', '#review-notes', '#corrected-json'].forEach(element);
+  ['#review-notes', '#corrected-json'].forEach(element);
   const document = {hidden: false, querySelector: element, querySelectorAll: selector => selector === '.tab' ? tabs : [],
     addEventListener(event, fn) { documentEvents[event] = fn; }};
   const context = {
-    location: { pathname: '/submissions/sintetico/view' }, queryToken: '',
+    location: { pathname: '/submissions/sintetico/view' }, queryToken,
     document, window: {addEventListener(event, fn) { windowEvents[event] = fn; }},
     formatDate: String, formatBytes: String, statusLabel: String, escapeHtml,
     encodeURIComponent, apiHeaders: () => ({}),
@@ -59,7 +58,6 @@ async function screen({ emailFailure = false, dispatchError = false, previewErro
         if (previewError) throw Error('Markdown salvo indisponível.');
         return { stage: 'analysis', label: 'análise do Markdown salvo' };
       }
-      if (path.includes('report-recipients')) return {items: [{email: 'teste@example.test', active: true}]};
       if (readGate) await readGate;
       if (failRead) throw Error('Sem conexão');
       return JSON.parse(JSON.stringify(data));
@@ -102,13 +100,12 @@ test('fechar por Escape ou pelo fundo não solicita retomada', async () => {
   assert.equal(calls.some(c => c.path.endsWith('/reprocess')), false);
 });
 
-test('somente confirmar solicita retomada sem exigir destinatários nem chamar e-mail', async () => {
+test('somente confirmar solicita retomada', async () => {
   const { elements, calls } = await screen();
   assert.equal(elements.get('#retry').classList.contains('hidden'), false);
   await elements.get('#retry').handlers.click();
   await elements.get('#resume-confirm').handlers.click();
   assert.equal(calls.filter(c => c.path.endsWith('/reprocess')).length, 1);
-  assert.equal(calls.some(c => c.path.includes('retry-email') || c.path.includes('send-report')), false);
   assert.match(elements.get('#flash').textContent, /Markdown salvo/);
   assert.equal(elements.get('#retry').classList.contains('hidden'), true);
 });
@@ -150,29 +147,27 @@ test('polling mostra conversão, análise, PDF, erro e conclusão sem perder ten
   await s.tick();
   assert.match(s.elements.get('#progress').innerHTML, /Interrompido em/);
   assert.match(s.elements.get('#history').innerHTML, /&lt;Erro sintético&gt;/);
-  s.data.submission.status = 'aguardando_envio'; s.data.submission.current_stage = 'relatorio_pronto';
+  const download = s.elements.get('#download');
+  assert.equal(download.classList.contains('hidden'), true);
+  s.data.submission.status = 'concluido'; s.data.submission.current_stage = 'relatorio_pronto';
+  s.data.report_available = true;
   await s.tick();
-  assert.equal(s.elements.get('#send').classList.contains('hidden'), false);
-  assert.equal(s.elements.get('#download').classList.contains('hidden'), true);
-  s.data.submission.status = 'concluido'; await s.tick();
-  assert.equal(s.elements.get('#send').classList.contains('hidden'), true);
-  assert.equal(s.elements.get('#download').classList.contains('hidden'), false);
+  assert.match(s.elements.get('#progress').innerHTML, /Relatório pronto para download/);
+  assert.equal(download.classList.contains('hidden'), false);
+  assert.equal(download.href, '/api/v1/submissions/sintetico/report');
   assert.equal(s.calls.some(c => c.options?.method === 'POST'), false);
 });
 
-test('atualização preserva formulário, destinatários, aba e artefato inalterado', async () => {
+test('atualização preserva formulário, aba e artefato inalterado', async () => {
   const s = await screen();
   s.data.artifacts = [{artifact_type: 'markdown', artifact_id: 1, version: 1, sha256: 'abc'}];
   await s.tick(); await s.elements.get('.tab-markdown').handlers.click();
-  const writes = s.elements.get('#viewer').htmlWrites, recipientWrites = s.elements.get('#recipient-list').htmlWrites;
-  s.elements.get('#custom-emails').value = 'novo@example.test';
+  const writes = s.elements.get('#viewer').htmlWrites;
   s.elements.get('#review-notes').value = 'Observação em edição';
   s.elements.get('#corrected-json').value = '{"teste":true}';
   await s.tick();
-  assert.equal(s.elements.get('#custom-emails').value, 'novo@example.test');
   assert.equal(s.elements.get('#review-notes').value, 'Observação em edição');
   assert.equal(s.elements.get('#corrected-json').value, '{"teste":true}');
-  assert.equal(s.elements.get('#recipient-list').htmlWrites, recipientWrites);
   assert.equal(s.elements.get('#viewer').htmlWrites, writes);
   assert.equal(s.elements.get('.tab-markdown').classList.contains('active'), true);
   assert.match(s.calls.find(c => c.artifact).path, /\/markdown\?disposition=inline$/);
@@ -231,9 +226,19 @@ test('checkpoint indisponível impede abrir confirmação e despachar', async ()
   assert.equal(s.calls.some(c => c.path.endsWith('/reprocess')), false);
 });
 
-test('falha de entrega oferece tentativa de e-mail separada da análise', async () => {
-  const { elements, calls } = await screen({ emailFailure: true });
-  assert.equal(elements.get('#retry').classList.contains('hidden'), true);
-  assert.equal(elements.get('#retry-email').classList.contains('hidden'), false);
-  assert.equal(calls.some(c => c.path.endsWith('/resume')), false);
+test('download exige arquivo disponível e preserva o acesso por token', async () => {
+  const s = await screen({queryToken: 'teste + pdf'});
+  const download = s.elements.get('#download');
+  s.data.submission.status = 'concluido';
+  await s.tick();
+  assert.equal(download.classList.contains('hidden'), true);
+  assert.equal(download.href, undefined);
+  s.data.report_available = true;
+  await s.tick();
+  assert.equal(download.classList.contains('hidden'), false);
+  assert.equal(download.href, '/api/v1/submissions/sintetico/report?token=teste%20%2B%20pdf');
+  s.data.report_available = false;
+  await s.tick();
+  assert.equal(download.classList.contains('hidden'), true);
+  assert.equal(download.href, undefined);
 });

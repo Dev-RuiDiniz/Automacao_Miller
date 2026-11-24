@@ -6535,3 +6535,35 @@ pendentes. O Gmail ficou para depois da indicação da conta pelo cliente ou
 pelo líder técnico. O backup fica na VPS e a restauração isolada segue por
 verificar. O roteiro das próximas implantações foi consolidado em
 [DEPLOY.md](DEPLOY.md) e referenciado em [AGENTS.md](AGENTS.md).
+
+## 2026-11-23 — Conclui o processamento com download direto do PDF
+
+O relatório passa a ficar disponível no detalhe autenticado do protocolo assim
+que o workflow salva o PDF e registra, em uma operação PostgreSQL, o artefato
+e a conclusão do documento e da tentativa. O painel exibe **Baixar relatório
+PDF** após detectar a conclusão e conferir a presença do arquivo. A conferência
+das referências continua disponível no detalhe.
+
+O envio pelo Gmail, a gestão de destinatários e as rotas de entrega foram
+removidos da aplicação e dos exports. A reconciliação encaminha somente
+protocolos de processamento. A migração 006 adequa os protocolos anteriores
+com PDF registrado, preserva as tabelas históricas existentes e encaminha
+protocolos sem registro de PDF para erro de armazenamento.
+
+Validação local com dados sintéticos:
+
+- 434 testes Python aprovados. O contêiner cobriu 419 casos e os 15 contratos
+  que exigem Node foram executados no host.
+- 17 testes JavaScript de painel e upload aprovados. Dois testes E2E no
+  Chromium verificaram conclusão, download com hash igual ao artefato,
+  bloqueio sem sessão e ausência de download durante o processamento ou após
+  falha na análise. A resposta simulada do Ollama manteve o teste determinístico.
+- No PostgreSQL isolado, o SQL de conclusão dos dois exports internos
+  concluiu protocolos sintéticos. A migração foi reaplicada e o teste cobriu
+  conflito de armazenamento, registro de erros e reconciliação.
+- O n8n 2.30.5 voltou a registrar a falha conhecida no serviço de estatísticas
+  (`r.firstEvent.getTime is not a function`). Os estados operacionais no
+  PostgreSQL e os dois cenários de navegador foram confirmados.
+
+A mudança está no repositório. A VPS não foi consultada ou alterada nesta
+etapa. O roteiro de atualização e homologação está em [DEPLOY.md](DEPLOY.md).

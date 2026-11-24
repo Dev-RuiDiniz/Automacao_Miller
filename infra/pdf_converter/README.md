@@ -6,7 +6,7 @@ Serviço interno responsável por converter PDFs em Markdown antes da análise r
 
 Existe uma aplicação separada em `infra.pdf_converter.local_app`, com tela de
 upload e download de `.md`. Ela usa o mesmo conversor, mas não chama o workflow,
-Ollama, APIs de IA, PostgreSQL ou Gmail. O serviço interno descrito abaixo
+Ollama, APIs de IA ou PostgreSQL. O serviço interno descrito abaixo
 permanece com o contrato anterior, sem expor essa tela.
 
 Pré-requisitos: Docker e Docker Compose. Na raiz do repositório, no Linux:

@@ -1,0 +1,41 @@
+services:
+  ollama:
+    image: ${MILLER_E2E_RENDERER_IMAGE:-miller-e2e-report-renderer}
+    entrypoint: [python, /fixtures/ollama_stub.py]
+    volumes: !override
+      - ./tests/e2e/ollama_stub.py:/fixtures/ollama_stub.py:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:11434/healthz')"]
+      interval: 2s
+      start_period: 1s
+
+  pdf-converter:
+    image: ${MILLER_E2E_CONVERTER_IMAGE:-miller-e2e-pdf-converter}
+    volumes:
+      - ./infra:/app/infra:ro
+
+  report-renderer:
+    image: ${MILLER_E2E_RENDERER_IMAGE:-miller-e2e-report-renderer}
+    environment:
+      OPENROUTER_API_KEY: ""
+    volumes:
+      - ./infra:/app/infra:ro
+
+  upload-gateway:
+    image: ${MILLER_E2E_GATEWAY_IMAGE:-miller-e2e-upload-gateway}
+    ports:
+      - "127.0.0.1::8085"
+    volumes:
+      - ./infra:/app/infra:ro
+    networks: [internal, browser]
+
+  n8n:
+    ports: !reset []
+    volumes:
+      - ${MILLER_E2E_SETUP_DIR:?}:/fixtures:ro
+
+networks:
+  internal:
+    internal: true
+  browser:
+    driver: bridge

@@ -2,11 +2,10 @@ const id = location.pathname.split('/').filter(Boolean)[1];
 const endpoint = '/api/v1/submissions/' + encodeURIComponent(id);
 const urlToken = queryToken ? '?token=' + encodeURIComponent(queryToken) : '';
 const el = selector => document.querySelector(selector);
-const retry = el('#retry'), retryEmail = el('#retry-email');
-const send = el('#send'), sendConfirm = el('#send-confirm');
+const retry = el('#retry'), download = el('#download');
 const dialog = el('#resume-dialog'), confirmResume = el('#resume-confirm');
 const cancelResume = el('#resume-cancel');
-let detail = null, recipients = [], activeTab = 'report', viewerKey = null, viewerRequest = 0;
+let detail = null, activeTab = 'report', viewerKey = null, viewerRequest = 0;
 let preview = null, previewKey = null, resuming = false, refreshing = null;
 let pollTimer = null, stopped = false;
 
@@ -20,7 +19,8 @@ const stageNames = {
   analise_markdown: 'Analisando Markdown e gerando relatório',
   relatorio_markdown_persistido: 'Relatório Markdown salvo',
   preparando_pdf: 'Preparando e salvando PDF do relatório',
-  relatorio_pronto: 'Relatório pronto para envio',
+  relatorio_pronto: 'Relatório pronto para download',
+  relatorio_indisponivel: 'PDF do relatório indisponível',
 };
 const stageLabel = value => stageNames[value] || value || 'Etapa não informada';
 const toggle = (element, visible) => element.classList.toggle('hidden', !visible);
@@ -70,12 +70,6 @@ function renderHistory() {
     ...(detail.reviews || []).map(x => ({date: x.reviewed_at, title: `Revisão · ${x.decision}`, text: x.notes})),
   ]);
 }
-function renderDeliveries() {
-  el('#deliveries').innerHTML = detail.deliveries?.length ? events(detail.deliveries.map(x => ({
-    date: x.requested_at, title: `Envio ${statusLabel(x.status)}`,
-    text: (x.recipient_emails || []).join(', ') + (x.error_message ? '\n' + x.error_message : ''),
-  }))) : '<p class="muted small">Nenhum envio solicitado.</p>';
-}
 async function showTab(name) {
   activeTab = name;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
@@ -106,23 +100,16 @@ async function showTab(name) {
     viewer.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`;
   }
 }
-function renderRecipients() {
-  el('#recipient-list').innerHTML = recipients.length ? recipients.map(x => `<label class="check">
-    <input type="checkbox" value="${escapeHtml(x.email)}" ${x.active ? 'checked' : 'disabled'}>
-    ${escapeHtml(x.label || x.email)} <span class="muted small">${escapeHtml(x.email)}</span></label>`).join('')
-    : '<p class="muted small">Nenhum destinatário padrão ativo.</p>';
-}
 async function renderActions() {
   const s = detail.submission;
-  toggle(send, s.status === 'aguardando_envio');
-  if (s.status !== 'aguardando_envio') toggle(sendConfirm, false);
-  toggle(el('#review-panel'), ['aguardando_revisao', 'aguardando_envio'].includes(s.status));
-  toggle(el('#download'), s.status === 'concluido');
-  if (s.status === 'concluido') el('#download').href = endpoint + '/report' + urlToken;
-  const latestDelivery = [...(detail.deliveries || [])].sort((a, b) => new Date(b.requested_at) - new Date(a.requested_at))[0];
-  const emailFailure = s.status === 'erro' && latestDelivery?.status === 'falhou' && artifact('report_pdf');
-  const canResume = s.status === 'erro' && !emailFailure;
-  toggle(retryEmail, emailFailure);
+  const awaitingReview = s.status === 'aguardando_revisao';
+  toggle(el('#review-panel'), awaitingReview || s.status === 'concluido');
+  toggle(el('#reprocess'), awaitingReview);
+  const canDownload = s.status === 'concluido' && detail.report_available;
+  toggle(download, canDownload);
+  if (canDownload) download.href = endpoint + '/report' + urlToken;
+  else download.removeAttribute('href');
+  const canResume = s.status === 'erro';
   toggle(retry, canResume);
   if (!canResume) {
     preview = null; previewKey = null;
@@ -152,7 +139,7 @@ async function refresh() {
   refreshing = (async () => {
     try {
       detail = await api(endpoint, {cache: 'no-store'});
-      renderMeta(); renderHistory(); renderDeliveries();
+      renderMeta(); renderHistory();
       await renderActions();
       void showTab(activeTab);
       el('#sync-status').textContent = 'Atualização automática · conferido em ' + formatDate(new Date().toISOString());
@@ -200,22 +187,6 @@ async function resumeProcessing() {
     schedulePoll();
   }
 }
-function selectedEmails() {
-  const values = [...el('#recipient-list').querySelectorAll('input:checked')].map(x => x.value);
-  const extra = el('#custom-emails').value.split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-  return [...new Set([...values, ...extra])];
-}
-async function requestSend(path = endpoint + '/send-report') {
-  const emails = selectedEmails();
-  if (!emails.length) return notice('Selecione ou informe ao menos um destinatário.', 'error');
-  sendConfirm.disabled = true; retryEmail.disabled = true;
-  try {
-    await api(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({recipients: emails})});
-    notice('Envio solicitado. O relatório será liberado após a confirmação do Gmail.', 'success');
-    await refresh();
-  } catch (e) { notice(e.message, 'error'); }
-  finally { sendConfirm.disabled = false; retryEmail.disabled = false; }
-}
 async function review(decision) {
   const notes = el('#review-notes').value.trim();
   if (!notes) return notice('Informe as observações da conferência.', 'error');
@@ -236,11 +207,8 @@ confirmResume.addEventListener('click', resumeProcessing);
 cancelResume.addEventListener('click', () => { if (!resuming) dialog.close(); });
 dialog.addEventListener('cancel', event => { if (resuming) event.preventDefault(); });
 dialog.addEventListener('click', event => { if (event.target === dialog && !resuming) dialog.close(); });
-send.addEventListener('click', () => sendConfirm.classList.toggle('hidden'));
-sendConfirm.addEventListener('click', () => requestSend());
-retryEmail.addEventListener('click', () => requestSend(endpoint + '/retry-email'));
 document.querySelectorAll('.tab').forEach(x => x.addEventListener('click', () => showTab(x.dataset.tab)));
-el('#approve').addEventListener('click', () => review('liberar_envio'));
+el('#approve').addEventListener('click', () => review('registrar_conferencia'));
 el('#reprocess').addEventListener('click', () => review('reprocessar'));
 document.addEventListener('visibilitychange', () => {
   clearTimeout(pollTimer);
@@ -252,10 +220,6 @@ window.addEventListener('pageshow', event => {
 });
 async function load() {
   await refresh();
-  try {
-    recipients = (await api('/api/v1/settings/report-recipients')).items || [];
-    renderRecipients();
-  } catch (e) { notice(e.message, 'error'); }
   schedulePoll();
 }
 load();

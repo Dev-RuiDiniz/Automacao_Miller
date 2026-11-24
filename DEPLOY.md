@@ -16,13 +16,13 @@ download direto foi implantada e verificada na VPS em 23/11/2026.
 - [x] Criar o backup na VPS e conferir os hashes do banco e dos artefatos.
 - [x] **Download direto.** Implantar `b006b7f`, aplicar a migração `006` e publicar as versões atualizadas dos workflows de processamento e de erros com a credencial PostgreSQL vinculada.
 - [x] **n8n.** Verificar a execução contínua, o reinício automático e o acesso administrativo por túnel SSH.
+- [x] **Novos uploads.** Liberar o acesso autenticado ao upload para o teste do cliente previsto para 24/11/2026.
 
-### Pendente para liberar
+### Pendente para concluir a homologação e a entrega
 
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
 - [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
-- [ ] **Reabrir a fila pública.** Remover a suspensão de novos uploads e reprocessamentos no Caddy após a homologação sintética.
-- [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar a reconciliação.
+- [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar reprocessamentos e reconciliação.
 - [ ] **Recuperação.** Guardar uma cópia protegida do backup fora da VPS e testar a restauração em ambiente isolado.
 - [ ] **Aceite.** Registrar os resultados dos testes finais e obter o aceite operacional antes de liberar o uso ao cliente.
 
@@ -54,9 +54,10 @@ serviços Docker estavam saudáveis. O n8n registrou o webhook de entrada,
 as versões atuais de processamento e erros publicadas e zero execuções.
 Os dez nós PostgreSQL desses dois workflows usam a credencial existente.
 
-O painel em HTTPS permite autenticação e consulta. O Caddy devolve `503`
-para novos uploads e reprocessamentos enquanto a homologação sintética
-está pendente. Os backups anteriores à atualização estão em
+A página de novo upload foi liberada em 23/11, por autorização do usuário
+para a simulação do cliente. A verificação confirmou HTTP `200` com a sessão
+do operador e `403` sem sessão. O reprocessamento continua suspenso no
+Caddy. Os backups anteriores à atualização estão em
 `/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`. A fotografia
 anterior dos workflows está no arquivo `workflows.json` desse diretório.
 
@@ -251,12 +252,13 @@ legadas existentes ficam guardadas para auditoria.
 Importe a versão atualizada do workflow de processamento selecionado e do
 workflow de erros. Atualize a reconciliação antes de publicá-la. Revincule os
 nós PostgreSQL, confira o vínculo com o tratamento de erros e valide um PDF
-sintético em acesso interno autorizado antes de reabrir a fila pública.
-Depois da homologação, remova o matcher `@envioSuspensoDownload` e as regras
-`respond @envioSuspensoDownload` e `respond /new` que devolvem `503` em
+sintético autorizado. Em 23/11, o usuário autorizou a reabertura de novos
+uploads para que o cliente fizesse a simulação. Para liberar reprocessamentos
+após a validação de falhas e retomada, remova o matcher
+`@reprocessamentoSuspensoDownload` e a regra `respond` correspondente de
 `/etc/caddy/Caddyfile`. Valide com
-`caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`, aplique com
-`systemctl reload caddy` e confira o acesso autenticado à página de upload.
+`caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile` e aplique
+com `systemctl reload caddy`.
 
 ### Validar após implantar
 

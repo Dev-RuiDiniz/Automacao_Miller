@@ -29,8 +29,10 @@ O commit `b006b7f` foi implantado e verificado na VPS do cliente. A migração
 registrado. O workflow atualizado conclui documento e tentativa após registrar
 o PDF para download autenticado pelo painel.
 
-O n8n registrou zero execuções e a fila pública está suspensa para a homologação
-com PDF sintético autorizado. A homologação da reconciliação segue pendente.
+Em 23/11, o upload autenticado foi liberado para a simulação do cliente,
+prevista para 24/11. O n8n registrou zero execuções na verificação do acesso.
+A homologação de ponta a ponta e a reconciliação seguem pendentes. O
+reprocessamento continua suspenso no Caddy.
 O n8n opera continuamente na VPS e a conta proprietária será cadastrada no
 primeiro uso administrativo do editor por túnel SSH. Consulte [DEPLOY.md](DEPLOY.md).
 

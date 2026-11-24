@@ -12,9 +12,10 @@ roteiros ativa workflows na VPS.
 No commit `b006b7f`, o processamento interno v1 e o tratamento de erros
 estão publicados em suas versões atualizadas. O webhook de entrada está
 registrado e os dez nós PostgreSQL usam a credencial existente. O envio
-legado e a reconciliação antiga estão inativos. O n8n registrou zero
-execuções e a entrada pública está suspensa até a homologação. Consulte
-[DEPLOY.md](../DEPLOY.md).
+legado e a reconciliação antiga estão inativos. O upload autenticado foi
+liberado para o teste do cliente. O n8n registrou zero execuções nessa
+verificação e o reprocessamento público continua suspenso no Caddy.
+Consulte [DEPLOY.md](../DEPLOY.md).
 
 ## Estado observado na VPS do cliente em 21/11/2026
 

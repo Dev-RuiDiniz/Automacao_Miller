@@ -6622,3 +6622,17 @@ VPS confirmou Docker habilitado no boot, n8n saudável com a política
 O n8n registrava zero contas configuradas. O cadastro do proprietário fica
 para o primeiro uso administrativo do editor e saiu do checklist de
 liberação ao cliente.
+
+## 2026-11-23 — Libera novos uploads para o teste do cliente
+
+O usuário autorizou novos uploads para a simulação prevista para 24/11 e
+informou que a chave OpenRouter do cliente tem limite de gastos. O Caddy foi
+validado e recarregado após retirar a suspensão do novo upload. A regra
+`@reprocessamentoSuspensoDownload` preservou a suspensão do reprocessamento.
+O Caddyfile anterior está em
+`/opt/backups/automacao-miller/caddy-uploads-20261124T022317Z`.
+
+Foram verificados o login e o logout do operador, HTTP `200` em `/new` com
+sessão e `403` sem sessão. O webhook de entrada estava registrado, com zero
+documentos e zero execuções. A homologação de análise e download fica para
+a simulação do cliente.

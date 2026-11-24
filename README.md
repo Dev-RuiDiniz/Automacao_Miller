@@ -181,8 +181,9 @@ O roteiro da VPS do cliente está em [DEPLOY.md](DEPLOY.md). A configuração ge
 ## Situação conhecida do projeto
 
 O download direto foi implantado na VPS do cliente em 23/11/2026 no commit
-`b006b7f`. Os workflows de processamento e de erros estão publicados. A fila
-pública está suspensa até a homologação com PDF sintético autorizado.
+`b006b7f`. Os workflows de processamento e de erros estão publicados. O
+upload autenticado foi liberado para a simulação do cliente, e a homologação
+de ponta a ponta segue pendente.
 
 Em **21/11/2026**, o commit `3cac700` foi instalado na VPS do cliente. A
 landing privada foi verificada em `https://reportai.info`. Os workflows

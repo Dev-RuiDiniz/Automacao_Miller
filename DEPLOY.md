@@ -16,9 +16,9 @@ integra o repositório de 23/11/2026 e aguarda implantação na VPS.
 
 ### Pendente para liberar
 
-- [ ] **OpenRouter.** Receber a chave do cliente, instalá-la na VPS e confirmar a publicação dos workflows de processamento e de erros.
+- [ ] **OpenRouter.** Instalar na VPS a chave recebida do cliente e verificar a aplicação no renderizador.
 - [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
-- [ ] **Download direto.** Aplicar a migração 006 e atualizar os workflows internos antes de reabrir a fila.
+- [ ] **Download direto.** Aplicar a migração 006, atualizar e publicar os workflows de processamento e de erros antes de reabrir a fila.
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
 - [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
 - [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar a reconciliação.
@@ -112,25 +112,24 @@ docker compose ps
   a chave de criptografia do n8n no cofre administrativo para recuperação.
   Consulte [ACESSOS.md](ACESSOS.md).
 
-## Ativar Anvisa V8 quando chegar a chave OpenRouter
+## Configurar a chave OpenRouter e ativar o Anvisa V8
 
-A configuração `ANVISA_REPORT_PROVIDER=openrouter` já está aplicada. Os
-workflows importados continuam inativos e `OPENROUTER_API_KEY` está vazio.
-Quando o cliente disponibilizar a chave pelo canal aprovado, o administrador
-deve executar, a partir de um terminal com acesso SSH à VPS:
+Em 23/11/2026, a VPS executava o commit `3cac700` com o provedor `openrouter`
+selecionado e os quatro workflows inativos. O administrador deve instalar a
+chave recebida do cliente em um terminal com acesso SSH à VPS:
 
 ```bash
-ssh -t root@2.25.172.95 /usr/local/sbin/miller-configurar-openrouter
+ssh -t -o StrictHostKeyChecking=yes root@2.25.172.95 /usr/local/sbin/miller-configurar-openrouter --somente-chave
 ```
 
-Insira a chave no prompt do terminal. O comando valida a credencial na API
-da OpenRouter, atualiza o `.env` com permissão `600`, aplica a configuração ao
-renderizador e publica os workflows de erro e de processamento. A validação
-da chave consulta metadados, sem documento e sem chamada de inferência.
+Insira a chave no prompt oculto do terminal. O comando consulta os metadados
+da credencial na OpenRouter, atualiza o `.env` com permissão `600` e recria
+somente o renderizador. Ao terminar, deve aparecer `Chave validada e aplicada ao renderizador.`
 [Documentação da OpenRouter](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-key)
 
-Confirme no n8n que `automacao-reg-error-handler` e
-`automacao-regulatoria-internal` estão publicados. O modelo definido no código
+Após implantar a versão para download direto, publique os workflows
+atualizados `automacao-reg-error-handler` e `automacao-regulatoria-internal`
+e confirme o estado no n8n. O modelo definido no código
 é `openai/gpt-6.1-terra`. Com autorização operacional, use um PDF sintético
 para confirmar a geração do Markdown e do PDF, conferir as evidências e
 observar o status `concluido` e o botão de download. Para documento real, registre a

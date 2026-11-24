@@ -6567,3 +6567,13 @@ Validação local com dados sintéticos:
 
 A mudança está no repositório. A VPS não foi consultada ou alterada nesta
 etapa. O roteiro de atualização e homologação está em [DEPLOY.md](DEPLOY.md).
+
+## 2026-11-23 — Prepara a instalação da chave OpenRouter em produção
+
+A consulta por SSH confirmou o commit `3cac700`, o renderizador saudável,
+quatro workflows inativos e zero execuções na VPS do cliente. O usuário
+informou que recebeu a chave da OpenRouter. O instalador ganhou a opção
+`--somente-chave` para validar a credencial e aplicá-la ao renderizador. A
+versão anterior do instalador foi preservada e a sintaxe da nova versão
+foi conferida. A entrada da chave pelo administrador ficou pendente. A
+ativação dos workflows será feita após a atualização para download direto.

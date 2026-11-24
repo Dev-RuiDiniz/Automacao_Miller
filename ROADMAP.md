@@ -17,6 +17,11 @@ comando `miller-configurar-openrouter` ficou preparado para aplicar a chave e
 publicar a entrada V8 e o tratamento de erros. A conta proprietária, a
 restauração isolada e a homologação de ponta a ponta permaneciam pendentes. Consulte [ACESSOS.md](ACESSOS.md).
 
+Em 23/11/2026, a consulta à VPS confirmou o commit `3cac700`, quatro
+workflows inativos e zero execuções. A chave da OpenRouter foi recebida do
+cliente. O modo `--somente-chave` foi preparado na VPS para aplicá-la ao
+renderizador. A entrada da chave pelo administrador está pendente.
+
 ## Download direto do relatório — 23/11/2026
 
 Implementado no repositório. O workflow conclui documento e tentativa depois

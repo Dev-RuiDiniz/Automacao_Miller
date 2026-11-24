@@ -24,6 +24,11 @@ Guarde valores reais no cofre aprovado, no arquivo de ambiente protegido do serv
 - O backup inicial do PostgreSQL e dos artefatos está em
   `/opt/backups/automacao-miller`, com hashes conferidos.
 
+Em 23/11/2026, a consulta por SSH confirmou que o renderizador aguardava a
+chave. O instalador passou a oferecer `--somente-chave` para aplicar a
+credencial ao renderizador. A publicação dos workflows faz parte da
+atualização para download direto. Consulte [DEPLOY.md](DEPLOY.md).
+
 ## Ambiente de testes — fotografia de 27/10/2026
 
 As seções numeradas abaixo descrevem a VPS de testes. Os acessos da stack local são descritos em seção

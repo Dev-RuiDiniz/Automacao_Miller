@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import re
 import hashlib
 import hmac
 import json
@@ -19,7 +18,6 @@ from typing import Any, Protocol
 import httpx
 import psycopg
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
-from email.utils import parseaddr
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -30,10 +28,8 @@ from infra.regulatory_analysis.quality import validate_analysis
 from infra.regulatory_analysis.report_validation import validate_ai_audit_candidates, validate_report_references
 
 MAX_PDF_BYTES = 100 * 1024 * 1024
-STATUSES = {"recebido", "processando", "aguardando_revisao", "aguardando_envio", "concluido", "erro"}
+STATUSES = {"recebido", "processando", "aguardando_revisao", "concluido", "erro"}
 ARTIFACT_TYPES = {"original_pdf", "markdown", "analysis_json", "report_markdown", "report_pdf"}
-EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
-MAX_RECIPIENTS = 50
 STATIC_DIR = Path(__file__).with_name("static")
 SESSION_COOKIE_NAME = "landing_session"
 PASSWORD_HASH_SCHEME = "pbkdf2_sha256"
@@ -72,9 +68,6 @@ class InMemoryStore:
         self.attempts: dict[str, list[dict[str, Any]]] = {}
         self.errors: dict[str, list[dict[str, Any]]] = {}
         self.reviews: dict[str, list[dict[str, Any]]] = {}
-        self.recipients: dict[int, dict[str, Any]] = {}
-        self.document_recipients: dict[str, list[str]] = {}
-        self.deliveries: dict[int, dict[str, Any]] = {}
         self.next_id = 1
         self.resume_lock = threading.RLock()
 
@@ -111,8 +104,6 @@ class InMemoryStore:
                 raise KeyError(submission_id)
             if item.status != "erro" or item.updated_at != expected_updated_at or any(a["status"] == "em_processamento" for a in self.attempts.get(submission_id, [])):
                 raise ValueError("processamento_em_andamento")
-            if any(d["submission_id"] == submission_id and d["status"] in {"solicitado", "enviando"} for d in self.deliveries.values()):
-                raise ValueError("envio_em_andamento")
             self.add_review(submission_id, "reprocessamento_autorizado", "Retomada a partir de " + LABELS[stage] + ".", actor)
             self.update(submission_id, current_stage="retomada_solicitada", message="Retomada solicitada a partir de " + LABELS[stage] + ".")
 
@@ -160,58 +151,17 @@ class InMemoryStore:
             "attempts": self.attempts.get(submission_id, []),
             "errors": self.errors.get(submission_id, []),
             "reviews": self.reviews.get(submission_id, []),
-            "deliveries": [value for value in self.deliveries.values() if value["submission_id"] == submission_id],
         }
-
-    def list_recipients(self) -> list[dict[str, Any]]:
-        return sorted(self.recipients.values(), key=lambda value: (not value["active"], value["email"]))
-
-    def replace_recipients(self, recipients: list[dict[str, Any]], actor: str) -> list[dict[str, Any]]:
-        self.recipients = {}
-        for recipient in recipients:
-            recipient_id = self.next_id
-            self.next_id += 1
-            self.recipients[recipient_id] = {"recipient_id": recipient_id, **recipient, "created_by": actor, "updated_by": actor, "updated_at": now()}
-        return self.list_recipients()
-
-    def set_document_recipients(self, submission_id: str, emails: list[str], actor: str) -> None:
-        self.document_recipients[submission_id] = emails
-
-    def get_document_recipients(self, submission_id: str) -> list[str]:
-        return self.document_recipients.get(submission_id, [])
-
-    def get_active_recipient_emails(self) -> list[str]:
-        return [value["email"] for value in self.list_recipients() if value["active"]]
-
-    def create_delivery(self, submission_id: str, emails: list[str], actor: str, retry: bool = False) -> dict[str, Any]:
-        if any(value["submission_id"] == submission_id and value["status"] in {"solicitado", "enviando"} for value in self.deliveries.values()):
-            raise ValueError("envio_em_andamento")
-        item = self.get(submission_id)
-        if item is None:
-            raise KeyError(submission_id)
-        if item.status not in ({"erro"} if retry else {"aguardando_envio"}):
-            raise ValueError("status_invalido")
-        delivery_id = self.next_id
-        self.next_id += 1
-        delivery = {"delivery_id": delivery_id, "submission_id": submission_id, "recipient_emails": emails, "status": "solicitado", "attempt_count": 0, "requested_by": actor, "requested_at": now(), "sent_at": None, "error_message": None}
-        self.deliveries[delivery_id] = delivery
-        return delivery
-
-    def update_delivery(self, delivery_id: int, **changes: Any) -> dict[str, Any] | None:
-        delivery = self.deliveries.get(delivery_id)
-        if delivery:
-            delivery.update(changes)
-        return delivery
 
     def add_review(self, submission_id: str, decision: str, notes: str, actor: str, corrected_payload: dict[str, Any] | None = None, training_eligible: bool = False) -> dict[str, Any]:
         review = {"review_id": self.next_id, "submission_id": submission_id, "reason": "conferência operacional", "decision": decision, "reviewer": actor, "notes": notes, "corrected_payload": corrected_payload, "training_eligible": training_eligible, "requested_at": now(), "reviewed_at": now()}
         self.next_id += 1
         self.reviews.setdefault(submission_id, []).append(review)
         item = self.get(submission_id)
-        if item:
-            item.status = "aguardando_envio" if decision == "aprovado" else "recebido"
-            item.message = None
-            item.updated_at = now()
+        if item and decision == "reprocessamento_autorizado":
+            self.update(submission_id, status="recebido", current_stage="reprocessamento_autorizado", message=None)
+        elif item and item.status == "aguardando_revisao" and persisted_report(item.report_key):
+            self.update(submission_id, status="concluido", current_stage="relatorio_pronto", message=None)
         return review
 
 
@@ -233,7 +183,7 @@ class PostgresStore:
                     mime_type TEXT NOT NULL DEFAULT 'application/pdf',
                     size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),
                     source_storage_key TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK (status IN ('recebido', 'em_processamento', 'processando', 'aguardando_revisao', 'aguardando_envio', 'concluido', 'erro')),
+                    status TEXT NOT NULL CHECK (status IN ('recebido', 'em_processamento', 'processando', 'aguardando_revisao', 'concluido', 'erro')),
                     current_stage TEXT NOT NULL DEFAULT 'recebido',
                     attempt_count INTEGER NOT NULL DEFAULT 0,
                     started_at TIMESTAMPTZ,
@@ -259,48 +209,6 @@ class PostgresStore:
                     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     UNIQUE (submission_id, artifact_type, version)
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS automacao_miller.report_recipients (
-                    recipient_id BIGSERIAL PRIMARY KEY,
-                    email TEXT NOT NULL UNIQUE,
-                    label TEXT,
-                    active BOOLEAN NOT NULL DEFAULT TRUE,
-                    created_by TEXT NOT NULL,
-                    updated_by TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS automacao_miller.document_recipients (
-                    submission_id TEXT NOT NULL REFERENCES automacao_miller.documents(submission_id) ON DELETE CASCADE,
-                    email TEXT NOT NULL,
-                    position INTEGER NOT NULL CHECK (position > 0),
-                    created_by TEXT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (submission_id, email)
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS automacao_miller.email_deliveries (
-                    delivery_id BIGSERIAL PRIMARY KEY,
-                    submission_id TEXT NOT NULL REFERENCES automacao_miller.documents(submission_id),
-                    recipient_emails JSONB NOT NULL,
-                    status TEXT NOT NULL CHECK (status IN ('solicitado', 'enviando', 'enviado', 'falhou')),
-                    attempt_count INTEGER NOT NULL DEFAULT 0,
-                    execution_id TEXT,
-                    requested_by TEXT NOT NULL,
-                    requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    sent_at TIMESTAMPTZ,
-                    error_message TEXT
                 )
                 """
             )
@@ -373,8 +281,7 @@ class PostgresStore:
             if row is None:
                 raise KeyError(submission_id)
             active = connection.execute("SELECT 1 FROM automacao_miller.processing_attempts WHERE submission_id = %s AND status = 'em_processamento' LIMIT 1", (submission_id,)).fetchone()
-            pending_delivery = connection.execute("SELECT 1 FROM automacao_miller.email_deliveries WHERE submission_id = %s AND status IN ('solicitado', 'enviando') LIMIT 1", (submission_id,)).fetchone()
-            if row[0] != "erro" or row[1] != datetime.fromisoformat(expected_updated_at) or active or pending_delivery:
+            if row[0] != "erro" or row[1] != datetime.fromisoformat(expected_updated_at) or active:
                 raise ValueError("operacao_em_andamento")
             note = "Retomada a partir de " + LABELS[stage] + "."
             connection.execute(
@@ -439,10 +346,6 @@ class PostgresStore:
                 "SELECT review_id, reason, decision, reviewer, notes, training_eligible, requested_at, reviewed_at FROM automacao_miller.human_reviews WHERE submission_id = %s ORDER BY requested_at DESC",
                 (submission_id,),
             ).fetchall()
-            deliveries = connection.execute(
-                "SELECT delivery_id, recipient_emails, status, attempt_count, execution_id, requested_by, requested_at, sent_at, error_message FROM automacao_miller.email_deliveries WHERE submission_id = %s ORDER BY requested_at DESC",
-                (submission_id,),
-            ).fetchall()
         iso = lambda value: value.isoformat() if isinstance(value, datetime) else value
         return {
             "submission": item,
@@ -450,84 +353,22 @@ class PostgresStore:
             "attempts": [dict(zip(("attempt_id", "attempt_number", "execution_id", "current_stage", "status", "error_category", "error_message", "started_at", "finished_at"), [*row[:7], iso(row[7]), iso(row[8])])) for row in attempts],
             "errors": [dict(zip(("error_id", "current_stage", "error_category", "error_message", "execution_id", "created_at"), [*row[:5], iso(row[5])])) for row in errors],
             "reviews": [dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "training_eligible", "requested_at", "reviewed_at"), [*row[:6], iso(row[6]), iso(row[7])])) for row in reviews],
-            "deliveries": [dict(zip(("delivery_id", "recipient_emails", "status", "attempt_count", "execution_id", "requested_by", "requested_at", "sent_at", "error_message"), [row[0], row[1], row[2], row[3], row[4], row[5], iso(row[6]), iso(row[7]), row[8]])) for row in deliveries],
         }
 
-    def list_recipients(self) -> list[dict[str, Any]]:
-        with psycopg.connect(self.database_url) as connection:
-            rows = connection.execute(
-                "SELECT recipient_id, email, label, active, created_by, updated_by, created_at, updated_at FROM automacao_miller.report_recipients ORDER BY active DESC, email"
-            ).fetchall()
-        return [dict(zip(("recipient_id", "email", "label", "active", "created_by", "updated_by", "created_at", "updated_at"), [*row[:6], row[6].isoformat(), row[7].isoformat()])) for row in rows]
-
-    def replace_recipients(self, recipients: list[dict[str, Any]], actor: str) -> list[dict[str, Any]]:
-        emails = [item["email"] for item in recipients]
-        with psycopg.connect(self.database_url) as connection:
-            for item in recipients:
-                connection.execute(
-                    "INSERT INTO automacao_miller.report_recipients (email, label, active, created_by, updated_by) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (email) DO UPDATE SET label = EXCLUDED.label, active = EXCLUDED.active, updated_by = EXCLUDED.updated_by, updated_at = NOW()",
-                    (item["email"], item.get("label"), item.get("active", True), actor, actor),
-                )
-            connection.execute("UPDATE automacao_miller.report_recipients SET active = FALSE, updated_by = %s, updated_at = NOW() WHERE NOT (email = ANY(%s))", (actor, emails))
-        return self.list_recipients()
-
-    def set_document_recipients(self, submission_id: str, emails: list[str], actor: str) -> None:
-        with psycopg.connect(self.database_url) as connection:
-            connection.execute("DELETE FROM automacao_miller.document_recipients WHERE submission_id = %s", (submission_id,))
-            for position, email in enumerate(emails, start=1):
-                connection.execute("INSERT INTO automacao_miller.document_recipients (submission_id, email, position, created_by) VALUES (%s, %s, %s, %s)", (submission_id, email, position, actor))
-
-    def get_document_recipients(self, submission_id: str) -> list[str]:
-        with psycopg.connect(self.database_url) as connection:
-            rows = connection.execute("SELECT email FROM automacao_miller.document_recipients WHERE submission_id = %s ORDER BY position", (submission_id,)).fetchall()
-        return [row[0] for row in rows]
-
-    def get_active_recipient_emails(self) -> list[str]:
-        with psycopg.connect(self.database_url) as connection:
-            rows = connection.execute("SELECT email FROM automacao_miller.report_recipients WHERE active = TRUE ORDER BY email").fetchall()
-        return [row[0] for row in rows]
-
-    def create_delivery(self, submission_id: str, emails: list[str], actor: str, retry: bool = False) -> dict[str, Any]:
-        with psycopg.connect(self.database_url) as connection:
-            document = connection.execute("SELECT status FROM automacao_miller.documents WHERE submission_id = %s FOR UPDATE", (submission_id,)).fetchone()
-            if document is None:
-                raise KeyError(submission_id)
-            allowed = {"erro"} if retry else {"aguardando_envio"}
-            if document[0] not in allowed:
-                raise ValueError("status_invalido")
-            pending = connection.execute("SELECT 1 FROM automacao_miller.email_deliveries WHERE submission_id = %s AND status IN ('solicitado', 'enviando') LIMIT 1", (submission_id,)).fetchone()
-            if pending:
-                raise ValueError("envio_em_andamento")
-            row = connection.execute(
-                "INSERT INTO automacao_miller.email_deliveries (submission_id, recipient_emails, status, requested_by) VALUES (%s, %s::jsonb, 'solicitado', %s) RETURNING delivery_id, submission_id, recipient_emails, status, attempt_count, requested_by, requested_at",
-                (submission_id, json.dumps(emails), actor),
-            ).fetchone()
-        return dict(zip(("delivery_id", "submission_id", "recipient_emails", "status", "attempt_count", "requested_by", "requested_at"), [row[0], row[1], row[2], row[3], row[4], row[5], row[6].isoformat()]))
-
-    def update_delivery(self, delivery_id: int, **changes: Any) -> dict[str, Any] | None:
-        allowed = {"status", "attempt_count", "execution_id", "sent_at", "error_message"}
-        changes = {key: value for key, value in changes.items() if key in allowed}
-        if not changes:
-            return None
-        assignments = ", ".join(f"{key} = %s" for key in changes)
-        with psycopg.connect(self.database_url) as connection:
-            row = connection.execute(f"UPDATE automacao_miller.email_deliveries SET {assignments} WHERE delivery_id = %s RETURNING delivery_id, submission_id, recipient_emails, status, attempt_count, execution_id, requested_by, requested_at, sent_at, error_message", [*changes.values(), delivery_id]).fetchone()
-        if row is None:
-            return None
-        return dict(zip(("delivery_id", "submission_id", "recipient_emails", "status", "attempt_count", "execution_id", "requested_by", "requested_at", "sent_at", "error_message"), [row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7].isoformat(), row[8].isoformat() if row[8] else None, row[9]]))
-
     def add_review(self, submission_id: str, decision: str, notes: str, actor: str, corrected_payload: dict[str, Any] | None = None, training_eligible: bool = False) -> dict[str, Any]:
-        status = "aguardando_envio" if decision == "aprovado" else "recebido"
-        stage = "revisao_liberada" if decision == "aprovado" else "reprocessamento_autorizado"
         with psycopg.connect(self.database_url) as connection:
-            document = connection.execute("SELECT status FROM automacao_miller.documents WHERE submission_id = %s FOR UPDATE", (submission_id,)).fetchone()
+            document = connection.execute("SELECT status, report_storage_key FROM automacao_miller.documents WHERE submission_id = %s FOR UPDATE", (submission_id,)).fetchone()
             if document is None:
                 raise KeyError(submission_id)
             row = connection.execute(
                 "INSERT INTO automacao_miller.human_reviews (submission_id, reason, decision, reviewer, notes, corrected_payload, training_eligible, eligibility_reason, reviewed_at) VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, NOW()) RETURNING review_id, reason, decision, reviewer, notes, training_eligible, requested_at, reviewed_at",
                 (submission_id, "conferência operacional", decision, actor, notes, json.dumps(corrected_payload) if corrected_payload else None, training_eligible, "conferência aprovada com citações válidas" if training_eligible else "sem payload corrigido elegível"),
             ).fetchone()
-            connection.execute("UPDATE automacao_miller.documents SET status = %s, current_stage = %s, message = NULL, updated_at = NOW() WHERE submission_id = %s", (status, stage, submission_id))
+            if document[0] == "aguardando_revisao":
+                if decision == "reprocessamento_autorizado":
+                    connection.execute("UPDATE automacao_miller.documents SET status = 'recebido', current_stage = 'reprocessamento_autorizado', message = NULL, updated_at = NOW() WHERE submission_id = %s", (submission_id,))
+                elif persisted_report(document[1]):
+                    connection.execute("UPDATE automacao_miller.documents SET status = 'concluido', current_stage = 'relatorio_pronto', completed_at = COALESCE(completed_at, NOW()), message = NULL, updated_at = NOW() WHERE submission_id = %s", (submission_id,))
         return dict(zip(("review_id", "reason", "decision", "reviewer", "notes", "training_eligible", "requested_at", "reviewed_at"), [row[0], row[1], row[2], row[3], row[4], row[5], row[6].isoformat(), row[7].isoformat()]))
 
     def find_by_hash(self, sha256: str) -> Submission | None:
@@ -567,7 +408,6 @@ def settings() -> dict[str, str]:
         "session_ttl_seconds": os.getenv("AUTH_SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TTL_SECONDS)),
         "session_cookie_secure": os.getenv("SESSION_COOKIE_SECURE", "true"),
         "n8n_webhook_url": os.getenv("N8N_SUBMISSION_WEBHOOK_URL", ""),
-        "n8n_email_webhook_url": os.getenv("N8N_REPORT_EMAIL_WEBHOOK_URL", "http://n8n:5678/webhook/automacao-regulatoria-send-report"),
     }
 
 
@@ -741,11 +581,6 @@ def submission_view(submission_id: str) -> FileResponse:
     return FileResponse(STATIC_DIR / "submission.html")
 
 
-@app.get("/settings/recipients", dependencies=[Depends(require_landing_access)])
-def recipient_settings() -> FileResponse:
-    return FileResponse(STATIC_DIR / "recipients.html")
-
-
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok", "service": "upload-gateway"}
@@ -775,42 +610,26 @@ def actor_for(request: Request) -> str:
     return _session_username(request) or "token-user"
 
 
+def persisted_report(report_key: str | None) -> Path | None:
+    if not report_key:
+        return None
+    try:
+        report = resolve_storage_key(report_key)
+    except ValueError:
+        return None
+    return report if report.is_file() else None
+
+
 def serialize_detail(detail: dict[str, Any]) -> dict[str, Any]:
+    item = detail["submission"]
     return {
-        "submission": public_submission(detail["submission"]),
+        "submission": public_submission(item),
+        "report_available": item.status == "concluido" and persisted_report(item.report_key) is not None,
         "artifacts": detail["artifacts"],
         "attempts": detail["attempts"],
         "errors": detail["errors"],
         "reviews": detail["reviews"],
-        "deliveries": detail["deliveries"],
     }
-
-
-def normalized_recipients(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    raw = payload.get("recipients", [])
-    if not isinstance(raw, list) or len(raw) > MAX_RECIPIENTS:
-        raise HTTPException(status_code=422, detail=f"Informe até {MAX_RECIPIENTS} destinatários.")
-    normalized: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for value in raw:
-        if isinstance(value, str):
-            email = value.strip().lower()
-            label = None
-            active = True
-        elif isinstance(value, dict):
-            email = str(value.get("email", "")).strip().lower()
-            label = str(value.get("label", "")).strip() or None
-            active = bool(value.get("active", True))
-        else:
-            raise HTTPException(status_code=422, detail="Destinatário inválido.")
-        parsed = parseaddr(email)[1]
-        if not parsed or parsed != email or not EMAIL_RE.fullmatch(email):
-            raise HTTPException(status_code=422, detail=f"E-mail inválido: {email or 'vazio'}.")
-        if email in seen:
-            continue
-        seen.add(email)
-        normalized.append({"email": email, "label": label, "active": active})
-    return normalized
 
 
 def artifact_for(detail: dict[str, Any], artifact_type: str) -> dict[str, Any]:
@@ -995,6 +814,8 @@ def resume_context(submission_id: str, payload: dict[str, Any]) -> dict[str, Any
 def view_artifact(submission_id: str, artifact_type: str, disposition: str = "inline") -> Response:
     if disposition not in {"inline", "download"}:
         raise HTTPException(status_code=422, detail="Disposição de arquivo inválida.")
+    if artifact_type == "report_pdf" and disposition == "download":
+        return download_report(submission_id)
     if store.get(submission_id) is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
     detail = store.detail(submission_id)
@@ -1024,72 +845,18 @@ def view_artifact(submission_id: str, artifact_type: str, disposition: str = "in
     return Response(path.read_text(encoding="utf-8"), media_type="text/markdown", headers={"Content-Disposition": f'{content_disposition}; filename="{filename}"'})
 
 
-@app.get("/api/v1/settings/report-recipients", dependencies=[Depends(require_landing_access)])
-def get_report_recipients() -> dict[str, Any]:
-    return {"items": store.list_recipients()}
-
-
-@app.put("/api/v1/settings/report-recipients", dependencies=[Depends(require_landing_access)])
-def replace_report_recipients(payload: dict[str, Any], request: Request) -> dict[str, Any]:
-    recipients = normalized_recipients(payload)
-    return {"items": store.replace_recipients(recipients, actor_for(request))}
-
-
-def _requested_emails(submission_id: str, payload: dict[str, Any]) -> list[str]:
-    if "recipients" in payload:
-        emails = [item["email"] for item in normalized_recipients(payload) if item["active"]]
-        return emails
-    document_emails = store.get_document_recipients(submission_id)
-    return document_emails or store.get_active_recipient_emails()
-
-
-def _request_report_send(submission_id: str, payload: dict[str, Any], request: Request, retry: bool = False) -> JSONResponse:
-    item = store.get(submission_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
-    emails = _requested_emails(submission_id, payload)
-    if not emails:
-        raise HTTPException(status_code=422, detail="Cadastre ou informe ao menos um destinatário ativo.")
-    if "recipients" in payload:
-        store.set_document_recipients(submission_id, emails, actor_for(request))
-    try:
-        delivery = store.create_delivery(submission_id, emails, actor_for(request), retry=retry)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Protocolo não encontrado.") from exc
-    except ValueError as exc:
-        detail = "Já existe um envio em andamento." if str(exc) == "envio_em_andamento" else "O documento não está pronto para envio."
-        raise HTTPException(status_code=409, detail=detail) from exc
-    try:
-        dispatch_webhook(settings()["n8n_email_webhook_url"], {"submission_id": submission_id, "delivery_id": delivery["delivery_id"]})
-    except HTTPException:
-        store.update_delivery(delivery["delivery_id"], status="falhou", error_message="Não foi possível despachar o envio ao n8n.")
-        store.update(submission_id, status="erro", message="Falha ao iniciar o envio do relatório.")
-        raise
-    return JSONResponse(status_code=202, content={"delivery": delivery, "submission": public_submission(store.get(submission_id) or item)})
-
-
-@app.post("/api/v1/submissions/{submission_id}/send-report", dependencies=[Depends(require_landing_access)])
-def send_report(submission_id: str, payload: dict[str, Any], request: Request) -> JSONResponse:
-    return _request_report_send(submission_id, payload, request)
-
-
-@app.post("/api/v1/submissions/{submission_id}/retry-email", dependencies=[Depends(require_landing_access)])
-def retry_email(submission_id: str, payload: dict[str, Any], request: Request) -> JSONResponse:
-    return _request_report_send(submission_id, payload, request, retry=True)
-
-
 @app.post("/api/v1/submissions/{submission_id}/review", dependencies=[Depends(require_landing_access)])
 def review_submission(submission_id: str, payload: dict[str, Any], request: Request) -> dict[str, Any]:
     item = store.get(submission_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
-    if item.status not in {"aguardando_revisao", "aguardando_envio"}:
+    if item.status not in {"aguardando_revisao", "concluido"}:
         raise HTTPException(status_code=409, detail="O documento não está disponível para conferência.")
     decision = payload.get("decision")
     notes = str(payload.get("notes", "")).strip()
-    if decision not in {"liberar_envio", "reprocessar"}:
+    if decision not in {"registrar_conferencia", "reprocessar"}:
         raise HTTPException(status_code=422, detail="Decisão de revisão inválida.")
-    if item.status == "aguardando_envio" and decision == "reprocessar":
+    if item.status == "concluido" and decision == "reprocessar":
         raise HTTPException(status_code=409, detail="O documento não está disponível para reprocessamento.")
     if not notes:
         raise HTTPException(status_code=422, detail="Informe uma observação para registrar a revisão.")
@@ -1097,7 +864,7 @@ def review_submission(submission_id: str, payload: dict[str, Any], request: Requ
     if corrected_payload is not None and (not isinstance(corrected_payload, dict) or not corrected_payload):
         raise HTTPException(status_code=422, detail="O payload corrigido precisa ser um objeto JSON não vazio.")
     training_eligible = False
-    if decision == "liberar_envio" and corrected_payload:
+    if decision == "registrar_conferencia" and corrected_payload:
         markdown = ""
         for artifact in store.detail(submission_id)["artifacts"]:
             if artifact.get("artifact_type") == "markdown":
@@ -1108,7 +875,7 @@ def review_submission(submission_id: str, payload: dict[str, Any], request: Requ
                 break
         quality = validate_analysis(corrected_payload, markdown, submission_id)
         training_eligible = quality.status == "aprovado"
-    stored_decision = "aprovado" if decision == "liberar_envio" else "reprocessamento_autorizado"
+    stored_decision = "aprovado" if decision == "registrar_conferencia" else "reprocessamento_autorizado"
     review = store.add_review(submission_id, stored_decision, notes, actor_for(request), corrected_payload, training_eligible)
     if decision == "reprocessar":
         try:
@@ -1126,12 +893,8 @@ def download_report(submission_id: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
     if item.status != "concluido" or not item.report_key:
         raise HTTPException(status_code=409, detail="O relatório ainda não está disponível.")
-    try:
-        report = resolve_storage_key(item.report_key)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Relatório não encontrado.") from exc
-    storage = storage_root()
-    if storage not in report.parents or not report.is_file():
+    report = persisted_report(item.report_key)
+    if report is None:
         raise HTTPException(status_code=404, detail="Relatório não encontrado.")
     return FileResponse(report, media_type="application/pdf", filename=f"relatorio-{submission_id}.pdf")
 
@@ -1267,8 +1030,12 @@ def update_submission_status(submission_id: str, payload: dict[str, Any]) -> dic
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="Chave de relatório inválida.") from exc
         changes["report_storage_key"] = str(report_key).replace("\\", "/")
-    if status == "concluido" and not (report_key or (item := store.get(submission_id)) and item.report_key):
-        raise HTTPException(status_code=422, detail="Conclusão exige relatório interno persistido.")
+    if status == "concluido":
+        item = store.get(submission_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="Protocolo não encontrado.")
+        if persisted_report(changes.get("report_storage_key", item.report_key)) is None:
+            raise HTTPException(status_code=422, detail="Conclusão exige relatório interno persistido.")
     item = store.update(submission_id, **changes)
     if item is None:
         raise HTTPException(status_code=404, detail="Protocolo não encontrado.")

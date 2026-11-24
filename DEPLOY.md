@@ -2,7 +2,8 @@
 
 ## Checklist de liberação ao cliente
 
-Status baseado na verificação da VPS em 21/11/2026.
+A instalação foi verificada em 21/11/2026. A atualização para download direto
+integra o repositório de 23/11/2026 e aguarda implantação na VPS.
 
 ### Concluído
 
@@ -17,9 +18,9 @@ Status baseado na verificação da VPS em 21/11/2026.
 
 - [ ] **OpenRouter.** Receber a chave do cliente, instalá-la na VPS e confirmar a publicação dos workflows de processamento e de erros.
 - [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
-- [ ] **Gmail.** Confirmar a conta de produção com o cliente ou líder técnico, autorizar o OAuth no n8n e vincular a credencial ao workflow de envio manual.
-- [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `aguardando_envio`.
-- [ ] **Teste final de envio.** Enviar o relatório sintético pelo painel a um destinatário autorizado. Confirmar o recebimento pelo Gmail, o registro da entrega, o status `concluido` e a liberação do download após a conclusão.
+- [ ] **Download direto.** Aplicar a migração 006 e atualizar os workflows internos antes de reabrir a fila.
+- [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
+- [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
 - [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar a reconciliação.
 - [ ] **Recuperação.** Guardar uma cópia protegida do backup fora da VPS e testar a restauração em ambiente isolado.
 - [ ] **Aceite.** Registrar os resultados dos testes finais e obter o aceite operacional antes de liberar o uso ao cliente.
@@ -70,7 +71,7 @@ somente leitura na VPS do cliente, com o commit `3cac700` implantado.
 - [ ] **Isolar o PostgreSQL e reduzir privilégios.** Criar uma rede Docker para
   o banco e os serviços que precisam acessá-lo. Separar as contas do gateway e
   do n8n e conceder a cada uma apenas as permissões necessárias. Validar o
-  processamento, a consulta no painel e o envio com as novas contas.
+  processamento, a consulta e o download no painel com as novas contas.
 - [ ] **Proteger o upload antes de ler o arquivo.** A versão do FastAPI
   implantada começa a processar o corpo antes de verificar a sessão e o Caddy
   ativo não aplicava limite de tamanho. Antecipar a autenticação e impor um
@@ -132,11 +133,11 @@ Confirme no n8n que `automacao-reg-error-handler` e
 `automacao-regulatoria-internal` estão publicados. O modelo definido no código
 é `openai/gpt-6.1-terra`. Com autorização operacional, use um PDF sintético
 para confirmar a geração do Markdown e do PDF, conferir as evidências e
-observar o status `aguardando_envio`. Para documento real, registre a
+observar o status `concluido` e o botão de download. Para documento real, registre a
 autorização para o documento e o destino e confira se os termos do provedor
 permitem os dados. Consulte [PRD.md](PRD.md) e [workflows/README.md](workflows/README.md).
 
-## Configurar o proprietário do n8n e o Gmail
+## Configurar o proprietário do n8n
 
 O administrador indicado pelo cliente deve concluir a criação da conta
 proprietária do n8n. Em seu computador, abra o túnel SSH:
@@ -146,29 +147,8 @@ ssh -N -L 25678:127.0.0.1:25678 root@2.25.172.95
 ```
 
 Com o túnel ativo, acesse `http://localhost:25678` e conclua o cadastro.
-Confirme no projeto pessoal a presença dos quatro workflows e da credencial
-`PostgreSQL Miller`.
-
-O Gmail ficou para uma etapa posterior, a partir da indicação da conta pelo
-cliente ou pelo líder técnico.
-
-1. No projeto Google Cloud autorizado pelo cliente, habilite a Gmail API,
-   configure o consentimento e crie o cliente OAuth do tipo **Aplicativo da
-   Web**. Use a conta de produção aprovada. [OAuth para serviços Google no n8n](https://docs.n8n.io/integrations/builtin/credentials/google/oauth-single-service)
-2. Abra a credencial **Gmail OAuth2 API** no n8n e copie exatamente a URL de
-   redirecionamento exibida para o cliente OAuth no Google. Com o túnel atual,
-   confira se o n8n apresenta `http://localhost:25678/rest/oauth2-credential/callback`.
-   Mantenha o túnel aberto durante a autorização. [URIs de redirecionamento do Google](https://developers.google.com/identity/protocols/oauth2/web-server)
-3. Informe o Client ID e o Client Secret diretamente na credencial do n8n.
-   O responsável autentica a conta pelo Google e autoriza o acesso. Guarde as
-   credenciais no cofre do n8n.
-4. Vincule a credencial ao nó Gmail de `automacao-regulatoria-send-report`.
-   Cadastre o destinatário de homologação na landing e publique o workflow
-   durante a janela do teste. Com autorização para o envio, use um relatório
-   sintético em `aguardando_envio`, solicite o envio no painel e confirme o
-   recebimento, o registro da entrega e o status `concluido`.
-5. Avalie a publicação de `automacao-reg-internal-reconcile` após homologar os
-   fluxos que ele pode despachar. Confira a retomada e a prevenção de duplicidade.
+Confirme no projeto pessoal a presença do workflow de processamento escolhido,
+do tratamento de erros, da reconciliação e da credencial `PostgreSQL Miller`.
 
 ## Atualizar a versão na mesma VPS
 
@@ -233,6 +213,28 @@ scripts em `deploy/postgres/init/` inicializam bancos novos. Para atualizar
 workflows, conserve a configuração anterior, confira os vínculos de
 credenciais e valide o estado publicado depois da importação.
 [Guia da stack](deploy/README.md) · [Operação dos workflows](workflows/README.md)
+
+### Atualizar para download direto
+
+Em janela de manutenção, suspenda novos uploads e aguarde as execuções ativas.
+Guarde um backup do banco, dos artefatos e dos workflows. Mantenha despublicados
+o workflow legado de envio e os workflows em atualização até completar a troca.
+No checkout da nova versão, aplique a migração ao volume PostgreSQL existente:
+
+```bash
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1' \
+  < deploy/postgres/init/006_report_download.sql
+```
+
+A migração conclui protocolos antigos que aguardavam envio ou falharam na
+entrega, quando há um registro de PDF vinculado à tentativa. O gateway também
+confere que o arquivo existe no volume antes de exibir o botão. As tabelas
+legadas existentes ficam guardadas para auditoria.
+
+Importe a versão atualizada do workflow de processamento selecionado e do
+workflow de erros. Atualize a reconciliação antes de publicá-la. Revincule os
+nós PostgreSQL, confira o vínculo com o tratamento de erros e valide um PDF
+sintético pelo painel antes de reabrir a fila.
 
 ### Validar após implantar
 

@@ -80,7 +80,7 @@ async function poll(current) {
     if (current !== generation) return;
     const prefix = duplicate ? 'Status do protocolo existente' : 'Status';
     show(statusBox, `${prefix}: ${statusLabel(data.status)}${data.message ? ' · ' + data.message : ''}`);
-    if (['concluido', 'erro', 'aguardando_revisao', 'aguardando_envio'].includes(data.status)) return;
+    if (['concluido', 'erro', 'aguardando_revisao'].includes(data.status)) return;
     pollTimer = setTimeout(() => poll(current), 4000);
   } catch (_) {
     if (current === generation) pollTimer = setTimeout(() => poll(current), 5000);

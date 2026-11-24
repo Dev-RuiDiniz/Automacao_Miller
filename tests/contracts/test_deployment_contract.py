@@ -12,7 +12,8 @@ def test_remote_vps_status_is_dated_and_not_presented_as_current() -> None:
 
     # A data de manutenção pode avançar sem alterar a data histórica da VPS.
     assert re.search(r"^\*\*Atualizado em:\*\* \d{1,2} de [a-zç]+ de \d{4}$", roadmap, re.MULTILINE)
-    assert "as últimas informações confirmadas da VPS são de 27 de outubro de 2026" in roadmap
+    assert "## VPS do cliente — verificada em 21/11/2026" in roadmap
+    assert "## Download direto do relatório — 23/11/2026" in roadmap
     assert "A VPS não foi consultada durante esta atualização" in roadmap
     assert "Verificação por SSH, gateway e painel autenticado do n8n em 27/10/2026" in roadmap
     assert "n8n 2.30.5" in roadmap
@@ -69,7 +70,7 @@ def test_compose_declares_isolated_required_services() -> None:
     assert "RAG_TOP_K" not in n8n_service
     assert "rag-service:" not in n8n_service
     assert "N8N_INTERNAL_PROCESSING_WEBHOOK_URL" in n8n_service
-    assert "N8N_REPORT_EMAIL_WEBHOOK_URL" in n8n_service
+    assert "N8N_REPORT_EMAIL_WEBHOOK_URL" not in compose
     assert "127.0.0.1:${N8N_HOST_PORT:-25678}:5678" in compose
     assert "automacao_miller_n8n_data" in compose
     assert "automacao_miller_artifacts_data:/data/artifacts" in compose
@@ -105,8 +106,8 @@ def test_workflow_export_is_valid_and_contains_required_stages() -> None:
         "Normalize AI response",
         "Ollama - Extract",
         "Report Renderer",
-        "Gmail - Send report",
-        "Route after email",
+        "Google Drive - Upload Report",
+        "Route after report upload",
     } <= names
     assert workflow["id"] == "automacao-regulatoria-mvp"
     assert workflow["active"] is False
@@ -115,12 +116,12 @@ def test_workflow_export_is_valid_and_contains_required_stages() -> None:
     parameters = converter["parameters"]["bodyParameters"]["parameters"]
     assert {item["parameterType"] for item in parameters} == {"formBinaryData", "formData"}
     assert next(item for item in parameters if item["parameterType"] == "formBinaryData")["inputDataFieldName"] == "data"
-    gmail = next(node for node in workflow["nodes"] if node["name"] == "Gmail - Send report")
-    assert gmail["parameters"]["options"]["attachmentsUi"]["attachmentsBinary"] == [{"property": "data"}]
+    assert not any(node["type"] == "n8n-nodes-base.gmail" for node in workflow["nodes"])
+    assert workflow["connections"]["Google Drive - Upload Report"]["main"][0][0]["node"] == "Route after report upload"
     assert workflow["connections"]["Duplicate gate"]["main"][0][0]["node"] == "Duplicate ignored"
     assert workflow["connections"]["Duplicate gate"]["main"][1][0]["node"] == "Prepare Markdown file"
-    assert workflow["connections"]["Route after email"]["main"][0][0]["node"] == "State - Completed"
-    assert workflow["connections"]["Route after email"]["main"][1][0]["node"] == "State - Human review"
+    assert workflow["connections"]["Route after report upload"]["main"][0][0]["node"] == "State - Completed"
+    assert workflow["connections"]["Route after report upload"]["main"][1][0]["node"] == "State - Human review"
 
 
 def test_error_workflow_export_records_failures() -> None:
@@ -137,7 +138,7 @@ def test_internal_error_workflow_avoids_code_runner() -> None:
     assert normalize["typeVersion"] == 3.4
     assignments = normalize["parameters"]["assignments"]["assignments"]
     fields = {item["name"]: item["value"] for item in assignments}
-    assert {"submission_id", "delivery_id", "current_stage", "error_category", "error_message", "execution_id"} == set(fields)
+    assert {"submission_id", "current_stage", "error_category", "error_message", "execution_id"} == set(fields)
     assert "$json.workflowData" in fields["submission_id"]
     assert "$json.execution?.error" in fields["error_message"]
     assert normalize["parameters"]["includeOtherFields"] is False
@@ -147,7 +148,7 @@ def test_internal_error_workflow_avoids_code_runner() -> None:
     assert query.startswith("WITH error_context AS (")
     assert "UPDATE automacao_miller.processing_attempts" in query
     assert "UPDATE automacao_miller.documents" in query
-    assert "UPDATE automacao_miller.email_deliveries" in query
+    assert "email_deliveries" not in query
     assert "; UPDATE" not in query
 
 
@@ -279,7 +280,7 @@ def test_internal_workflow_uses_simple_markdown_report_path() -> None:
     assert "execution_id: String($execution.id)" in diagnostic_body
 
     report_state = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")
-    assert "status = 'aguardando_envio'" in report_state["parameters"]["query"]
+    assert "status = 'concluido'" in report_state["parameters"]["query"]
     assert "aguardando_revisao" not in report_state["parameters"]["query"]
     report_payload = next(node for node in workflow["nodes"] if node["name"] == "Prepare report PDF payload")
     assert "report_markdown" in report_payload["parameters"]["jsCode"]
@@ -344,40 +345,33 @@ def test_rag_and_training_schema_contract() -> None:
     assert "submission_id = %(submission_id)s" in (ROOT / "infra" / "rag" / "search.py").read_text(encoding="utf-8")
 
 
-def test_reconciliation_routes_recovered_email_to_send_workflow() -> None:
+def test_reconciliation_routes_pending_documents_to_processing() -> None:
     workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-reconcile-v1.json").read_text(encoding="utf-8"))
     query = next(node for node in workflow["nodes"] if node["name"] == "State - Find pending documents")["parameters"]["query"]
-    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch recovery task")
-    send_workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-send-report-v1.json").read_text(encoding="utf-8"))
-    send_webhook = next(node for node in send_workflow["nodes"] if node["name"] == "Panel - Request report send")
-
-    assert query.startswith("WITH reset_deliveries AS")
-    assert "RETURNING ed.delivery_id, ed.submission_id, ed.requested_at" in query
-    assert "'email_delivery'::text AS recovery_type" in query
-    assert "'document'::text AS recovery_type" in query
+    dispatch = next(node for node in workflow["nodes"] if node["name"] == "Dispatch recovery task")["parameters"]
+    assert query.startswith("WITH stale AS")
     assert "FROM reset_documents" in query
     assert "public.execution_entity" in query
-    assert "ee.status IN ('new', 'running', 'waiting')" in query
+    assert "ee.status NOT IN ('new', 'running', 'waiting')" in query
     assert "pa.attempt_number = ( SELECT d.attempt_count" in query
-    assert "$json.recovery_type === 'email_delivery'" in dispatch["parameters"]["url"]
-    assert "automacao-regulatoria-send-report" in dispatch["parameters"]["url"]
-    assert "automacao-regulatoria-internal'" in dispatch["parameters"]["url"]
-    assert "delivery_id: Number($json.delivery_id)" in dispatch["parameters"]["jsonBody"]
-    assert "submission_id: $json.submission_id" in dispatch["parameters"]["jsonBody"]
-    assert send_webhook["parameters"]["path"] == "automacao-regulatoria-send-report"
-    assert "delivery_id" in next(node for node in send_workflow["nodes"] if node["name"] == "State - Claim email delivery")["parameters"]["query"]
+    assert "email_deliveries" not in query
+    assert "automacao-regulatoria-internal'" in dispatch["url"]
+    assert "submission_id: $json.submission_id" in dispatch["jsonBody"]
 
 
-def test_manual_delivery_schema_and_workflow_contract() -> None:
-    schema = (ROOT / "deploy" / "postgres" / "init" / "003_panel_operations.sql").read_text(encoding="utf-8")
-    for table in ("report_recipients", "document_recipients", "email_deliveries"):
-        assert f"CREATE TABLE IF NOT EXISTS automacao_miller.{table}" in schema
-    assert "aguardando_envio" in schema
-    workflow = json.loads((ROOT / "workflows" / "automacao-regulatoria-send-report-v1.json").read_text(encoding="utf-8"))
-    names = {node["name"] for node in workflow["nodes"]}
-    assert workflow["active"] is False
-    assert {"Panel - Request report send", "State - Claim email delivery", "Gmail - Send report", "State - Report sent"} <= names
-    assert "report_recipients" in (ROOT / "infra" / "upload_gateway" / "app.py").read_text(encoding="utf-8")
+def test_internal_workflows_complete_only_after_saving_the_report_pdf() -> None:
+    workflows = ROOT / "workflows"
+    assert not (workflows / "automacao-regulatoria-send-report-v1.json").exists()
+    for filename in ("automacao-regulatoria-internal-v1.json", "automacao-regulatoria-internal-v2-hybrid.json"):
+        workflow = json.loads((workflows / filename).read_text(encoding="utf-8"))
+        assert workflow["active"] is False
+        edges = workflow["connections"]
+        assert edges["Internal Storage - Write report PDF"]["main"][0][0]["node"] == "State - Report persisted"
+        query = next(node for node in workflow["nodes"] if node["name"] == "State - Report persisted")["parameters"]["query"]
+        assert "WITH active_document AS" in query
+        assert "UPDATE automacao_miller.processing_attempts" in query
+        assert "'report_pdf'" in query and "FROM finished_attempt" in query
+        assert "report_storage_key = saved_report.storage_key, status = 'concluido'" in query
 
 
 def test_reconciliation_and_internal_error_workflows_are_database_driven() -> None:

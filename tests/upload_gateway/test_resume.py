@@ -51,7 +51,7 @@ def report_artifact(tmp_path, sid, markdown, prompt='regulatory-extraction-v5-fu
                     {'prompt_version': prompt, 'source_markdown_sha256': markdown['sha256'], 'report_context': info or {}})
 
 
-def test_resume_reuses_saved_markdown_without_reupload_or_email(tmp_path, monkeypatch):
+def test_resume_reuses_saved_markdown_without_reupload(tmp_path, monkeypatch):
     client, sid, calls = failed_document(tmp_path, monkeypatch)
     saved = markdown_artifact(tmp_path, sid)
     before = (tmp_path / saved['storage_key']).read_bytes()
@@ -65,7 +65,6 @@ def test_resume_reuses_saved_markdown_without_reupload_or_email(tmp_path, monkey
     assert len(gateway.store.reviews[sid]) == 1
     assert gateway.store.reviews[sid][0]['decision'] == 'reprocessamento_autorizado'
     assert gateway.store.errors[sid][0]['error_message'].endswith('402.')
-    assert gateway.store.deliveries == {}
     assert (tmp_path / saved['storage_key']).read_bytes() == before
 
 
@@ -76,7 +75,7 @@ def test_resume_without_markdown_starts_at_conversion(tmp_path, monkeypatch):
     assert len(calls) == 1
 
 
-@pytest.mark.parametrize('state', ['recebido', 'em_processamento', 'aguardando_envio', 'concluido'])
+@pytest.mark.parametrize('state', ['recebido', 'em_processamento', 'aguardando_revisao', 'concluido'])
 def test_resume_rejects_non_error_documents(tmp_path, monkeypatch, state):
     client, sid, calls = failed_document(tmp_path, monkeypatch)
     gateway.store.update(sid, status=state)
@@ -194,12 +193,9 @@ def test_report_before_new_conversion_is_not_reused_even_with_same_source_hash(t
     assert gateway.processing_checkpoint(sid)['resume_stage'] == 'analysis'
 
 
-def test_resume_rejects_active_attempt_or_delivery(tmp_path, monkeypatch):
+def test_resume_rejects_active_attempt(tmp_path, monkeypatch):
     client, sid, calls = failed_document(tmp_path, monkeypatch)
     gateway.store.attempts[sid][0]['status'] = 'em_processamento'
-    assert client.post(f'/api/v1/submissions/{sid}/reprocess', headers=AUTH).status_code == 409
-    gateway.store.attempts[sid][0]['status'] = 'erro'
-    gateway.store.deliveries[1] = {'submission_id': sid, 'status': 'enviando'}
     assert client.post(f'/api/v1/submissions/{sid}/reprocess', headers=AUTH).status_code == 409
     assert not calls
 

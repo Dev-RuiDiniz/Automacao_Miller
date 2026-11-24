@@ -16,8 +16,8 @@ Guarde valores reais no cofre aprovado, no arquivo de ambiente protegido do serv
 - O usuário inicial da landing é `operador`. A senha inicial está no arquivo
   `/root/.automacao-miller-landing-inicial`, com permissão `600` na VPS.
 - A credencial PostgreSQL está no cofre do n8n. Os quatro workflows foram
-  importados como inativos. O envio manual requer OAuth da conta Gmail do
-  cliente.
+  importados como inativos. Este registro antecede a mudança para download
+  direto no painel autenticado.
 - O renderizador aguarda `OPENROUTER_API_KEY`. O administrador insere a chave
   de forma interativa com `miller-configurar-openrouter`. O comando valida a
   chave, aplica a configuração e publica a entrada e o tratamento de erros.
@@ -70,7 +70,7 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 - **Workflows inativos observados:** envio manual, reconciliação e avaliação sintética NVIDIA.
 - **Login:** `rui.pdiniz@gmail.com`; proprietário criado e acesso ao painel confirmado em 27/10. A senha foi definida pelo responsável e não está registrada aqui.
 - **Guarda da senha:** o responsável precisa confirmar o armazenamento no cofre aprovado; a localização não foi verificada nesta sessão.
-- **Credenciais de integração:** PostgreSQL e Gmail devem ficar no cofre de credenciais do n8n, nunca nos exports JSON do repositório.
+- **Credenciais de integração:** A credencial PostgreSQL deve ficar no cofre de credenciais do n8n, nunca nos exports JSON do repositório.
 
 ## 3. Landing e gateway de upload
 
@@ -84,7 +84,7 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 
 ## 4. PostgreSQL e armazenamento privado
 
-- **Uso:** registrar protocolos, estados, tentativas, destinatários, entregas e erros; guardar PDFs e relatórios no volume privado.
+- **Uso:** registrar protocolos, estados, tentativas e erros; guardar PDFs e relatórios no volume privado.
 - **Senha do banco:** no .env protegido da VPS. A cópia usada pelo n8n fica na credencial interna do serviço.
 - **Variáveis principais:** POSTGRES_PASSWORD, N8N_ENCRYPTION_KEY, ARTIFACT_STORAGE_DIR e ARTIFACTS_GID.
 - **Situação em 27/10:** serviço saudável; existem 10 documentos, sendo 4 em `aguardando_envio` e 6 em `erro`. Um dos quatro aguardando envio é o fixture sintético usado na homologação; nenhum e-mail foi enviado.
@@ -97,13 +97,6 @@ Confirme o fingerprint do host por canal confiável antes de autorizar outra cha
 - **Destino configurado:** /opt/backups/automacao-miller.
 - **Situação em 27/10/2026:** backup protegido do PostgreSQL, volume de artefatos e workflows pré-implantação criado em /opt/backups/automacao-miller. Restauração e cópia fora da VPS ainda não foram comprovadas.
 - **Ação:** copiar para um local fora da VPS e validar restauração isolada. Não considere uma cópia no mesmo servidor suficiente.
-
-## 6. Gmail
-
-- **Uso:** enviar o PDF somente depois de solicitação manual do operador.
-- **Onde fica a autorização:** credencial OAuth no n8n; os destinatários são administrados pelo painel/PostgreSQL.
-- **Situação:** credencial atual não foi reconfirmada nesta verificação e o workflow de envio está inativo.
-- **Ação:** confirmar a credencial e os destinatários. Testar com destinatário de homologação autorizado antes de ativar o envio manual.
 
 ## 7. NVIDIA API Trial — apenas teste sintético
 
@@ -158,7 +151,7 @@ documental protegido; não publique o arquivo de estado para diagnosticar falhas
   A aplicação usa somente `LANDING_PASSWORD_HASH` do `.env` protegido.
 - **n8n local:** `http://127.0.0.1:25678`; conta administrativa local gerada,
   com e-mail e senha no mesmo arquivo protegido. PostgreSQL configurado no
-  cofre do n8n; Gmail OAuth ainda não configurado.
+  cofre do n8n.
 - **OpenRouter:** chave preexistente preservada no `.env`, com permissão `600`,
   e injetada somente no `report-renderer`. O n8n recebeu a seleção de provedor,
   sem receber a chave. A análise real pela API ainda não foi testada.

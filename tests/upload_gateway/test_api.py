@@ -2,6 +2,7 @@ import hashlib
 import os
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from infra.upload_gateway import app as gateway
@@ -164,21 +165,41 @@ def test_report_is_only_available_after_completion(tmp_path: Path) -> None:
     client = make_client(tmp_path)
     headers = {"X-Landing-Token": "landing-test"}
     created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
-    unavailable = client.get(f"/api/v1/submissions/{created['submission_id']}/report", headers=headers)
-    assert unavailable.status_code == 409
+    submission_url = f"/api/v1/submissions/{created['submission_id']}"
+    status_url = f"/internal/submissions/{created['submission_id']}/status"
+    internal_headers = {"X-Internal-Token": "internal-test"}
+    download_url = f"{submission_url}/report"
+    assert client.get(download_url, headers=headers).status_code == 409
+    assert client.get(f"{submission_url}/artifacts/report_pdf?disposition=download", headers=headers).status_code == 409
+    assert client.get(submission_url, headers=headers).json()["report_available"] is False
     report = tmp_path / "objects" / "aa" / "bb" / "report" / "report-v1.pdf"
     report.parent.mkdir(parents=True)
+    completion = {"status": "concluido", "report_key": report.relative_to(tmp_path).as_posix()}
+    assert client.post(status_url, headers=internal_headers, json=completion).status_code == 422
     report.write_bytes(b"%PDF-1.7 report")
-    report_key = str(report.relative_to(tmp_path)).replace("\\", "/")
-    updated = client.post(
-        f"/internal/submissions/{created['submission_id']}/status",
-        headers={"X-Internal-Token": "internal-test"},
-        json={"status": "concluido", "report_key": report_key},
-    )
+    updated = client.post(status_url, headers=internal_headers, json=completion)
     assert updated.status_code == 200
-    downloaded = client.get(f"/api/v1/submissions/{created['submission_id']}/report", headers=headers)
+    assert client.get(submission_url, headers=headers).json()["report_available"] is True
+    assert client.get(download_url).status_code == 403
+    downloaded = client.get(download_url, headers=headers)
     assert downloaded.status_code == 200
     assert downloaded.content == b"%PDF-1.7 report"
+    assert downloaded.headers["content-type"] == "application/pdf"
+    assert downloaded.headers["content-disposition"] == f'attachment; filename="relatorio-{created["submission_id"]}.pdf"'
+    report.unlink()
+    assert client.get(submission_url, headers=headers).json()["report_available"] is False
+    assert client.get(download_url, headers=headers).status_code == 404
+
+
+@pytest.mark.parametrize("report_key", [None, "ausente.pdf", "relatorios", "../externo.pdf", "atalho.pdf"])
+def test_persisted_report_requires_a_file_in_the_private_volume(tmp_path: Path, monkeypatch, report_key) -> None:
+    volume = tmp_path / "volume"
+    (volume / "relatorios").mkdir(parents=True)
+    external = tmp_path / "externo.pdf"
+    external.write_bytes(b"%PDF-1.7 externo")
+    (volume / "atalho.pdf").symlink_to(external)
+    monkeypatch.setenv("ARTIFACT_STORAGE_DIR", str(volume))
+    assert gateway.persisted_report(report_key) is None
 
 
 def test_upload_uses_hash_based_private_storage(tmp_path: Path) -> None:
@@ -493,10 +514,10 @@ def test_deterministic_context_requires_persisted_markdown(tmp_path: Path) -> No
 
 def test_operational_pages_require_session_or_private_token(tmp_path: Path) -> None:
     client = make_client(tmp_path)
-    for path in ("/upload", "/new", "/settings/recipients"):
+    for path in ("/upload", "/new"):
         assert client.get(path).status_code == 403
     headers = {"X-Landing-Token": "landing-test"}
-    for path in ("/upload", "/new", "/settings/recipients"):
+    for path in ("/upload", "/new"):
         assert client.get(path, headers=headers).status_code == 200
 
 
@@ -523,33 +544,18 @@ def test_queue_detail_and_internal_artifact_viewers(tmp_path: Path) -> None:
     assert client.get(f"/submissions/{submission_id}/view", headers=headers).status_code == 200
 
 
-def test_recipients_are_validated_deduplicated_and_used_for_manual_send(tmp_path: Path, monkeypatch) -> None:
-    client = make_client(tmp_path)
-    headers = {"X-Landing-Token": "landing-test"}
-    saved = client.put("/api/v1/settings/report-recipients", headers=headers, json={"recipients": ["OPS@EXAMPLE.COM", "ops@example.com", {"email": "review@example.com", "label": "Revisão"}]})
-    assert saved.status_code == 200
-    assert [item["email"] for item in saved.json()["items"]] == ["ops@example.com", "review@example.com"]
-    assert client.put("/api/v1/settings/report-recipients", headers=headers, json={"recipients": ["invalid"]}).status_code == 422
-    created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
-    submission_id = created["submission_id"]
-    gateway.store.update(submission_id, status="aguardando_envio")
-    monkeypatch.setattr(gateway, "dispatch_webhook", lambda *_args, **_kwargs: None)
-    sent = client.post(f"/api/v1/submissions/{submission_id}/send-report", headers=headers, json={"recipients": ["custom@example.com", "CUSTOM@example.com"]})
-    assert sent.status_code == 202
-    assert sent.json()["delivery"]["recipient_emails"] == ["custom@example.com"]
-    assert client.post(f"/api/v1/submissions/{submission_id}/send-report", headers=headers, json={"recipients": ["custom@example.com"]}).status_code == 409
-
-
-def test_human_review_can_release_or_request_reprocessing(tmp_path: Path, monkeypatch) -> None:
+def test_legacy_human_review_can_complete_persisted_report(tmp_path: Path, monkeypatch) -> None:
     client = make_client(tmp_path)
     headers = {"X-Landing-Token": "landing-test"}
     created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
     submission_id = created["submission_id"]
-    gateway.store.update(submission_id, status="aguardando_revisao")
+    (tmp_path / "report.pdf").write_bytes(b"%PDF-1.7 report")
+    gateway.store.update(submission_id, status="aguardando_revisao", report_storage_key="report.pdf")
     monkeypatch.setattr(gateway, "dispatch_webhook", lambda *_args, **_kwargs: None)
-    response = client.post(f"/api/v1/submissions/{submission_id}/review", headers=headers, json={"decision": "liberar_envio", "notes": "Evidências conferidas."})
+    response = client.post(f"/api/v1/submissions/{submission_id}/review", headers=headers, json={"decision": "registrar_conferencia", "notes": "Evidências conferidas."})
     assert response.status_code == 200
-    assert response.json()["submission"]["status"] == "aguardando_envio"
+    assert response.json()["submission"]["status"] == "concluido"
+    assert response.json()["submission"]["current_stage"] == "relatorio_pronto"
     assert client.post(f"/api/v1/submissions/{submission_id}/review", headers=headers, json={"decision": "reprocessar", "notes": ""}).status_code == 409
 
 
@@ -558,14 +564,15 @@ def test_optional_conference_can_be_recorded_without_review_gate(tmp_path: Path,
     headers = {"X-Landing-Token": "landing-test"}
     created = client.post("/api/v1/submissions", headers=headers, files={"file": ("a.pdf", b"%PDF-1.7", "application/pdf")}).json()
     submission_id = created["submission_id"]
-    gateway.store.update(submission_id, status="aguardando_envio")
+    gateway.store.update(submission_id, status="concluido", current_stage="relatorio_pronto")
     monkeypatch.setattr(gateway, "dispatch_webhook", lambda *_args, **_kwargs: None)
 
     response = client.post(
         f"/api/v1/submissions/{submission_id}/review",
         headers=headers,
-        json={"decision": "liberar_envio", "notes": "Referências conferidas opcionalmente."},
+        json={"decision": "registrar_conferencia", "notes": "Referências conferidas opcionalmente."},
     )
 
     assert response.status_code == 200
-    assert response.json()["submission"]["status"] == "aguardando_envio"
+    assert response.json()["submission"]["status"] == "concluido"
+    assert response.json()["submission"]["current_stage"] == "relatorio_pronto"

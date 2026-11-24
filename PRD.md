@@ -17,7 +17,7 @@ O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
 exports históricos; não é parte da entrada nem do processamento atual.
 
-O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O envio por Gmail é solicitado manualmente pelo operador após a geração do relatório. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
+O sistema deve receber novos documentos PDF pelo gateway de upload, converter cada documento para Markdown paginado, analisar todas as páginas em lotes e gerar um relatório técnico em Markdown e PDF. O PostgreSQL mantém os metadados e os estados; o volume privado do Docker guarda os arquivos. O painel autenticado libera o download do PDF assim que o workflow conclui o processamento e armazena o arquivo. O sistema confere automaticamente cobertura de páginas e referências literais; a revisão humana permanece opcional e uma referência pendente não bloqueia a conclusão operacional.
 
 A IA deve atuar como ferramenta de apoio técnico à leitura, classificação, organização e geração de relatórios. O sistema deve produzir uma análise automatizada com linguagem e estrutura de especialista sênior, sem se apresentar como autoridade regulatória, advogado, médico ou responsável técnico, nem emitir decisão jurídica, médica ou regulatória definitiva.
 
@@ -54,7 +54,7 @@ Pode conferir o relatório, as páginas e as evidências quando a equipe desejar
 - falha parcial de extração ou análise.
 
 Essa conferência é um recurso operacional e não é pré-requisito para gerar,
-enviar ou disponibilizar o relatório. Falhas técnicas continuam sendo tratadas
+utilizar o relatório. Falhas técnicas continuam sendo tratadas
 como erro e não como resultado válido.
 
 ### 4.3 Sistema automatizado
@@ -66,7 +66,7 @@ Responsável por:
 3. consolidar temporariamente os achados dos lotes;
 4. produzir o relatório;
 5. armazenar os artefatos;
-6. encaminhar o resultado por e-mail;
+6. disponibilizar o PDF do relatório no painel autenticado;
 7. registrar erros, alertas de qualidade e referências que merecem conferência opcional.
 
 ---
@@ -88,7 +88,6 @@ Componentes definidos para o projeto:
 - **PostgreSQL:** fonte de verdade operacional, metadados, estados, erros e vínculos;
 - **Volume privado do Docker:** armazenamento interno dos PDFs, Markdown e relatórios;
 - **Google Drive:** histórico da homologação anterior; não participa dos workflows ativos;
-- **Gmail:** envio manual do relatório após a aprovação operacional;
 - **Docker:** empacotamento e implantação dos serviços;
 - **VPS Linux:** hospedagem do ambiente.
 - **Landing/API de upload:** entrada privada, protocolo, status e download controlado do relatório.
@@ -120,13 +119,7 @@ Relatório Markdown e validação de páginas/evidências
         ↓
 Geração e armazenamento do PDF
         ↓
-Documento em aguardando_envio
-        ↓
-Conferência opcional do PDF e Markdown
-        ↓
-Envio manual por Gmail
-        ↓
-Documento concluído e download oficial liberado
+Documento concluído, com download do PDF e conferência opcional no painel
 ```
 
 O JSON usado em cada lote é temporário: ele ajuda a consolidar os achados, mas
@@ -515,8 +508,7 @@ evidências; não representa confiança semântica ou nota de certeza da IA.
 
 Referências não localizadas, com página inexistente ou citação diferente da
 fonte devem ser marcadas como pendentes e claramente distinguidas das
-comprovadas. Pendências de citação não bloqueiam a geração do PDF, o estado
-`aguardando_envio` nem a solicitação manual de envio. Cobertura incompleta por
+comprovadas. Pendências de citação não bloqueiam a geração do PDF nem a conclusão do processamento. Cobertura incompleta por
 falha técnica de lote, leitura ou página deve interromper a geração do relatório.
 
 A validação é oferecida pela rota interna autenticada
@@ -525,7 +517,7 @@ do armazenamento, confere as páginas analisadas e cada par página/evidência,
 e devolve as referências confirmadas e pendentes. A origem não pode ser enviada
 pelo cliente como substituta do artefato guardado.
 
-Essa validação comprova apenas cobertura e localização literal de páginas e trechos. Ela não verifica se a interpretação da IA está semanticamente correta. Pela regra atual, referências pendentes não bloqueiam por si só o relatório ou a solicitação manual de envio; esse comportamento não deve ser apresentado como garantia de qualidade.
+Essa validação comprova apenas cobertura e localização literal de páginas e trechos. Ela não verifica se a interpretação da IA está semanticamente correta. Pela regra atual, referências pendentes não bloqueiam por si só a conclusão do processamento; esse comportamento não deve ser apresentado como garantia de qualidade.
 
 ### RF-08 — Conferência humana opcional
 
@@ -549,16 +541,13 @@ relatório associados ao PDF de origem, devem ser salvos no volume privado do
 Docker. O PostgreSQL deve registrar o tipo, caminho interno, hash, tamanho e
 vínculo de cada artefato.
 
-### RF-12 — Envio manual por e-mail
+### RF-12 — Conclusão e download do PDF
 
-Depois de gerar e persistir o PDF final, o workflow deve colocar o documento em
-`aguardando_envio` quando a cobertura do processamento estiver completa,
-independentemente de haver referências pendentes. O operador
-autenticado pode visualizar os artefatos, conferir páginas e evidências quando
-desejar, selecionar os destinatários padrão ou substituí-los para aquele
-documento e solicitar o envio pelo Gmail. O status só pode mudar para
-`concluido` após a confirmação do Gmail; uma falha deve ser registrada em
-`email_deliveries` e permitir nova tentativa controlada.
+Quando o processamento obrigatório terminar e o PDF final estiver armazenado,
+o workflow deve registrar o artefato e concluir o documento e a tentativa no
+PostgreSQL. O detalhe do protocolo deve exibir o botão **Baixar relatório PDF**
+automaticamente ao detectar a conclusão, quando o arquivo estiver disponível.
+A conferência das referências continua opcional.
 
 ### RF-13 — Tratamento de erros
 
@@ -571,7 +560,6 @@ Cada documento deve possuir estado de processamento identificável, permitindo d
 
 - recebido;
 - em processamento;
-- aguardando envio;
 - concluído;
 - com erro.
 
@@ -582,8 +570,8 @@ o fluxo atual não depende dele para concluir o relatório.
 
 O sistema deve oferecer login por sessão, painel de fila com busca, filtros,
 indicadores, detalhes do protocolo, linha do tempo, tentativas, erros, conferência
-opcional e configuração de destinatários. O detalhe deve permitir visualizar o
-relatório PDF e seu Markdown antes do envio. Registros antigos podem manter um
+opcional. O detalhe deve permitir visualizar o relatório PDF e baixar o arquivo
+após a conclusão. Registros antigos podem manter um
 artefato JSON por compatibilidade; o fluxo atual não o gera.
 
 Enquanto o detalhe do protocolo estiver aberto, a interface deve atualizar
@@ -592,7 +580,7 @@ o conteúdo de `#history`, sem exigir atualização manual da página. Novas eta
 falhas e a conclusão devem aparecer conforme forem registradas pelo fluxo,
 inclusive após uma retomada. A exibição deve refletir o estado persistido,
 sem antecipar sucesso nem perder o histórico das tentativas anteriores.
-As consultas automáticas não devem apagar destinatários, observações em edição
+As consultas automáticas não devem apagar observações em edição
 ou a aba de visualização selecionada. Falha na consulta deve ser identificada
 como problema de atualização da tela, preservando o último estado recebido.
 
@@ -604,16 +592,10 @@ protocolo ao n8n sem expor credenciais de integrações ao navegador.
 
 ### RF-17 — Download e visualização controlados
 
-As visualizações autenticadas podem ocorrer enquanto o documento aguarda envio
-ou possui um registro legado de revisão. O download oficial do relatório deve
-responder somente quando o documento estiver em `concluido`; nenhuma chave
-absoluta ou caminho do volume pode ser exposto ao navegador.
-
-### RF-18 — Destinatários e auditoria de entrega
-
-O sistema deve manter destinatários padrão ativos ou inativos, destinatários
-específicos por documento e um snapshot de cada solicitação de envio, com
-status, execução, tentativa, erro, responsável e datas.
+O download do relatório exige acesso autenticado, documento em `concluido` e
+arquivo presente no volume privado. A visualização também exige acesso
+validado. O servidor resolve o arquivo pelo protocolo e limita o acesso ao
+volume de artefatos.
 
 ### RF-19 — Acesso por usuário e senha
 
@@ -660,8 +642,7 @@ download; nenhuma chamada de IA ou dependência da stack operacional.
 
 Para documentos em `erro`, o botão **Reprocessar** deve solicitar uma nova
 tentativa do mesmo protocolo, com registro do operador e preservação das
-tentativas, erros e versões anteriores. A retomada não depende de destinatários
-e não solicita envio de e-mail.
+tentativas, erros e versões anteriores.
 
 Ao clicar em **Reprocessar**, a interface deve abrir uma tela de confirmação
 perguntando se o cliente deseja retomar o processamento a partir do último
@@ -687,8 +668,8 @@ relatórios sem vínculo verificável não são reutilizados. Um relatório ante
 a uma nova conversão não substitui a análise dessa nova tentativa.
 
 Solicitações simultâneas não podem iniciar duas tentativas. O documento só
-volta a `aguardando_envio` depois da persistência dos artefatos obrigatórios.
-A tentativa de e-mail usa uma ação separada. A retomada abrange artefatos
+passa a `concluido` depois da persistência dos artefatos obrigatórios.
+A retomada abrange artefatos
 persistidos; resultados parciais internos da IA que não foram salvos não são
 checkpoints e precisam ser refeitos a partir do Markdown.
 
@@ -759,7 +740,7 @@ Problemas de leitura, parsing, conversão ou IA devem ser classificados como err
 
 ### RN-06 — Processamento concluído exige artefato final
 
-Um processamento só pode ser marcado como concluído quando as etapas obrigatórias do fluxo tiverem sido executadas com sucesso e o relatório final tiver sido gerado.
+Um processamento só pode ser marcado como concluído quando as etapas obrigatórias do fluxo tiverem sido executadas com sucesso e o relatório final tiver sido gerado, armazenado e vinculado ao protocolo.
 
 ### RN-07 — Idempotência
 
@@ -781,7 +762,7 @@ Erros relevantes devem possuir registro suficiente para diagnóstico, incluindo 
 
 ### RN-09 — Credenciais fora do código
 
-Credenciais do Google, Gmail, n8n, servidor ou qualquer outro serviço não podem ser mantidas em código-fonte versionado.
+Credenciais do Google, n8n, servidor ou qualquer outro serviço não podem ser mantidas em código-fonte versionado.
 
 ### RN-10 — Modelo substituível
 
@@ -868,7 +849,7 @@ Workflows, prompts, configurações e documentação devem ser organizados de fo
 
 ### RNF-04 — Observabilidade mínima
 
-Falhas de integração, extração, análise e envio precisam ser identificáveis.
+Falhas de integração, extração, análise e armazenamento precisam ser identificáveis.
 
 ### RNF-05 — Recuperação
 
@@ -945,7 +926,6 @@ O projeto contempla:
 - modelo inicial;
 - repositório interno em volume privado do Docker;
 - persistência operacional em PostgreSQL;
-- integração com Gmail;
 - desenvolvimento do workflow;
 - desenvolvimento dos prompts;
 - serviço local de conversão PDF → Markdown;
@@ -958,7 +938,7 @@ O projeto contempla:
 - geração de relatórios;
 - conversão para PDF;
 - armazenamento automático;
-- envio manual por e-mail pelo painel, com conferência opcional;
+- download do PDF pelo painel, com conferência opcional;
 - tratamento básico de erros;
 - recurso opcional de conferência humana;
 - testes;
@@ -1025,16 +1005,16 @@ O MVP poderá ser considerado entregue quando:
 9. o relatório for gerado;
 10. o relatório for convertido para PDF;
 11. o PDF final for armazenado no volume privado e associado ao documento no PostgreSQL;
-12. o relatório puder ser visualizado internamente antes do envio;
-13. o envio manual for confirmado pelo Gmail e registrado no PostgreSQL;
+12. o relatório puder ser visualizado no detalhe autenticado do protocolo;
+13. documento e tentativa forem concluídos no PostgreSQL após o registro do PDF persistido;
 14. um caso de falha de conversão impedir a extração e ser identificado;
 15. uma referência pendente for identificada no relatório, sem bloquear o fluxo, e puder ser conferida opcionalmente;
-16. a fila, o detalhe, os destinatários e a conferência opcional forem operáveis pela sessão autenticada;
+16. a fila, o detalhe e a conferência opcional forem operáveis pela sessão autenticada;
 17. houver documentação mínima de operação;
 18. os testes de funcionamento definidos no repositório estiverem aprovados;
 19. a landing protegida aceitar um PDF, gerar protocolo e mostrar seu status;
 20. o workflow analisar todas as páginas em lotes limitados e interromper o relatório se um lote falhar;
-21. páginas e evidências literais forem conferidas automaticamente e citações inválidas forem marcadas como pendentes, sem bloquear o estado `aguardando_envio`;
+21. páginas e evidências literais forem conferidas automaticamente e citações inválidas forem marcadas como pendentes, sem bloquear a conclusão do processamento;
 22. o relatório final puder ser baixado somente após conclusão válida.
 
 Os critérios 23–24 aplicam-se ao contexto determinístico dos ramos Ollama;
@@ -1102,7 +1082,7 @@ lotes para manter cada chamada ao modelo dentro de um limite controlado:
 PDF -> Markdown paginado -> varredura determinística de termos e identificadores
     -> análise de todas as páginas em lotes de até 6.000 caracteres
     -> achados e ligações literais temporários consolidados -> relatório Markdown
-    -> validação de cobertura e referências -> PDF -> aguardando_envio
+    -> validação de cobertura e referências -> PDF persistido -> concluido -> download no painel
 ```
 
 O relatório Markdown é o resultado técnico principal; o PDF é a apresentação
@@ -1116,7 +1096,7 @@ consolidada e não substitui o Markdown nem é salva como análise estruturada d
 documento.
 
 O gateway confere a cobertura e cada citação do relatório contra o Markdown
-original. Citações não confirmadas ficam pendentes e não bloqueiam a entrega.
+original. Citações não confirmadas ficam pendentes e não bloqueiam a conclusão.
 Lote com falha técnica ou cobertura incompleta interrompe a geração do
 relatório. RAG, embeddings e `quality_checks` continuam fora do caminho ativo.
 A revisão humana continua disponível como conferência opcional. O sinal do
@@ -1125,7 +1105,7 @@ prioridade executiva indica a prioridade de ação recomendada e não substitui
 esse sinal nem expressa certeza semântica.
 
 Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
-reconciliação, classificação de erros, envio autenticado e download somente após
+reconciliação, classificação de erros e download autenticado somente após
 `concluido` continuam obrigatórios.
 
 ## Decisão de arquitetura híbrida — 2026-10-27
@@ -1138,7 +1118,7 @@ Markdown persistido
   -> IA audita todos os lotes e propõe fatos que podem faltar
   -> Python confere página, lote e citação dos candidatos
   -> IA interpreta observações e candidatos aceitos no relatório final
-  -> validação do relatório, PDF e aguardando_envio
+  -> validação do relatório, PDF persistido e conclusão
 ```
 
 A implementação está representada em

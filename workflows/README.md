@@ -1,7 +1,7 @@
 # Workflows n8n
 Visão do fluxo em [FLUXOGRAMA.md](../FLUXOGRAMA.md); locais seguros de credenciais em [ACESSOS.md](../ACESSOS.md). Confirme o estado dos workflows na VPS: os arquivos exportados no Git ficam inativos por segurança.
 
-Para homologar localmente a rota Ollama até `aguardando_envio`, siga o
+Para homologar localmente a rota Ollama até `concluido`, siga o
 [roteiro de teste local](../docs/TESTE_LOCAL.md). Para a stack isolada com
 Anvisa V8/OpenRouter e retomada por checkpoints, use
 [deploy/full-local/README.md](../deploy/full-local/README.md). Nenhum desses
@@ -11,14 +11,14 @@ roteiros ativa workflows na VPS.
 
 Os exports de processamento interno v1, erros, envio manual e reconciliação
 estão importados e inativos. Os nós de banco foram vinculados à credencial
-PostgreSQL do cliente. O n8n registra zero execuções. O processamento Anvisa
-V8 aguarda a chave da OpenRouter e o envio aguarda OAuth do Gmail.
+PostgreSQL do cliente. O n8n registra zero execuções. À época, o processamento Anvisa
+V8 aguardava a chave da OpenRouter.
 
 ## Estado observado na VPS de testes em 27/10/2026
 
 O n8n tem seis workflows registrados. Estão publicados Automação Regulatória - Duas Passagens e Automacao Regulatoria - Erros Internos. Automacao Regulatoria - Repositorio Interno (v1) foi despublicado. Automação Regulatória - Envio manual do relatório, Automação Regulatória - Reconciliação Interna e Avaliação Sintética - NVIDIA NIM continuam inativos.
 
-Por isso, um relatório pode chegar a `aguardando_envio`, mas a solicitação de envio não está operacional até que o workflow de Gmail seja publicado, configurado e testado. A reconciliação também não recupera documentos ou entregas parados enquanto estiver inativa. Este estado é uma fotografia de 27/10/2026; confira novamente no n8n antes de operar.
+Essa fotografia de 27/10/2026 antecede o download direto. Confira o estado publicado no n8n antes de operar.
 
 Os exports do Git continuam com active=false de propósito. Não os use como prova do estado remoto e não reimporte workflows em produção sem backup, preservação dos vínculos de credenciais e teste controlado.
 
@@ -68,23 +68,18 @@ segredos. Corrija prompt/validação e repita o fixture antes de processar
 documentos reais.
 
 
-## Fluxos versionados e última fotografia da VPS
+## Fluxos internos versionados
 
-A origem oficial de novos documentos é a landing privada. Os exports ficam
-inativos no repositório para evitar ativação acidental. Na VPS, o workflow v2 e
-o workflow de erro estão publicados e associados à credencial PostgreSQL. O
-envio por e-mail e a reconciliação continuam inativos:
+A entrada oficial de novos documentos é a landing privada. Os exports ficam
+inativos no repositório para evitar ativação acidental.
 
-1. `automacao-regulatoria-internal-v2-hybrid.json` — recebe o protocolo, reivindica o
-   documento no PostgreSQL, lê o PDF do volume, converte, analisa, grava os
-   artefatos e deixa o documento em `aguardando_envio`, com alertas de qualidade
-   e referências para conferência opcional;
-2. `automacao-regulatoria-send-report-v1.json` — recebe a solicitação manual do
-   painel, reivindica a entrega, lê o relatório do volume, envia pelo Gmail e
-   marca `concluido` somente após sucesso;
-3. `automacao-regulatoria-reconcile-v1.json` — recupera documentos presos em
-   processamento e entregas de e-mail paradas e as despacha ao workflow correto;
-4. `automacao-regulatoria-internal-error-v1.json` — registra categoria, etapa,
+1. `automacao-regulatoria-internal-v1.json` e `automacao-regulatoria-internal-v2-hybrid.json`
+   recebem o protocolo, reivindicam o documento, processam e guardam os
+   artefatos. Depois de salvar o PDF, registram o artefato e concluem documento
+   e tentativa em uma operação PostgreSQL.
+2. `automacao-regulatoria-reconcile-v1.json` encaminha documentos recebidos ou
+   presos em processamento ao workflow interno.
+3. `automacao-regulatoria-internal-error-v1.json` registra categoria, etapa,
    execução, tentativa e mensagem no PostgreSQL.
 
 O `automacao-regulatoria-internal-v1.json` mantém os ramos Ollama e Anvisa V8,
@@ -127,8 +122,7 @@ ativa o serviço legado `rag-service`.
 
 O PostgreSQL é a fonte de verdade. As tabelas operacionais incluem
 `documents`, `artifacts`, `processing_attempts`, `human_reviews`,
-`workflow_errors`, `report_recipients`, `document_recipients` e
-`email_deliveries`. `analysis_results` e `analysis_json` são compatibilidade
+e `workflow_errors`. `analysis_results` e `analysis_json` são compatibilidade
 legada; o fluxo atual não grava análise estruturada. Os workflows devem gravar
 somente chaves relativas, nunca caminhos absolutos.
 
@@ -138,7 +132,7 @@ inserção em `analysis_results` ou publicação entre os artefatos da landing.
 O mesmo volume privado guarda checkpoints de lotes e grupos já validados,
 também separados dos relatórios finais e da tabela de análises legadas.
 
-Associe no n8n apenas as credenciais PostgreSQL e Gmail. Nenhum ID de credencial
+Associe no n8n a credencial PostgreSQL. Nenhum ID de credencial
 é versionado neste repositório. O workflow de erro interno precisa estar ativo
 e associado à credencial PostgreSQL para registrar a falha e mudar o protocolo
 para `erro`; sem ele, uma execução interrompida pode deixar o documento em
@@ -156,8 +150,7 @@ nós de carregamento e desvio por checkpoint do v1.
 
 A deduplicação é feita pelo SHA-256 no gateway e reforçada pela restrição única
 do PostgreSQL. Para retomar um documento em erro, use **Reprocessar** no detalhe
-do protocolo. O botão chama `POST /api/v1/submissions/{id}/reprocess`, sem
-destinatários. O gateway confere os artefatos, registra o operador em
+do protocolo. O botão chama `POST /api/v1/submissions/{id}/reprocess`. O gateway confere os artefatos, registra o operador em
 `human_reviews`, reserva a solicitação de forma transacional e despacha o
 webhook de processamento. Cliques repetidos ou uma operação em andamento são
 rejeitados; uma falha de despacho anterior ao claim permite nova tentativa.
@@ -179,9 +172,8 @@ a lista estruturada de avisos não foi guardada, essa limitação é informada.
 Um relatório legado sem hash/vínculo suficiente não é tratado como checkpoint.
 
 **Reprocessar** não usa o Retry genérico do n8n: esse recurso poderia repetir
-somente a validação de uma resposta de erro já armazenada. **Tentar envio
-novamente** permanece uma ação separada para falha de entrega. A retomada não
-recupera lotes parciais de IA que ainda não tenham sido persistidos.
+somente a validação de uma resposta de erro já armazenada. A retomada exige
+que o progresso parcial da IA tenha sido persistido para reutilizá-lo.
 
 No V8, os lotes e grupos validados passam a ser persistidos no renderizador.
 Na retomada do Markdown, ele reutiliza automaticamente os checkpoints da mesma
@@ -189,12 +181,9 @@ fonte e identidade de análise. Execuções antigas sem esse controle continuam
 sem recuperação retroativa de seus lotes em memória.
 
 Resultados com citações pendentes, contradição ou evidência insuficiente
-seguem em `aguardando_envio` com o alerta preservado no relatório, desde que
-a cobertura de páginas esteja completa. O download oficial só é
-liberado quando o PostgreSQL indicar `concluido`. O operador pode visualizar o
-PDF e o Markdown pelo painel autenticado e confirmar as páginas quando desejar,
-mas essa conferência não é obrigatória para solicitar o envio. O fluxo atual não
-grava um JSON de análise; a rota para artefato `analysis_json` permanece para
+mantêm o alerta no relatório e podem concluir quando a cobertura de páginas
+estiver completa. O operador pode visualizar o relatório e conferir as páginas
+pelo painel autenticado. O fluxo atual não grava um JSON de análise; a rota para artefato `analysis_json` permanece para
 compatibilidade com documentos antigos.
 
 O PDF é apresentado como relatório executivo: começa com resumo dos achados,
@@ -206,22 +195,17 @@ Cada achado exibe suas páginas de origem. Se a IA não conseguir comprovar a
 referência, o relatório mostra essa pendência de forma explícita e mantém o caso
 disponível para conferência, sem inventar a numeração da página.
 
-O workflow de reconciliação diferencia tarefas de documentos e entregas de
-e-mail. Quando uma entrega fica em `enviando` por mais de 15 minutos e não há
-uma execução n8n ativa, a reconciliação volta seu estado para `solicitado`,
-carrega `delivery_id` e `submission_id` e chama o workflow
-`automacao-regulatoria-send-report`. Documentos recebidos ou recuperados de uma
-execução parada continuam sendo enviados ao workflow interno de processamento.
-Assim, a retomada do e-mail não inicia novamente a análise do PDF.
+O workflow de reconciliação encontra documentos recebidos ou recupera
+processamentos parados sem execução ativa no n8n. Ele encaminha esses
+protocolos para o webhook interno de processamento.
 
-## Painel e envio manual
+## Painel e download
 
-O gateway oferece `/upload` para a fila, `/new` para upload,
-`/submissions/{id}/view` para o detalhe e `/settings/recipients` para a lista
-de destinatários. As APIs autenticadas mantêm os destinatários padrão e o
-snapshot específico de cada envio no PostgreSQL. O workflow de envio recebe
-`submission_id` e `delivery_id`; não consulta pastas do Drive e não usa
-`REPORT_RECIPIENTS` como fonte operacional.
+O gateway oferece `/upload` para a fila, `/new` para upload e
+`/submissions/{id}/view` para o detalhe. O botão **Baixar relatório PDF** aparece
+quando a consulta autenticada encontra o protocolo em `concluido` e o PDF no
+volume privado. A rota `/api/v1/submissions/{id}/report` responde com o PDF do
+protocolo como anexo. A visualização e a conferência opcional ficam no detalhe.
 
 ## Documentos extensos
 
@@ -258,8 +242,8 @@ registradas pelo workflow de erro e exigem reprocessamento explícito.
 
 Configure `LANDING_ACCESS_TOKEN`, `INTERNAL_API_TOKEN`,
 `N8N_INTERNAL_PROCESSING_WEBHOOK_URL`, `ARTIFACT_STORAGE_DIR` e
-`UPLOAD_GATEWAY_BASE_URL` no ambiente protegido. Gmail e PostgreSQL devem ser
-associados após a importação dos exports.
+`UPLOAD_GATEWAY_BASE_URL` no ambiente protegido. Associe a credencial
+PostgreSQL após importar os exports.
 
 Para consultar ou reprocessar, use o painel, o protocolo e as tabelas internas. Não use
 pastas do Drive para representar estados. Arquivos antigos do Drive não são
@@ -436,7 +420,7 @@ interrompe a análise com erro de armazenamento, sem tentar corrigir às cegas.
 O PDF com índice clicável e o Markdown usam os artefatos existentes da landing.
 O ZIP de verificação acompanha o PDF no volume privado, como
 `report-vN-anvisa-v8.zip`; sua chave relativa fica nos metadados do relatório
-Markdown. Nenhum envio por e-mail é disparado automaticamente. O pacote
+Markdown. O pacote
 registra os limites das verificações mecânicas e da revisão feita pelo modelo.
 
 `OPENROUTER_TIMEOUT_SECONDS=0` (padrão) desabilita o prazo total da análise V8.
@@ -473,7 +457,7 @@ A validação usada atualmente é feita pelo gateway na rota interna
 `POST /internal/submissions/{id}/validate-report`. Ela abre o Markdown original e
 compara cada página e evidência literal do relatório. Retorna a cobertura, as
 referências confirmadas e as pendentes. Citações pendentes são marcadas no
-relatório e não bloqueiam a entrega; páginas não cobertas interrompem a
+relatório e não bloqueiam a conclusão; páginas não cobertas interrompem a
 geração para impedir relatório parcial.
 
 A capacidade legada de RAG funciona assim: depois de persistir o Markdown, o workflow chama o serviço interno
@@ -508,12 +492,12 @@ O workflow interno preserva o Markdown original e analisa as páginas em lotes:
 ```text
 V1: PDF -> Markdown paginado -> contexto determinístico (termos e processos)
     -> lotes de até 6.000 caracteres analisados pela IA
-    -> consolidação -> relatório -> validação -> PDF -> aguardando_envio
+    -> consolidação -> relatório -> validação -> PDF persistido -> concluido
 
 V2 local: PDF -> Markdown paginado -> observações determinísticas em Python
     -> todos os lotes auditados pela IA -> validação Python de página/citação
     -> síntese IA somente com observações e candidatos aceitos
-    -> validação do relatório -> PDF -> aguardando_envio
+    -> validação do relatório -> PDF persistido -> concluido
 ```
 
 O artefato `report_markdown` é preservado junto do `report_pdf`. O prompt
@@ -530,7 +514,7 @@ reconciliação, o tratamento de erros e o download oficial seguem sem alteraç�
 upload. Ele envia somente o fixture artificial
 `tests/fixtures/synthetic-regulatory-sample.md` ao endpoint
 `https://integrate.api.nvidia.com/v1/chat/completions`, usando o modelo
-`openai/gpt-oss-20b`. Não lê arquivos, não chama o gateway nem o Gmail e não
+`openai/gpt-oss-20b`. Usa apenas o fixture sintético e não chama o gateway. Também não
 altera o workflow de documentos reais. O resultado passa por validação JSON e
 conferência literal da página/evidência contra o próprio fixture; a latência e
 os tokens reportados pela API são exibidos na saída.

@@ -18,15 +18,15 @@ Guarde valores reais no cofre aprovado, no arquivo de ambiente protegido do serv
 - A credencial PostgreSQL está no cofre do n8n. Os quatro workflows foram
   importados como inativos. Este registro antecede a mudança para download
   direto no painel autenticado.
-- O renderizador aguarda `OPENROUTER_API_KEY`. O administrador insere a chave
-  de forma interativa com `miller-configurar-openrouter`. O comando valida a
-  chave, aplica a configuração e publica a entrada e o tratamento de erros.
+- O renderizador aguardava `OPENROUTER_API_KEY`. A primeira versão do
+  instalador combinava a aplicação da chave com a publicação dos workflows.
 - O backup inicial do PostgreSQL e dos artefatos está em
   `/opt/backups/automacao-miller`, com hashes conferidos.
 
-Em 23/11/2026, a consulta por SSH confirmou que o renderizador aguardava a
-chave. O instalador passou a oferecer `--somente-chave` para aplicar a
-credencial ao renderizador. A publicação dos workflows faz parte da
+Em 23/11/2026, a consulta por SSH confirmou a chave no renderizador após a
+instalação com `miller-configurar-openrouter --somente-chave`. O `.env` na
+VPS permaneceu com permissão `600`, e o n8n registrou quatro workflows
+inativos e zero execuções. A publicação dos workflows faz parte da
 atualização para download direto. Consulte [DEPLOY.md](DEPLOY.md).
 
 ## Ambiente de testes — fotografia de 27/10/2026

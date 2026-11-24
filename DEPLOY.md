@@ -12,11 +12,11 @@ integra o repositório de 23/11/2026 e aguarda implantação na VPS.
 - [x] Configurar o usuário `operador` e validar login, logout e acesso restrito.
 - [x] Importar os quatro workflows inativos e vincular a credencial PostgreSQL.
 - [x] Selecionar OpenRouter para o Anvisa V8 e preparar o comando de instalação da chave.
+- [x] Instalar a chave da OpenRouter na VPS e verificar sua presença no renderizador saudável em 23/11/2026.
 - [x] Criar o backup na VPS e conferir os hashes do banco e dos artefatos.
 
 ### Pendente para liberar
 
-- [ ] **OpenRouter.** Instalar na VPS a chave recebida do cliente e verificar a aplicação no renderizador.
 - [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
 - [ ] **Download direto.** Aplicar a migração 006, atualizar e publicar os workflows de processamento e de erros antes de reabrir a fila.
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
@@ -44,8 +44,8 @@ para identificar a versão no servidor. A fotografia da VPS de testes de
 
 Em 21/11 foram verificados certificado, redirecionamentos, acesso à área
 privada, login, logout e cookie seguro. Os hashes dos backups do PostgreSQL e
-dos artefatos foram conferidos. A análise de ponta a ponta aguarda a chave
-OpenRouter e a autorização para executar o teste.
+dos artefatos foram conferidos. A homologação de ponta a ponta aguarda a
+atualização da VPS e a autorização para executar o teste.
 
 ## Revisão de segurança após a configuração
 
@@ -114,9 +114,11 @@ docker compose ps
 
 ## Configurar a chave OpenRouter e ativar o Anvisa V8
 
-Em 23/11/2026, a VPS executava o commit `3cac700` com o provedor `openrouter`
-selecionado e os quatro workflows inativos. O administrador deve instalar a
-chave recebida do cliente em um terminal com acesso SSH à VPS:
+Em 23/11/2026, a presença da chave foi confirmada no renderizador, com health
+HTTP `200` e `.env` com permissão `600`. A VPS executava o commit `3cac700`
+com o provedor `openrouter` selecionado, quatro workflows inativos e zero
+execuções no n8n. Para instalar ou trocar a chave, use um terminal com acesso
+SSH à VPS durante uma janela de manutenção:
 
 ```bash
 ssh -t -o StrictHostKeyChecking=yes root@2.25.172.95 /usr/local/sbin/miller-configurar-openrouter --somente-chave

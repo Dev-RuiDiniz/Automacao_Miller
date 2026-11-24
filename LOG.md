@@ -6577,3 +6577,12 @@ informou que recebeu a chave da OpenRouter. O instalador ganhou a opção
 versão anterior do instalador foi preservada e a sintaxe da nova versão
 foi conferida. A entrada da chave pelo administrador ficou pendente. A
 ativação dos workflows será feita após a atualização para download direto.
+
+## 2026-11-23 — Confirma a chave OpenRouter na VPS do cliente
+
+O administrador inseriu a chave pelo terminal SSH com `--somente-chave`.
+A consulta verificou a presença da variável no renderizador, health HTTP
+`200` e permissão `600` do `.env`. A VPS executava o commit `3cac700` e o
+n8n registrava quatro workflows inativos e zero execuções. A publicação
+dos workflows e a homologação com PDF sintético seguem pendentes da
+atualização para download direto.

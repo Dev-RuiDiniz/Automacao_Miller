@@ -6612,3 +6612,13 @@ HTTPS, login, logout, consulta à fila e autorização da rota de download.
 Uploads e reprocessamentos públicos retornam `503` até a homologação com
 PDF sintético autorizado. O proprietário do n8n e a reconciliação seguem
 pendentes.
+
+## 2026-11-23 — Define a administração do n8n sob demanda
+
+O usuário decidiu manter o n8n em execução contínua, com o editor acessado
+por túnel SSH quando houver necessidade de administração. A verificação na
+VPS confirmou Docker habilitado no boot, n8n saudável com a política
+`restart: unless-stopped`, porta `127.0.0.1:25678` e dois workflows publicados.
+O n8n registrava zero contas configuradas. O cadastro do proprietário fica
+para o primeiro uso administrativo do editor e saiu do checklist de
+liberação ao cliente.

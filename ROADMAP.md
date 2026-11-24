@@ -30,8 +30,9 @@ registrado. O workflow atualizado conclui documento e tentativa após registrar
 o PDF para download autenticado pelo painel.
 
 O n8n registrou zero execuções e a fila pública está suspensa para a homologação
-com PDF sintético autorizado. Também seguem pendentes a conta proprietária do
-n8n e a homologação da reconciliação. Consulte [DEPLOY.md](DEPLOY.md).
+com PDF sintético autorizado. A homologação da reconciliação segue pendente.
+O n8n opera continuamente na VPS e a conta proprietária será cadastrada no
+primeiro uso administrativo do editor por túnel SSH. Consulte [DEPLOY.md](DEPLOY.md).
 
 ## Leitura em um minuto
 

@@ -28,8 +28,10 @@ instalação com `miller-configurar-openrouter --somente-chave`. O `.env` na
 VPS permaneceu com permissão `600`. Após implantar `b006b7f` no mesmo dia,
 a consulta confirmou a chave no renderizador e os dois workflows publicados
 com os dez nós PostgreSQL vinculados à credencial existente. O n8n registrou
-zero execuções e o cadastro da conta proprietária segue pendente. Consulte
-[DEPLOY.md](DEPLOY.md).
+zero execuções. Também foram confirmados o início do Docker no boot, a
+política `restart: unless-stopped` e o editor em `127.0.0.1:25678`. O
+cadastro da conta proprietária fica para o primeiro acesso administrativo
+por túnel SSH. Consulte [DEPLOY.md](DEPLOY.md).
 
 ## Ambiente de testes — fotografia de 27/10/2026
 

@@ -15,10 +15,10 @@ download direto foi implantada e verificada na VPS em 23/11/2026.
 - [x] Instalar a chave da OpenRouter na VPS e verificar sua presença no renderizador saudável em 23/11/2026.
 - [x] Criar o backup na VPS e conferir os hashes do banco e dos artefatos.
 - [x] **Download direto.** Implantar `b006b7f`, aplicar a migração `006` e publicar as versões atualizadas dos workflows de processamento e de erros com a credencial PostgreSQL vinculada.
+- [x] **n8n.** Verificar a execução contínua, o reinício automático e o acesso administrativo por túnel SSH.
 
 ### Pendente para liberar
 
-- [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
 - [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
 - [ ] **Reabrir a fila pública.** Remover a suspensão de novos uploads e reprocessamentos no Caddy após a homologação sintética.
@@ -152,16 +152,20 @@ permitem os dados. Consulte [PRD.md](PRD.md) e [workflows/README.md](workflows/R
 
 ## Configurar o proprietário do n8n
 
-O administrador indicado pelo cliente deve concluir a criação da conta
-proprietária do n8n. Em seu computador, abra o túnel SSH:
+Em 23/11/2026, foi confirmado que o Docker inicia com a VPS e o n8n está
+saudável com a política `restart: unless-stopped`. O editor escuta em
+`127.0.0.1:25678` na VPS. Abra o túnel SSH somente quando precisar usar o
+editor:
 
 ```bash
 ssh -N -L 25678:127.0.0.1:25678 root@2.25.172.95
 ```
 
-Com o túnel ativo, acesse `http://localhost:25678` e conclua o cadastro.
-Confirme no projeto pessoal a presença do workflow de processamento escolhido,
-do tratamento de erros, da reconciliação e da credencial `PostgreSQL Miller`.
+No primeiro uso administrativo, o responsável indicado pelo cliente abre
+`http://localhost:25678` pelo túnel e cadastra a conta proprietária. Confirme
+no projeto pessoal o processamento, o tratamento de erros, a reconciliação
+e a credencial `PostgreSQL Miller`. Ao fechar o túnel, o n8n continua
+executando na VPS.
 
 ## Atualizar a versão na mesma VPS
 

@@ -25,9 +25,11 @@ Guarde valores reais no cofre aprovado, no arquivo de ambiente protegido do serv
 
 Em 23/11/2026, a consulta por SSH confirmou a chave no renderizador após a
 instalação com `miller-configurar-openrouter --somente-chave`. O `.env` na
-VPS permaneceu com permissão `600`, e o n8n registrou quatro workflows
-inativos e zero execuções. A publicação dos workflows faz parte da
-atualização para download direto. Consulte [DEPLOY.md](DEPLOY.md).
+VPS permaneceu com permissão `600`. Após implantar `b006b7f` no mesmo dia,
+a consulta confirmou a chave no renderizador e os dois workflows publicados
+com os dez nós PostgreSQL vinculados à credencial existente. O n8n registrou
+zero execuções e o cadastro da conta proprietária segue pendente. Consulte
+[DEPLOY.md](DEPLOY.md).
 
 ## Ambiente de testes — fotografia de 27/10/2026
 

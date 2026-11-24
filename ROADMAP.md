@@ -17,19 +17,21 @@ comando `miller-configurar-openrouter` ficou preparado para aplicar a chave e
 publicar a entrada V8 e o tratamento de erros. A conta proprietária, a
 restauração isolada e a homologação de ponta a ponta permaneciam pendentes. Consulte [ACESSOS.md](ACESSOS.md).
 
-Em 23/11/2026, a consulta à VPS confirmou o commit `3cac700`, a chave da
-OpenRouter aplicada ao renderizador e health HTTP `200`. O n8n registrou
-quatro workflows inativos e zero execuções. A atualização da VPS para
-download direto e a homologação de ponta a ponta seguem pendentes.
+Em 23/11/2026, antes da atualização, a consulta à VPS confirmou o commit
+`3cac700`, a chave OpenRouter no renderizador com health HTTP `200` e
+zero execuções no n8n.
 
 ## Download direto do relatório — 23/11/2026
 
-Implementado no repositório. O workflow conclui documento e tentativa depois
-que grava o PDF. O botão **Baixar relatório PDF** aparece no detalhe do
-protocolo concluído quando o arquivo está disponível no volume privado.
-A atualização de ambiente existente usa a migração 006 e os exports atuais.
-A VPS não foi consultada durante esta atualização. Implantação e homologação
-operacional do download seguem pendentes.
+O commit `b006b7f` foi implantado e verificado na VPS do cliente. A migração
+`006` foi aplicada, os workflows de processamento e de erros foram vinculados
+à credencial PostgreSQL e estão publicados, e o webhook de entrada está
+registrado. O workflow atualizado conclui documento e tentativa após registrar
+o PDF para download autenticado pelo painel.
+
+O n8n registrou zero execuções e a fila pública está suspensa para a homologação
+com PDF sintético autorizado. Também seguem pendentes a conta proprietária do
+n8n e a homologação da reconciliação. Consulte [DEPLOY.md](DEPLOY.md).
 
 ## Leitura em um minuto
 
@@ -52,7 +54,7 @@ a conclusão real de ponta a ponta continua pendente.
 ### Repositório
 
 - Em 27/10/2026, o checkout `/opt/automacao-miller` da VPS de testes estava no commit `29a6b4b`. É uma fotografia histórica.
-- Em 16/11/2026, a PR #5 foi mesclada por squash no commit `2aabff7`, trazendo a opção Anvisa V8/OpenRouter e a retomada otimizada por checkpoints. A PR #3 foi atualizada sobre essa base e mesclada com o guia local. O commit `3cac700` incorpora essas alterações e está instalado na VPS do cliente.
+- Em 16/11/2026, a PR #5 foi mesclada por squash no commit `2aabff7`, trazendo a opção Anvisa V8/OpenRouter e a retomada otimizada por checkpoints. A PR #3 foi atualizada sobre essa base e mesclada com o guia local. O commit `3cac700` foi a primeira versão instalada na VPS do cliente. Em 23/11, foi substituído por `b006b7f`.
 - A PR #3 documenta o teste local com Ollama em `docs/TESTE_LOCAL.md`, com a landing limitada a `127.0.0.1:8085` e os workflows de envio e reconciliação inativos. A stack completa local com V8/OpenRouter tem guia separado em `deploy/full-local/README.md`.
 - O export versionado do workflow permanece inativo no Git; o workflow v2 publicado no n8n foi verificado separadamente.
 - A suíte local passou em 27/10/2026: 94 testes aprovados e dois avisos de depreciação do evento `on_event` do FastAPI. O teste ponta a ponta da VPS está descrito abaixo.
@@ -1478,8 +1480,8 @@ foi enviado.
 7. **Triar os documentos operacionais preexistentes.**
    Responsáveis: operador e responsável técnico. Examine os três documentos que já aguardavam envio e os seis em erro antes do fixture sintético. Descubra a causa de cada erro, preserve histórico e não reinicie documentos automaticamente. Não conte o novo fixture sintético como documento operacional. A tentativa anterior do PDF extenso continua sem nova execução nesta homologação.
 
-8. **Implantar o download direto e homologar a reconciliação.**
-   Responsável: administrador do n8n. Aplique a migração 006, atualize os exports, associe a credencial PostgreSQL e valide uma falha controlada. Use um PDF sintético para confirmar a conclusão da tentativa e o download no painel. Publique a reconciliação depois de verificar que ela evita execuções repetidas.
+8. **Homologar o download direto e a reconciliação.**
+   Responsável: administrador do n8n. A migração 006, a publicação dos workflows atualizados e o vínculo PostgreSQL foram verificados em 23/11 na VPS do cliente. Valide uma falha controlada e use um PDF sintético autorizado para confirmar a conclusão da tentativa e o download no painel. Atualize a reconciliação e publique-a depois de verificar que evita execuções repetidas.
 
 9. **Manter a proteção contra comandos embutidos e ampliar os casos de regressão.**
    Responsável: responsável técnico. O fixture de 27/10 continha um pedido para revelar uma chave; o relatório não o seguiu. Esse resultado cobre somente um caso sintético e não garante resistência geral. Preserve este teste e repita-o após qualquer mudança de prompt ou modelo.

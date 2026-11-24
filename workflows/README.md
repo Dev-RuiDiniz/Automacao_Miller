@@ -7,6 +7,15 @@ Anvisa V8/OpenRouter e retomada por checkpoints, use
 [deploy/full-local/README.md](../deploy/full-local/README.md). Nenhum desses
 roteiros ativa workflows na VPS.
 
+## Estado observado na VPS do cliente em 23/11/2026
+
+No commit `b006b7f`, o processamento interno v1 e o tratamento de erros
+estão publicados em suas versões atualizadas. O webhook de entrada está
+registrado e os dez nós PostgreSQL usam a credencial existente. O envio
+legado e a reconciliação antiga estão inativos. O n8n registrou zero
+execuções e a entrada pública está suspensa até a homologação. Consulte
+[DEPLOY.md](../DEPLOY.md).
+
 ## Estado observado na VPS do cliente em 21/11/2026
 
 Os exports de processamento interno v1, erros, envio manual e reconciliação

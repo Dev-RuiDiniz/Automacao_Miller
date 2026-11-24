@@ -180,7 +180,9 @@ O roteiro da VPS do cliente está em [DEPLOY.md](DEPLOY.md). A configuração ge
 
 ## Situação conhecida do projeto
 
-O download direto faz parte da versão do repositório de 23/11/2026.
+O download direto foi implantado na VPS do cliente em 23/11/2026 no commit
+`b006b7f`. Os workflows de processamento e de erros estão publicados. A fila
+pública está suspensa até a homologação com PDF sintético autorizado.
 
 Em **21/11/2026**, o commit `3cac700` foi instalado na VPS do cliente. A
 landing privada foi verificada em `https://reportai.info`. Os workflows
@@ -210,9 +212,9 @@ O workflow e a documentação não provam, sozinhos, que os fluxos estão ativos
 ## O que falta antes de produção
 
 As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem
-implantar a atualização para download direto e homologar a análise, a
-restauração, o download e a reconciliação na VPS do cliente. O roteiro da VPS
-de testes e a retomada local do V8 têm pendências próprias no roadmap.
+homologar a análise, a restauração, o download e a reconciliação na VPS do
+cliente. O roteiro da VPS de testes e a retomada local do V8 têm pendências
+próprias no roadmap.
 
 ## Infraestrutura de referência
 

@@ -6586,3 +6586,29 @@ A consulta verificou a presença da variável no renderizador, health HTTP
 n8n registrava quatro workflows inativos e zero execuções. A publicação
 dos workflows e a homologação com PDF sintético seguem pendentes da
 atualização para download direto.
+
+## 2026-11-23 — Implanta o download direto do PDF na VPS do cliente
+
+A `main` remota foi sincronizada antes da mudança. O commit `b006b7f` foi
+transferido com verificação SHA-256, construído e iniciado em produção. A
+migração `006` terminou com `COMMIT`. As constraints de documento e
+tentativa foram verificadas. A versão `3cac700` e suas imagens foram
+preservadas para recuperação.
+
+O diretório `/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`
+guarda banco, artefatos, diagnósticos, os quatro workflows anteriores e o
+Caddyfile original. Foram conferidos hashes, índice do dump e leitura do
+arquivo de diagnósticos.
+
+Foram confirmados os dez vínculos PostgreSQL, o vínculo com o tratamento
+de erros, as versões atuais de processamento v1 e erros publicadas e o
+webhook registrado. Os seis serviços estavam saudáveis, a chave OpenRouter
+estava presente no renderizador e o n8n registrou zero execuções. Não havia
+documentos na VPS.
+
+Na versão empacotada passaram 15 testes de contrato, 56 testes do gateway
+em contêiner local e duas suítes JavaScript. Em produção foram conferidos
+HTTPS, login, logout, consulta à fila e autorização da rota de download.
+Uploads e reprocessamentos públicos retornam `503` até a homologação com
+PDF sintético autorizado. O proprietário do n8n e a reconciliação seguem
+pendentes.

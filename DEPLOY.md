@@ -2,8 +2,8 @@
 
 ## Checklist de liberação ao cliente
 
-A instalação foi verificada em 21/11/2026. A atualização para download direto
-integra o repositório de 23/11/2026 e aguarda implantação na VPS.
+A instalação inicial foi verificada em 21/11/2026. A atualização para
+download direto foi implantada e verificada na VPS em 23/11/2026.
 
 ### Concluído
 
@@ -14,13 +14,14 @@ integra o repositório de 23/11/2026 e aguarda implantação na VPS.
 - [x] Selecionar OpenRouter para o Anvisa V8 e preparar o comando de instalação da chave.
 - [x] Instalar a chave da OpenRouter na VPS e verificar sua presença no renderizador saudável em 23/11/2026.
 - [x] Criar o backup na VPS e conferir os hashes do banco e dos artefatos.
+- [x] **Download direto.** Implantar `b006b7f`, aplicar a migração `006` e publicar as versões atualizadas dos workflows de processamento e de erros com a credencial PostgreSQL vinculada.
 
 ### Pendente para liberar
 
 - [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
-- [ ] **Download direto.** Aplicar a migração 006, atualizar e publicar os workflows de processamento e de erros antes de reabrir a fila.
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
 - [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
+- [ ] **Reabrir a fila pública.** Remover a suspensão de novos uploads e reprocessamentos no Caddy após a homologação sintética.
 - [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar a reconciliação.
 - [ ] **Recuperação.** Guardar uma cópia protegida do backup fora da VPS e testar a restauração em ambiente isolado.
 - [ ] **Aceite.** Registrar os resultados dos testes finais e obter o aceite operacional antes de liberar o uso ao cliente.
@@ -44,8 +45,20 @@ para identificar a versão no servidor. A fotografia da VPS de testes de
 
 Em 21/11 foram verificados certificado, redirecionamentos, acesso à área
 privada, login, logout e cookie seguro. Os hashes dos backups do PostgreSQL e
-dos artefatos foram conferidos. A homologação de ponta a ponta aguarda a
-atualização da VPS e a autorização para executar o teste.
+dos artefatos foram conferidos.
+
+## Atualização verificada em 23/11/2026
+
+A VPS executa o commit `b006b7f` com a migração `006` aplicada. Os seis
+serviços Docker estavam saudáveis. O n8n registrou o webhook de entrada,
+as versões atuais de processamento e erros publicadas e zero execuções.
+Os dez nós PostgreSQL desses dois workflows usam a credencial existente.
+
+O painel em HTTPS permite autenticação e consulta. O Caddy devolve `503`
+para novos uploads e reprocessamentos enquanto a homologação sintética
+está pendente. Os backups anteriores à atualização estão em
+`/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`. A fotografia
+anterior dos workflows está no arquivo `workflows.json` desse diretório.
 
 ## Revisão de segurança após a configuração
 
@@ -114,11 +127,10 @@ docker compose ps
 
 ## Configurar a chave OpenRouter e ativar o Anvisa V8
 
-Em 23/11/2026, a presença da chave foi confirmada no renderizador, com health
-HTTP `200` e `.env` com permissão `600`. A VPS executava o commit `3cac700`
-com o provedor `openrouter` selecionado, quatro workflows inativos e zero
-execuções no n8n. Para instalar ou trocar a chave, use um terminal com acesso
-SSH à VPS durante uma janela de manutenção:
+Em 23/11/2026, a presença da chave foi confirmada no renderizador antes e
+depois da atualização para `b006b7f`. O `.env` manteve a permissão `600` e
+o n8n está configurado para `openrouter`. Para instalar ou trocar a chave,
+use um terminal com acesso SSH à VPS durante uma janela de manutenção:
 
 ```bash
 ssh -t -o StrictHostKeyChecking=yes root@2.25.172.95 /usr/local/sbin/miller-configurar-openrouter --somente-chave
@@ -235,7 +247,12 @@ legadas existentes ficam guardadas para auditoria.
 Importe a versão atualizada do workflow de processamento selecionado e do
 workflow de erros. Atualize a reconciliação antes de publicá-la. Revincule os
 nós PostgreSQL, confira o vínculo com o tratamento de erros e valide um PDF
-sintético pelo painel antes de reabrir a fila.
+sintético em acesso interno autorizado antes de reabrir a fila pública.
+Depois da homologação, remova o matcher `@envioSuspensoDownload` e as regras
+`respond @envioSuspensoDownload` e `respond /new` que devolvem `503` em
+`/etc/caddy/Caddyfile`. Valide com
+`caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`, aplique com
+`systemctl reload caddy` e confira o acesso autenticado à página de upload.
 
 ### Validar após implantar
 

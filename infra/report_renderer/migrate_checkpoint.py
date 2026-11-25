@@ -43,10 +43,11 @@ EVIDENCE_LIMITS_IMPLEMENTATION = "2856f024795ea974eea1b8b51ce8a6840c70d80d3ce281
 EVIDENCE_LIMITS_INSTRUCTIONS = "43cdff0461ade11ce3106778bfffdd12df0aea3eed4fc868b95adefbb8474b05"
 REREAD_IMPLEMENTATION = "2d82eb1598f6eab4db3e1baecd49aed88b5686f6f9c80fcd0865e4fdaa1c2cf5"
 REREAD_INSTRUCTIONS = "1c26ea5b1e7ad1f0eb152da397f1a69741a00a1e8b492633f25f161dac11c250"
+EXTRA_REREAD_IMPLEMENTATION = "3830e07b78a6b739f7b3784497ae80750019b59a87f219bc531315fcec825464"
 
 
 def legacy_identity(source_hash, page_count, version=1):
-    if version not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}:
+    if version not in range(1, 17):
         raise CheckpointStorageError("Implementação de origem não reconhecida.")
     return {"schema": min(version, 3), "source_sha256": source_hash, "pages": page_count,
             "model": "openai/gpt-6.1-terra", "prompt_sha256": v.PROMPT_HASH,
@@ -55,13 +56,13 @@ def legacy_identity(source_hash, page_count, version=1):
                                     7: INDEX_INSTRUCTIONS, 8: COMPACT_INSTRUCTIONS, 9: EIGHT_INSTRUCTIONS,
                                     10: EIGHT_INSTRUCTIONS, 11: ADAPTIVE_INSTRUCTIONS, 12: ADAPTIVE_INSTRUCTIONS,
                                     13: SHARED_FIELDS_INSTRUCTIONS, 14: EVIDENCE_LIMITS_INSTRUCTIONS,
-                                    15: REREAD_INSTRUCTIONS}[version],
+                                    15: REREAD_INSTRUCTIONS, 16: REREAD_INSTRUCTIONS}[version],
             "implementation_sha256": {1: LEGACY_IMPLEMENTATION, 2: REVIEW_IMPLEMENTATION, 3: WINDOW_IMPLEMENTATION,
                                       4: SEARCH_IMPLEMENTATION, 5: INDEX_IMPLEMENTATION, 6: NO_DEADLINE_IMPLEMENTATION,
                                       7: RECOVERY_IMPLEMENTATION, 8: COMPACT_IMPLEMENTATION, 9: EIGHT_IMPLEMENTATION,
                                       10: PARALLEL_IMPLEMENTATION, 11: ADAPTIVE_IMPLEMENTATION, 12: QUEUE_IMPLEMENTATION,
                                       13: SHARED_FIELDS_IMPLEMENTATION, 14: EVIDENCE_LIMITS_IMPLEMENTATION,
-                                      15: REREAD_IMPLEMENTATION}[version]}
+                                      15: REREAD_IMPLEMENTATION, 16: EXTRA_REREAD_IMPLEMENTATION}[version]}
 
 
 def migrate(markdown: str, scope: str, source_key: str) -> dict:
@@ -77,7 +78,7 @@ def migrate(markdown: str, scope: str, source_key: str) -> dict:
     if (any(not text.strip() or "_Nenhum conteúdo textual extraível nesta página._" in text for text in pages.values())
             or hashlib.sha256(v.PROMPT_PATH.read_bytes()).hexdigest() != v.PROMPT_HASH):
         raise CheckpointStorageError("Fonte ou V8 inválido para migração.")
-    sources = [AnalysisCheckpoint(legacy_identity(source_hash, len(pages), version), scope) for version in range(1, 16)]
+    sources = [AnalysisCheckpoint(legacy_identity(source_hash, len(pages), version), scope) for version in range(1, 17)]
     old = next((source for source in sources if source.key == source_key), None)
     current = AnalysisCheckpoint(inc.identity(source_hash, len(pages)), scope)
     if old is None or old.identity["model"] != current.identity["model"] or not old.path.is_file():

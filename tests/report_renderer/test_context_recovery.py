@@ -83,7 +83,7 @@ def test_extra_reread_queues_only_pages_new_to_the_cycle():
     assert ctx.pending(task['context']) == {12}
     assert task['context']['reread']['requests'] == 4
     _, window = ctx.build(task, pages)
-    assert 12 in window and 11 not in window
+    assert {10, 11, 12} <= window
     ctx.acknowledge(task, window)
     ctx.validate(task['context'], pages, task['sent'])
 
@@ -118,10 +118,12 @@ def test_extra_reread_from_existing_checkpoint(monkeypatch, extra_pages, made_pr
         return {'contexto_necessario': pages}
 
     monkeypatch.setattr(v, '_request', interrupted_request)
-    with previous:
-        with pytest.raises(v.AnvisaError, match='interrupção sintética'):
-            v.analyze(text, 20, source_hash, 'chave-ficticia', 600, checkpoint_store=previous)
-        previous_state = previous.load()
+    with monkeypatch.context() as historical:
+        historical.setattr(ctx, 'retained_rereads', lambda _: set())
+        with previous:
+            with pytest.raises(v.AnvisaError, match='interrupção sintética'):
+                v.analyze(text, 20, source_hash, 'chave-ficticia', 600, checkpoint_store=previous)
+            previous_state = previous.load()
     assert previous_state['pending'][0]['context']['reread']['requests'] == 3
     original_bytes = previous.path.read_bytes()
 
@@ -140,11 +142,11 @@ def test_extra_reread_from_existing_checkpoint(monkeypatch, extra_pages, made_pr
         window = data['contexto_recuperado']['paginas_nesta_chamada']
         first_batch_calls.append(window)
         if len(first_batch_calls) == 1:
-            assert 10 in window and 14 not in window and 16 not in window
+            assert {10, 14} <= set(window) and 16 not in window
             monkeypatch.setattr(ctx, 'MAX_DATA_BYTES', 6000)
             return {'contexto_necessario': [14, *extra_pages]}
         assert len(first_batch_calls) <= len(extra_pages) + 1
-        assert extra_pages[len(first_batch_calls) - 2] in window and 14 not in window
+        assert extra_pages[len(first_batch_calls) - 2] in window
         assert len(set(extra_pages) & set(window)) == 1
         if len(first_batch_calls) <= len(extra_pages):
             return response(targets, partial=True)
@@ -169,6 +171,59 @@ def test_extra_reread_from_existing_checkpoint(monkeypatch, extra_pages, made_pr
         monkeypatch.setattr(v, '_request', lambda *_: {'contexto_necessario': [17]})
         with pytest.raises(ctx.ContextRequestError, match='limite de releituras'):
             analyze(text)
+
+
+def test_resume_retains_page_17_and_reuses_twelve_completed_lots(monkeypatch):
+    text = source(228)
+    source_hash = hashlib.sha256(text.encode()).hexdigest()
+    pages = {n: f'\nEvento A{n}\nEvento B{n}\nEvento C{n}\n' for n in range(1, 229)}
+    tasks = [inc._tasks(list(range(start, min(start + 5, 229))), pages)[0]
+             for start in range(1, 229, 5)]
+    interrupted = tasks[1]
+    ctx.acknowledge(interrupted, set(range(4, 18)))
+    ctx.acknowledge(interrupted, set(range(4, 17)))
+    interrupted['context']['reread'] = {'pending': [], 'seen': list(range(13, 18)), 'requests': 3}
+    closed_tasks = tasks[2:14]
+    completed = [{'targets': task['targets'], 'sent': task['sent'],
+                  'result': response(task['targets'], [record(task['targets'][0])])}
+                 for task in closed_tasks]
+    previous = storage.AnalysisCheckpoint({
+        **inc.identity(source_hash, 228),
+        'implementation_sha256': '3830e07b78a6b739f7b3784497ae80750019b59a87f219bc531315fcec825464',
+        'instructions_sha256': '1c26ea5b1e7ad1f0eb152da397f1a69741a00a1e8b492633f25f161dac11c250',
+    }, 'protocolo-sintetico')
+    with previous:
+        previous.save({'schema': 3, 'completed': completed, 'pending': tasks[:2] + tasks[14:]})
+    original = previous.path.read_bytes()
+    assert migration.migrate(text, 'protocolo-sintetico', previous.key)['completed_lots'] == 12
+    with checkpoint(text) as saved:
+        migrated = saved.load()
+    assert migrated['completed'] == completed
+    assert migrated['pending'][1] == interrupted
+
+    closed_starts = {task['targets'][0] for task in closed_tasks}
+    visited_interrupted = []
+
+    def request(messages, *_):
+        data = json.loads(messages[-1]['content'])
+        targets = data['paginas_alvo']
+        assert targets[0] not in closed_starts
+        if targets == interrupted['targets']:
+            window = data['contexto_recuperado']['paginas_nesta_chamada']
+            assert set(range(13, 18)) <= set(window)
+            assert 'Evento A17' in data['markdown_documental']
+            visited_interrupted.append(window)
+        return response(targets)
+
+    monkeypatch.setattr(v, '_request', request)
+    records, coverage = analyze(text)
+    assert len(visited_interrupted) == 1
+    assert records == [row for entry in completed for row in entry['result']['registros']]
+    assert coverage['processamento_incremental']['lotes_reutilizados'] == 12
+    with checkpoint(text) as saved:
+        closed = next(task for task in saved.load()['completed'] if task['targets'] == interrupted['targets'])
+        assert not ctx.retained_rereads(closed['context'])
+    assert previous.path.read_bytes() == original
 
 
 @pytest.mark.parametrize('empty', [{'contexto_necessario': []}, {'buscas_necessarias': []},
@@ -200,6 +255,7 @@ def test_only_empty_fields_do_not_create_an_unbounded_context_loop(monkeypatch):
 
 def test_reread_budget_survives_automatic_windows_and_manual_resume(monkeypatch):
     monkeypatch.setattr(inc, 'MAX_CONTINUATIONS', 1)
+    monkeypatch.setattr(ctx, 'MAX_DATA_BYTES', 7000)
     requested = iter([10, 14, 10, 14, 10, 14])
     calls = []
 
@@ -209,6 +265,9 @@ def test_reread_budget_survives_automatic_windows_and_manual_resume(monkeypatch)
 
     monkeypatch.setattr(v, '_request', request)
     text = source(20)
+    for page in (10, 14):
+        marker = f'Evento C{page}\n'
+        text = text.replace(marker, marker + 'x' * 4000 + '\n')
     with pytest.raises(ctx.ContextRequestError, match='limite de releituras'):
         analyze(text)
     assert len(calls) == 6

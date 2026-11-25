@@ -23,6 +23,7 @@ download direto foi implantada e verificada na VPS em 23/11/2026.
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
 - [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
 - [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar reprocessamentos e reconciliação.
+- [ ] **Protocolo do cliente no Anvisa V8.** Concluir o [checklist de migração e retomada](#migrar-o-checkpoint-anvisa-v8-antes-da-retomada), incluindo a conferência do checkpoint de destino, antes de autorizar o reprocessamento.
 - [ ] **Recuperação.** Guardar uma cópia protegida do backup fora da VPS e testar a restauração em ambiente isolado.
 - [ ] **Aceite.** Registrar os resultados dos testes finais e obter o aceite operacional antes de liberar o uso ao cliente.
 
@@ -231,6 +232,68 @@ scripts em `deploy/postgres/init/` inicializam bancos novos. Para atualizar
 workflows, conserve a configuração anterior, confira os vínculos de
 credenciais e valide o estado publicado depois da importação.
 [Guia da stack](deploy/README.md) · [Operação dos workflows](workflows/README.md)
+
+### Migrar o checkpoint Anvisa V8 antes da retomada
+
+Use este roteiro para retomar o protocolo interrompido no limite de
+releituras após atualizar o renderizador de `b006b7f` para a versão com a
+rodada extra. A versão nova usa outra chave de checkpoint. Se o protocolo
+for reprocessado antes da migração, o renderizador pode iniciar a análise
+do zero, gerar novas cobranças e criar um destino que o migrador recusará
+sobrescrever.
+
+- [ ] Mantenha suspensos o reprocessamento público e os disparos manuais ou
+  automáticos do protocolo. Aguarde o término das execuções em andamento.
+  Confirme o commit de origem em `DEPLOYED_COMMIT`, o ID do protocolo, o
+  SHA-256 do Markdown paginado persistido e a chave do diretório do
+  checkpoint de origem. Use o Markdown vinculado à tentativa original.
+- [ ] Faça e verifique o [backup](#backup-e-recuperação), incluindo o volume de
+  diagnósticos com o checkpoint original. Registre os lotes e páginas
+  concluídos na origem. Guarde a versão anterior para rollback.
+- [ ] Atualize o renderizador preservando o volume de diagnósticos. Com a
+  retomada ainda suspensa, execute o migrador dentro do renderizador que
+  atenderá o protocolo. Use uma cópia privada do Markdown persistido,
+  sem converter novamente o PDF ou editar o arquivo. Confira com
+  `sha256sum` que a cópia corresponde ao artefato original.
+
+  ```bash
+  cd /opt/automacao-miller
+  protocolo='SUBSTITUA_PELO_ID_DO_PROTOCOLO'
+  chave_origem='SUBSTITUA_PELA_CHAVE_DO_DIRETORIO_DE_ORIGEM'
+  markdown='/CAMINHO/PRIVADO/DO/MARKDOWN_PERSISTIDO.md'
+  docker compose -p automacao-miller exec -T report-renderer \
+    python -m infra.report_renderer.migrate_checkpoint \
+    --markdown /dev/stdin --submission-id "$protocolo" --from-key "$chave_origem" \
+    < "$markdown"
+  ```
+
+- [ ] Exija saída bem-sucedida com `status` igual a `migrado` ou
+  `ja_migrado`. Confira `source_key`, registre a `destination_key` e
+  confirme que ela difere da origem. Verifique `completed_lots` e
+  `completed_pages` contra a origem. Se for uma repetição após avanço
+  autorizado, confira que o destino mantém as páginas já concluídas na
+  origem e o progresso posterior registrado. Confirme a presença dos dois
+  arquivos `state.json` no mesmo volume privado. Em caso de erro, destino
+  divergente ou progresso incompatível, mantenha a retomada suspensa e
+  preserve ambos os estados para investigação.
+- [ ] Após a conferência e com autorização, reprocesse uma única vez o
+  mesmo protocolo pelo caminho que reutiliza o Markdown salvo. Acompanhe
+  a tentativa. Ao gerar o pacote privado de verificação, confira
+  `lotes_reutilizados` e `paginas_reutilizadas` em
+  `processamento_incremental`. Verifique cobertura, status `concluido` e
+  download autenticado do PDF. Registre a etapa e a referência do diagnóstico
+  se falhar, mantendo a reconciliação suspensa até concluir a validação.
+
+**Rollback do renderizador.** Suspenda os disparos e aguarde o encerramento
+da tentativa antes de trocar a versão. Faça backup das duas identidades de
+checkpoint e siga o roteiro para [voltar à versão anterior](#voltar-à-versão-anterior),
+mantendo o volume de diagnósticos. Confirme o commit restaurado, a saúde do
+renderizador e a presença do checkpoint original antes de qualquer nova
+tentativa. A versão anterior usa o estado de origem, com o limite de três
+releituras. O progresso posterior permanece no destino e fica disponível
+para a versão nova. Mantenha o protocolo suspenso até decidir em qual
+versão retomar. Preserve o banco e os demais artefatos quando o rollback
+for apenas do renderizador.
 
 ### Atualizar para download direto
 

@@ -180,12 +180,16 @@ O roteiro da VPS do cliente está em [DEPLOY.md](DEPLOY.md). A configuração ge
 
 ## Situação conhecida do projeto
 
-O download direto faz parte da versão do repositório de 23/11/2026.
+O download direto foi implantado na VPS do cliente em 23/11/2026 no commit
+`b006b7f`. Os workflows de processamento e de erros estão publicados. O
+upload autenticado foi liberado para a simulação do cliente, e a homologação
+de ponta a ponta segue pendente.
 
 Em **21/11/2026**, o commit `3cac700` foi instalado na VPS do cliente. A
 landing privada foi verificada em `https://reportai.info`. Os workflows
-estavam inativos, com o Anvisa V8 aguardando a chave OpenRouter. O estado dos
-acessos e as pendências estão no [ROADMAP.md](ROADMAP.md).
+estavam inativos. Em **23/11/2026**, a chave OpenRouter foi confirmada no
+renderizador e o n8n registrou zero execuções. O estado dos acessos e as
+pendências estão no [ROADMAP.md](ROADMAP.md).
 
 Na **VPS de testes**, a fotografia de **27/10/2026** registrou v2 híbrido e workflow de
 erros publicados, v1 despublicado, envio manual e reconciliação inativos.
@@ -209,9 +213,9 @@ O workflow e a documentação não provam, sozinhos, que os fluxos estão ativos
 ## O que falta antes de produção
 
 As próximas tarefas, em ordem, estão em [ROADMAP.md](ROADMAP.md). Incluem
-configurar a chave OpenRouter e homologar a análise, a restauração, o download e
-a reconciliação na VPS do cliente. O roteiro da VPS de testes e a retomada
-local do V8 têm pendências próprias no roadmap.
+homologar a análise, a restauração, o download e a reconciliação na VPS do
+cliente. O roteiro da VPS de testes e a retomada local do V8 têm pendências
+próprias no roadmap.
 
 ## Infraestrutura de referência
 

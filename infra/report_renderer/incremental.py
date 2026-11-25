@@ -340,9 +340,17 @@ def _task_steps(task, pages, base, key, deadline, diagnostic_sink, coordinator):
             if not previous_references <= current_references:
                 raise v.StructureValidationError("unidades_pendentes_omitidas", "/reconciliacao_anexos", sorted(current_references),
                                                   {"ids_a_preservar": sorted(previous_references)})
-            partial = _partial(combined) or bool(ctx.pending(task["context"]))
+            pending_context = bool(ctx.pending(task["context"]))
+            partial = _partial(combined) or pending_context
             if not partial:
                 v._validate_block(combined, targets, sent, pages)
+            before = {**(task["continuation"] or {}), "registros": task["records"] + task["drafts"]}
+            old_progress = _progress(before) if task["continuation"] is not None else (len(task["records"]), len(before["registros"]), 0, 0)
+            current_progress = _progress(combined)
+            made_progress = current_progress > old_progress
+            extra_reread = ctx.extra_reread_used(task["context"])
+            if extra_reread and partial and not pending_context and not made_progress:
+                raise ctx.reread_limit_error("", current_progress)
         except v.AnvisaError as exc:
             failure = getattr(exc, "diagnostic", {"motivo": "validacao_bloco", "mensagem": str(exc)})
             if diagnostic_sink is not None:
@@ -357,14 +365,11 @@ def _task_steps(task, pages, base, key, deadline, diagnostic_sink, coordinator):
                 exc.args = (str(exc) + " Diagnóstico: " + reference + ".",)
             if isinstance(wire_result, v.ModelResult):
                 wire_result.validation_status = "rejeitada"
-            if correction:
+            if correction or isinstance(exc, ctx.ContextRequestError):
                 raise
             previous_result, correction = transport.rejected_view(wire_result, data), True
             continue
         task["context"]["last_window"] = []
-        before = {**(task["continuation"] or {}), "registros": task["records"] + task["drafts"]}
-        old_progress = _progress(before) if task["continuation"] is not None else (len(task["records"]), len(before["registros"]), 0, 0)
-        made_progress = _progress(combined) > old_progress
         if made_progress:
             page_expansions = 0
             ctx.progress(task)
@@ -380,7 +385,8 @@ def _task_steps(task, pages, base, key, deadline, diagnostic_sink, coordinator):
                 if isinstance(wire_result, v.ModelResult):
                     wire_result.validation_status = "aceita"
                 break
-            stalls = stalls + 1 if not delivery_progress and not made_progress else 0
+            draining_extra_context = extra_reread and pending_context
+            stalls = stalls + 1 if not (delivery_progress or made_progress or draining_extra_context) else 0
             task["records"] = [r for r in merged if not _needs_review(r)]
             task["drafts"] = [r for r in merged if _needs_review(r)]
             task["review_history"] = history
@@ -394,6 +400,8 @@ def _task_steps(task, pages, base, key, deadline, diagnostic_sink, coordinator):
             continuations += 1
             correction, previous_result, failure = False, None, None
             continue
+        if extra_reread and not made_progress:
+            ctx.progress(task)
         task["context"]["review_required"] = False
         coordinator.complete(task, combined, history)
         if isinstance(wire_result, v.ModelResult):

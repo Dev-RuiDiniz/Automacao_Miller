@@ -134,15 +134,18 @@ Na recuperação de contexto, entrega histórica e presença na chamada atual
 são distintas. Página já entregue e agora ausente pode ser reenfileirada;
 buscas conhecidas usam o resultado em cache. A releitura mantém páginas
 inteiras, pacote de 480.000 bytes e até duas chamadas simultâneas. Até três
-pedidos de releitura sem avanço documental ficam no checkpoint; retry,
-troca de janela e retomada não renovam esse contador. Listas vazias de pedidos
-não desviam fichas válidas para outra chamada. Repetições de páginas presentes
+pedidos ordinários de releitura ficam no checkpoint desde o último avanço
+documental. Um quarto pedido enfileira somente as páginas ainda não solicitadas
+para releitura no ciclo. A rodada extra exige avanço validado e o checkpoint
+conserva o contador em retentativas, trocas de janela e retomadas. Listas
+vazias de pedidos não desviam fichas válidas para outra chamada. Repetições de páginas presentes
 e loops continuam bloqueados, com resposta/pedido/janela e contexto preservados
 em diagnóstico ANV8D privado. Falha ao guardá-lo é erro de armazenamento.
 
 A implementação conserva o formato 3 com metadado opcional de releitura,
 sem acrescentá-lo ao pacote do provedor no caminho normal. Usa identidade nova
-e reconhece a versão anterior de refinamento das evidências por hashes exatos.
+e reconhece os checkpoints do renderizador de `b006b7f` por hashes exatos,
+além das versões históricas já aceitas.
 Atualize com backup, análise parada e migração explícita; não apague o progresso
 nem importe resultados rejeitados. Não há variável, provedor ou workflow novo.
 

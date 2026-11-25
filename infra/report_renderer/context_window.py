@@ -64,6 +64,18 @@ class ContextRequestError(v.StructureValidationError):
         self.args = ("VALIDAÇÃO: " + message + ".",)
 
 
+def extra_reread_used(context):
+    reread = context.get("reread")
+    return reread is not None and reread["requests"] > MAX_REREAD_REQUESTS
+
+
+def reread_limit_error(path, received):
+    return ContextRequestError("limite de releituras sem avanço validado atingido; progresso preservado",
+                              "contexto_limite_releituras", path, received,
+                              "Até três pedidos e uma rodada extra apenas para páginas ainda não solicitadas para releitura no ciclo. "
+                              "Depois da rodada extra, apresentar avanço documental validado.")
+
+
 def has_request(result):
     # Listas vazias são campos opcionais sem pedido, não uma chamada extra de contexto.
     return (("contexto_necessario" in result and result["contexto_necessario"] != [])
@@ -86,7 +98,7 @@ def validate(context, pages, sent):
     if "reread" in context:
         reread = context["reread"]
         if (not isinstance(reread, dict) or set(reread) != {"pending", "seen", "requests"}
-                or type(reread["requests"]) is not int or not 0 <= reread["requests"] <= MAX_REREAD_REQUESTS):
+                or type(reread["requests"]) is not int or not 0 <= reread["requests"] <= MAX_REREAD_REQUESTS + 1):
             raise ValueError
         for key in ("pending", "seen"):
             rows = reread[key]
@@ -158,6 +170,9 @@ def request(task, result, pages):
     changed = False
     page_expansion = False
     context = task["context"]
+    context_request = {key: result[key] for key in ("contexto_necessario", "buscas_necessarias") if key in result}
+    if extra_reread_used(context):
+        raise reread_limit_error("", context_request)
     current = set(context["last_window"])
     delivered = set(context["delivered"])
     reread = context.get("reread", {"pending": [], "seen": [], "requests": 0})
@@ -186,17 +201,18 @@ def request(task, result, pages):
                 candidates.difference_update(reread["seen"])
             reread_pages.update(candidates)
     reread_pages.difference_update(reread["pending"])
+    if reread_pages and reread["requests"] == MAX_REREAD_REQUESTS:
+        new_reread_pages = reread_pages - set(reread["seen"])
+        if not new_reread_pages:
+            raise reread_limit_error("/contexto_necessario", sorted(reread_pages))
+        reread_pages = new_reread_pages
     if reread_pages:
-        if reread["requests"] >= MAX_REREAD_REQUESTS:
-            raise ContextRequestError("limite de releituras sem avanço validado atingido; progresso preservado",
-                                      "contexto_limite_releituras", "/contexto_necessario", sorted(reread_pages),
-                                      "Até três pedidos de releitura por avanço documental validado.")
         context["reread"] = {"pending": sorted(set(reread["pending"]) | reread_pages),
                              "seen": sorted(set(reread["seen"]) | reread_pages),
                              "requests": reread["requests"] + 1}
     if not changed and not pending(context):
         raise ContextRequestError("pedido de contexto sem nova busca ou página pendente", "contexto_sem_avanco",
-                                  "/contexto_necessario", {key: result[key] for key in ("contexto_necessario", "buscas_necessarias") if key in result},
+                                  "/contexto_necessario", context_request,
                                   "Solicitar conteúdo ausente da janela ou avançar a análise; não repetir páginas presentes.")
     context["review_required"] = True
     return page_expansion

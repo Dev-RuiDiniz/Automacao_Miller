@@ -7,6 +7,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from infra.report_renderer import analysis_checkpoint as storage, migrate_checkpoint as migration
 from infra.report_renderer import anvisa_v8 as v, incremental as inc, context_window as ctx
 from infra.report_renderer import parallel_batches as parallel, diagnostics
 from infra.report_renderer.app import app
@@ -66,10 +67,108 @@ def test_three_rereads_do_not_reset_on_delivery_but_validated_progress_releases_
         ctx.acknowledge(task, {1, n})
     assert task['context']['reread']['requests'] == 3
     with pytest.raises(ctx.ContextRequestError, match='limite de releituras'):
-        ctx.request(copy.deepcopy(task), {'contexto_necessario': [12]}, pages)
+        ctx.request(copy.deepcopy(task), {'contexto_necessario': [11]}, pages)
     ctx.progress(task)
-    ctx.request(task, {'contexto_necessario': [12]}, pages)
+    ctx.request(task, {'contexto_necessario': [11]}, pages)
     assert task['context']['reread']['requests'] == 1
+
+
+def test_extra_reread_queues_only_pages_new_to_the_cycle():
+    task, pages = context_task()
+    for page in (10, 11, 10):
+        ctx.request(task, {'contexto_necessario': [page]}, pages)
+        ctx.acknowledge(task, {1, page})
+
+    assert not ctx.request(task, {'contexto_necessario': [11, 12]}, pages)
+    assert ctx.pending(task['context']) == {12}
+    assert task['context']['reread']['requests'] == 4
+    _, window = ctx.build(task, pages)
+    assert 12 in window and 11 not in window
+    ctx.acknowledge(task, window)
+    ctx.validate(task['context'], pages, task['sent'])
+
+    with pytest.raises(ctx.ContextRequestError, match='limite de releituras'):
+        ctx.request(task, {'contexto_necessario': [9]}, pages)
+    ctx.progress(task)
+    assert not ctx.request(task, {'contexto_necessario': [9]}, pages)
+    assert task['context']['reread']['requests'] == 1
+
+
+@pytest.mark.parametrize('extra_pages, made_progress', [([16], True), ([16], False), ([16, 17, 19], True)],
+                         ids=['com-avanco', 'sem-avanco', 'varias-janelas'])
+def test_extra_reread_from_existing_checkpoint(monkeypatch, extra_pages, made_progress):
+    text = source(20)
+    for page in extra_pages:
+        marker = f'Evento C{page}\n'
+        text = text.replace(marker, marker + 'texto sintético ' * 260 + '\n')
+    source_hash = hashlib.sha256(text.encode()).hexdigest()
+    scope = 'protocolo-sintetico'
+    previous = storage.AnalysisCheckpoint({
+        **inc.identity(source_hash, 20),
+        # Identidade do renderizador anterior à rodada extra, implantado em b006b7f.
+        'implementation_sha256': '2d82eb1598f6eab4db3e1baecd49aed88b5686f6f9c80fcd0865e4fdaa1c2cf5',
+        'instructions_sha256': '1c26ea5b1e7ad1f0eb152da397f1a69741a00a1e8b492633f25f161dac11c250',
+    }, scope)
+    initial_requests = iter([[10, 14, 16, 17, 19], [18], [10], [14], [10]])
+
+    def interrupted_request(*_):
+        pages = next(initial_requests, None)
+        if pages is None:
+            raise v.AnvisaError('IA: interrupção sintética.')
+        return {'contexto_necessario': pages}
+
+    monkeypatch.setattr(v, '_request', interrupted_request)
+    with previous:
+        with pytest.raises(v.AnvisaError, match='interrupção sintética'):
+            v.analyze(text, 20, source_hash, 'chave-ficticia', 600, checkpoint_store=previous)
+        previous_state = previous.load()
+    assert previous_state['pending'][0]['context']['reread']['requests'] == 3
+    original_bytes = previous.path.read_bytes()
+
+    assert migration.migrate(text, scope, previous.key)['status'] == 'migrado'
+    assert previous.path.read_bytes() == original_bytes
+    with checkpoint(text) as saved:
+        assert saved.load()['pending'] == previous_state['pending']
+
+    first_batch_calls = []
+
+    def request_after_resume(messages, *_):
+        data = json.loads(messages[-1]['content'])
+        targets = data['paginas_alvo']
+        if targets[0] != 1:
+            return response(targets)
+        window = data['contexto_recuperado']['paginas_nesta_chamada']
+        first_batch_calls.append(window)
+        if len(first_batch_calls) == 1:
+            assert 10 in window and 14 not in window and 16 not in window
+            monkeypatch.setattr(ctx, 'MAX_DATA_BYTES', 6000)
+            return {'contexto_necessario': [14, *extra_pages]}
+        assert len(first_batch_calls) <= len(extra_pages) + 1
+        assert extra_pages[len(first_batch_calls) - 2] in window and 14 not in window
+        assert len(set(extra_pages) & set(window)) == 1
+        if len(first_batch_calls) <= len(extra_pages):
+            return response(targets, partial=True)
+        if made_progress:
+            return response(targets, [record()])
+        return response(targets, partial=True)
+
+    monkeypatch.setattr(v, '_request', request_after_resume)
+    if made_progress:
+        assert analyze(text)[0] == [record()]
+        with checkpoint(text) as saved:
+            assert 'reread' not in saved.load()['completed'][0]['context']
+    else:
+        with pytest.raises(ctx.ContextRequestError, match='limite de releituras'):
+            analyze(text)
+        assert len(first_batch_calls) == 2
+        with checkpoint(text) as saved:
+            context = saved.load()['pending'][0]['context']
+            assert context['reread']['requests'] == 4
+            assert 16 in context['last_window']
+
+        monkeypatch.setattr(v, '_request', lambda *_: {'contexto_necessario': [17]})
+        with pytest.raises(ctx.ContextRequestError, match='limite de releituras'):
+            analyze(text)
 
 
 @pytest.mark.parametrize('empty', [{'contexto_necessario': []}, {'buscas_necessarias': []},
@@ -157,7 +256,7 @@ def test_corrupt_reread_metadata_is_rejected(violation):
     if violation == 'boolean': data['requests'] = True
     if violation == 'unknown_page': data['seen'].append(999)
     if violation == 'duplicates': data['pending'].append(10)
-    if violation == 'limit': data['requests'] = 4
+    if violation == 'limit': data['requests'] = 5
     if violation == 'pending_in_window': data['pending'] = [1]; data['seen'] = [1, 10]
     if violation == 'unseen': data['seen'] = []
     with pytest.raises(ValueError): ctx.validate(task['context'], pages, task['sent'])

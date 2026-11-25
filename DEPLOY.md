@@ -2,8 +2,8 @@
 
 ## Checklist de liberação ao cliente
 
-A instalação foi verificada em 21/11/2026. A atualização para download direto
-integra o repositório de 23/11/2026 e aguarda implantação na VPS.
+A instalação inicial foi verificada em 21/11/2026. A atualização para
+download direto foi implantada e verificada na VPS em 23/11/2026.
 
 ### Concluído
 
@@ -12,16 +12,18 @@ integra o repositório de 23/11/2026 e aguarda implantação na VPS.
 - [x] Configurar o usuário `operador` e validar login, logout e acesso restrito.
 - [x] Importar os quatro workflows inativos e vincular a credencial PostgreSQL.
 - [x] Selecionar OpenRouter para o Anvisa V8 e preparar o comando de instalação da chave.
+- [x] Instalar a chave da OpenRouter na VPS e verificar sua presença no renderizador saudável em 23/11/2026.
 - [x] Criar o backup na VPS e conferir os hashes do banco e dos artefatos.
+- [x] **Download direto.** Implantar `b006b7f`, aplicar a migração `006` e publicar as versões atualizadas dos workflows de processamento e de erros com a credencial PostgreSQL vinculada.
+- [x] **n8n.** Verificar a execução contínua, o reinício automático e o acesso administrativo por túnel SSH.
+- [x] **Novos uploads.** Liberar o acesso autenticado ao upload para o teste do cliente previsto para 24/11/2026.
 
-### Pendente para liberar
+### Pendente para concluir a homologação e a entrega
 
-- [ ] **OpenRouter.** Receber a chave do cliente, instalá-la na VPS e confirmar a publicação dos workflows de processamento e de erros.
-- [ ] **n8n.** Cadastrar a conta proprietária com o administrador indicado pelo cliente.
-- [ ] **Download direto.** Aplicar a migração 006 e atualizar os workflows internos antes de reabrir a fila.
 - [ ] **Teste final de análise.** Com autorização, enviar um PDF sintético pela landing. Conferir o protocolo, o Markdown paginado e persistido, a cobertura e as evidências do relatório, o PDF gerado e o status `concluido`.
 - [ ] **Teste final de download.** Abrir o protocolo sintético autenticado e baixar o PDF pelo botão **Baixar relatório PDF**. Conferir a abertura do arquivo e o bloqueio sem sessão.
-- [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar a reconciliação.
+- [ ] **Falhas e retomada.** Verificar que falhas de conversão ou de análise interrompem o processamento na etapa correta. Testar a retomada e a prevenção de duplicidades antes de liberar reprocessamentos e reconciliação.
+- [ ] **Protocolo do cliente no Anvisa V8.** Concluir o [checklist de migração e retomada](#migrar-o-checkpoint-anvisa-v8-antes-da-retomada), incluindo a conferência do checkpoint de destino, antes de autorizar o reprocessamento.
 - [ ] **Recuperação.** Guardar uma cópia protegida do backup fora da VPS e testar a restauração em ambiente isolado.
 - [ ] **Aceite.** Registrar os resultados dos testes finais e obter o aceite operacional antes de liberar o uso ao cliente.
 
@@ -44,8 +46,21 @@ para identificar a versão no servidor. A fotografia da VPS de testes de
 
 Em 21/11 foram verificados certificado, redirecionamentos, acesso à área
 privada, login, logout e cookie seguro. Os hashes dos backups do PostgreSQL e
-dos artefatos foram conferidos. A análise de ponta a ponta aguarda a chave
-OpenRouter e a autorização para executar o teste.
+dos artefatos foram conferidos.
+
+## Atualização verificada em 23/11/2026
+
+A VPS executa o commit `b006b7f` com a migração `006` aplicada. Os seis
+serviços Docker estavam saudáveis. O n8n registrou o webhook de entrada,
+as versões atuais de processamento e erros publicadas e zero execuções.
+Os dez nós PostgreSQL desses dois workflows usam a credencial existente.
+
+A página de novo upload foi liberada em 23/11, por autorização do usuário
+para a simulação do cliente. A verificação confirmou HTTP `200` com a sessão
+do operador e `403` sem sessão. O reprocessamento continua suspenso no
+Caddy. Os backups anteriores à atualização estão em
+`/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`. A fotografia
+anterior dos workflows está no arquivo `workflows.json` desse diretório.
 
 ## Revisão de segurança após a configuração
 
@@ -112,25 +127,25 @@ docker compose ps
   a chave de criptografia do n8n no cofre administrativo para recuperação.
   Consulte [ACESSOS.md](ACESSOS.md).
 
-## Ativar Anvisa V8 quando chegar a chave OpenRouter
+## Configurar a chave OpenRouter e ativar o Anvisa V8
 
-A configuração `ANVISA_REPORT_PROVIDER=openrouter` já está aplicada. Os
-workflows importados continuam inativos e `OPENROUTER_API_KEY` está vazio.
-Quando o cliente disponibilizar a chave pelo canal aprovado, o administrador
-deve executar, a partir de um terminal com acesso SSH à VPS:
+Em 23/11/2026, a presença da chave foi confirmada no renderizador antes e
+depois da atualização para `b006b7f`. O `.env` manteve a permissão `600` e
+o n8n está configurado para `openrouter`. Para instalar ou trocar a chave,
+use um terminal com acesso SSH à VPS durante uma janela de manutenção:
 
 ```bash
-ssh -t root@2.25.172.95 /usr/local/sbin/miller-configurar-openrouter
+ssh -t -o StrictHostKeyChecking=yes root@2.25.172.95 /usr/local/sbin/miller-configurar-openrouter --somente-chave
 ```
 
-Insira a chave no prompt do terminal. O comando valida a credencial na API
-da OpenRouter, atualiza o `.env` com permissão `600`, aplica a configuração ao
-renderizador e publica os workflows de erro e de processamento. A validação
-da chave consulta metadados, sem documento e sem chamada de inferência.
+Insira a chave no prompt oculto do terminal. O comando consulta os metadados
+da credencial na OpenRouter, atualiza o `.env` com permissão `600` e recria
+somente o renderizador. Ao terminar, deve aparecer `Chave validada e aplicada ao renderizador.`
 [Documentação da OpenRouter](https://openrouter.ai/docs/api/api-reference/api-keys/get-current-key)
 
-Confirme no n8n que `automacao-reg-error-handler` e
-`automacao-regulatoria-internal` estão publicados. O modelo definido no código
+Após implantar a versão para download direto, publique os workflows
+atualizados `automacao-reg-error-handler` e `automacao-regulatoria-internal`
+e confirme o estado no n8n. O modelo definido no código
 é `openai/gpt-6.1-terra`. Com autorização operacional, use um PDF sintético
 para confirmar a geração do Markdown e do PDF, conferir as evidências e
 observar o status `concluido` e o botão de download. Para documento real, registre a
@@ -139,16 +154,20 @@ permitem os dados. Consulte [PRD.md](PRD.md) e [workflows/README.md](workflows/R
 
 ## Configurar o proprietário do n8n
 
-O administrador indicado pelo cliente deve concluir a criação da conta
-proprietária do n8n. Em seu computador, abra o túnel SSH:
+Em 23/11/2026, foi confirmado que o Docker inicia com a VPS e o n8n está
+saudável com a política `restart: unless-stopped`. O editor escuta em
+`127.0.0.1:25678` na VPS. Abra o túnel SSH somente quando precisar usar o
+editor:
 
 ```bash
 ssh -N -L 25678:127.0.0.1:25678 root@2.25.172.95
 ```
 
-Com o túnel ativo, acesse `http://localhost:25678` e conclua o cadastro.
-Confirme no projeto pessoal a presença do workflow de processamento escolhido,
-do tratamento de erros, da reconciliação e da credencial `PostgreSQL Miller`.
+No primeiro uso administrativo, o responsável indicado pelo cliente abre
+`http://localhost:25678` pelo túnel e cadastra a conta proprietária. Confirme
+no projeto pessoal o processamento, o tratamento de erros, a reconciliação
+e a credencial `PostgreSQL Miller`. Ao fechar o túnel, o n8n continua
+executando na VPS.
 
 ## Atualizar a versão na mesma VPS
 
@@ -214,6 +233,68 @@ workflows, conserve a configuração anterior, confira os vínculos de
 credenciais e valide o estado publicado depois da importação.
 [Guia da stack](deploy/README.md) · [Operação dos workflows](workflows/README.md)
 
+### Migrar o checkpoint Anvisa V8 antes da retomada
+
+Use este roteiro para retomar o protocolo interrompido no limite de
+releituras após atualizar o renderizador de `b006b7f` para a versão com a
+rodada extra. A versão nova usa outra chave de checkpoint. Se o protocolo
+for reprocessado antes da migração, o renderizador pode iniciar a análise
+do zero, gerar novas cobranças e criar um destino que o migrador recusará
+sobrescrever.
+
+- [ ] Mantenha suspensos o reprocessamento público e os disparos manuais ou
+  automáticos do protocolo. Aguarde o término das execuções em andamento.
+  Confirme o commit de origem em `DEPLOYED_COMMIT`, o ID do protocolo, o
+  SHA-256 do Markdown paginado persistido e a chave do diretório do
+  checkpoint de origem. Use o Markdown vinculado à tentativa original.
+- [ ] Faça e verifique o [backup](#backup-e-recuperação), incluindo o volume de
+  diagnósticos com o checkpoint original. Registre os lotes e páginas
+  concluídos na origem. Guarde a versão anterior para rollback.
+- [ ] Atualize o renderizador preservando o volume de diagnósticos. Com a
+  retomada ainda suspensa, execute o migrador dentro do renderizador que
+  atenderá o protocolo. Use uma cópia privada do Markdown persistido,
+  sem converter novamente o PDF ou editar o arquivo. Confira com
+  `sha256sum` que a cópia corresponde ao artefato original.
+
+  ```bash
+  cd /opt/automacao-miller
+  protocolo='SUBSTITUA_PELO_ID_DO_PROTOCOLO'
+  chave_origem='SUBSTITUA_PELA_CHAVE_DO_DIRETORIO_DE_ORIGEM'
+  markdown='/CAMINHO/PRIVADO/DO/MARKDOWN_PERSISTIDO.md'
+  docker compose -p automacao-miller exec -T report-renderer \
+    python -m infra.report_renderer.migrate_checkpoint \
+    --markdown /dev/stdin --submission-id "$protocolo" --from-key "$chave_origem" \
+    < "$markdown"
+  ```
+
+- [ ] Exija saída bem-sucedida com `status` igual a `migrado` ou
+  `ja_migrado`. Confira `source_key`, registre a `destination_key` e
+  confirme que ela difere da origem. Verifique `completed_lots` e
+  `completed_pages` contra a origem. Se for uma repetição após avanço
+  autorizado, confira que o destino mantém as páginas já concluídas na
+  origem e o progresso posterior registrado. Confirme a presença dos dois
+  arquivos `state.json` no mesmo volume privado. Em caso de erro, destino
+  divergente ou progresso incompatível, mantenha a retomada suspensa e
+  preserve ambos os estados para investigação.
+- [ ] Após a conferência e com autorização, reprocesse uma única vez o
+  mesmo protocolo pelo caminho que reutiliza o Markdown salvo. Acompanhe
+  a tentativa. Ao gerar o pacote privado de verificação, confira
+  `lotes_reutilizados` e `paginas_reutilizadas` em
+  `processamento_incremental`. Verifique cobertura, status `concluido` e
+  download autenticado do PDF. Registre a etapa e a referência do diagnóstico
+  se falhar, mantendo a reconciliação suspensa até concluir a validação.
+
+**Rollback do renderizador.** Suspenda os disparos e aguarde o encerramento
+da tentativa antes de trocar a versão. Faça backup das duas identidades de
+checkpoint e siga o roteiro para [voltar à versão anterior](#voltar-à-versão-anterior),
+mantendo o volume de diagnósticos. Confirme o commit restaurado, a saúde do
+renderizador e a presença do checkpoint original antes de qualquer nova
+tentativa. A versão anterior usa o estado de origem, com o limite de três
+releituras. O progresso posterior permanece no destino e fica disponível
+para a versão nova. Mantenha o protocolo suspenso até decidir em qual
+versão retomar. Preserve o banco e os demais artefatos quando o rollback
+for apenas do renderizador.
+
 ### Atualizar para download direto
 
 Em janela de manutenção, suspenda novos uploads e aguarde as execuções ativas.
@@ -234,7 +315,13 @@ legadas existentes ficam guardadas para auditoria.
 Importe a versão atualizada do workflow de processamento selecionado e do
 workflow de erros. Atualize a reconciliação antes de publicá-la. Revincule os
 nós PostgreSQL, confira o vínculo com o tratamento de erros e valide um PDF
-sintético pelo painel antes de reabrir a fila.
+sintético autorizado. Em 23/11, o usuário autorizou a reabertura de novos
+uploads para que o cliente fizesse a simulação. Para liberar reprocessamentos
+após a validação de falhas e retomada, remova o matcher
+`@reprocessamentoSuspensoDownload` e a regra `respond` correspondente de
+`/etc/caddy/Caddyfile`. Valide com
+`caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile` e aplique
+com `systemctl reload caddy`.
 
 ### Validar após implantar
 

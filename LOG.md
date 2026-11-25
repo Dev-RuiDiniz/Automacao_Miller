@@ -6567,3 +6567,95 @@ Validação local com dados sintéticos:
 
 A mudança está no repositório. A VPS não foi consultada ou alterada nesta
 etapa. O roteiro de atualização e homologação está em [DEPLOY.md](DEPLOY.md).
+
+## 2026-11-23 — Prepara a instalação da chave OpenRouter em produção
+
+A consulta por SSH confirmou o commit `3cac700`, o renderizador saudável,
+quatro workflows inativos e zero execuções na VPS do cliente. O usuário
+informou que recebeu a chave da OpenRouter. O instalador ganhou a opção
+`--somente-chave` para validar a credencial e aplicá-la ao renderizador. A
+versão anterior do instalador foi preservada e a sintaxe da nova versão
+foi conferida. A entrada da chave pelo administrador ficou pendente. A
+ativação dos workflows será feita após a atualização para download direto.
+
+## 2026-11-23 — Confirma a chave OpenRouter na VPS do cliente
+
+O administrador inseriu a chave pelo terminal SSH com `--somente-chave`.
+A consulta verificou a presença da variável no renderizador, health HTTP
+`200` e permissão `600` do `.env`. A VPS executava o commit `3cac700` e o
+n8n registrava quatro workflows inativos e zero execuções. A publicação
+dos workflows e a homologação com PDF sintético seguem pendentes da
+atualização para download direto.
+
+## 2026-11-23 — Implanta o download direto do PDF na VPS do cliente
+
+A `main` remota foi sincronizada antes da mudança. O commit `b006b7f` foi
+transferido com verificação SHA-256, construído e iniciado em produção. A
+migração `006` terminou com `COMMIT`. As constraints de documento e
+tentativa foram verificadas. A versão `3cac700` e suas imagens foram
+preservadas para recuperação.
+
+O diretório `/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`
+guarda banco, artefatos, diagnósticos, os quatro workflows anteriores e o
+Caddyfile original. Foram conferidos hashes, índice do dump e leitura do
+arquivo de diagnósticos.
+
+Foram confirmados os dez vínculos PostgreSQL, o vínculo com o tratamento
+de erros, as versões atuais de processamento v1 e erros publicadas e o
+webhook registrado. Os seis serviços estavam saudáveis, a chave OpenRouter
+estava presente no renderizador e o n8n registrou zero execuções. Não havia
+documentos na VPS.
+
+Na versão empacotada passaram 15 testes de contrato, 56 testes do gateway
+em contêiner local e duas suítes JavaScript. Em produção foram conferidos
+HTTPS, login, logout, consulta à fila e autorização da rota de download.
+Uploads e reprocessamentos públicos retornam `503` até a homologação com
+PDF sintético autorizado. O proprietário do n8n e a reconciliação seguem
+pendentes.
+
+## 2026-11-23 — Define a administração do n8n sob demanda
+
+O usuário decidiu manter o n8n em execução contínua, com o editor acessado
+por túnel SSH quando houver necessidade de administração. A verificação na
+VPS confirmou Docker habilitado no boot, n8n saudável com a política
+`restart: unless-stopped`, porta `127.0.0.1:25678` e dois workflows publicados.
+O n8n registrava zero contas configuradas. O cadastro do proprietário fica
+para o primeiro uso administrativo do editor e saiu do checklist de
+liberação ao cliente.
+
+## 2026-11-23 — Libera novos uploads para o teste do cliente
+
+O usuário autorizou novos uploads para a simulação prevista para 24/11 e
+informou que a chave OpenRouter do cliente tem limite de gastos. O Caddy foi
+validado e recarregado após retirar a suspensão do novo upload. A regra
+`@reprocessamentoSuspensoDownload` preservou a suspensão do reprocessamento.
+O Caddyfile anterior está em
+`/opt/backups/automacao-miller/caddy-uploads-20261124T022317Z`.
+
+Foram verificados o login e o logout do operador, HTTP `200` em `/new` com
+sessão e `403` sem sessão. O webhook de entrada estava registrado, com zero
+documentos e zero execuções. A homologação de análise e download fica para
+a simulação do cliente.
+
+## 2026-11-24 — Permite rodada extra controlada de releitura
+
+No teste do cliente de 24/11, o quarto pedido de releitura incluiu páginas
+repetidas e páginas ainda não solicitadas para releitura naquele ciclo. O
+renderizador rejeitou o pedido inteiro ao atingir o limite de três. O ajuste
+admite uma rodada extra para enfileirar somente as páginas ainda não solicitadas
+no ciclo. Preserva a fila anterior e encerra a análise se houver novo pedido
+de contexto antes de avanço validado ou se a fila acabar sem avanço. A conclusão
+validada do lote encerra a rodada.
+
+O contador existente guarda o uso da rodada extra, inclusive na retomada. A
+identidade muda com a implementação. A migração explícita reconhece os hashes
+do renderizador de `b006b7f`, copia o estado validado para a nova identidade e
+preserva o arquivo original. A versão anterior rejeita estados pendentes cujo
+contador já esteja em quatro.
+
+Os testes sintéticos reproduziram o erro antes da correção e passaram com o
+ajuste. Os quatro casos conferem a seleção de páginas, a migração e retomada
+de um checkpoint com três pedidos, a entrega da fila em várias janelas, a
+conclusão após avanço e o bloqueio persistente sem avanço. A simulação usa
+respostas locais. A VPS não foi consultada durante a alteração de código.
+Implantação e retomada do documento do cliente seguem pendentes.

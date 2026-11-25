@@ -56,6 +56,11 @@ def pending(context):
     return waiting
 
 
+def retained_rereads(context):
+    reread = context.get("reread", {})
+    return set(reread.get("seen", ())) - set(reread.get("pending", ()))
+
+
 class ContextRequestError(v.StructureValidationError):
     """Pedido inválido ou repetição sem avanço; detalhes somente no diagnóstico privado."""
 
@@ -298,6 +303,10 @@ def build(task, pages, group_size=8, extra=None):
     waiting = pending(task["context"])
     matched = {n for row in task["context"]["searches"] for n in row["matches"]}
     candidates = sorted(waiting, key=lambda n: (n not in matched, n))
+    retained = retained_rereads(task["context"])
+    if retained:
+        # Preserve releituras até o próximo avanço validado, após a fila pendente.
+        candidates += sorted(retained) + sorted(neighbours - waiting - retained)
     # Fichas concluídas sempre por índice; referências de evidência são
     # reversíveis. Páginas inteiras, revisões e inventário não perdem dados.
     for indexed in (True,):
@@ -305,7 +314,7 @@ def build(task, pages, group_size=8, extra=None):
             return data(task, pages, window, group_size, extra, indexed=indexed, compact=True)
 
         # Vizinhas não podem impedir uma página solicitada que caiba com o núcleo.
-        for initial in (core | neighbours, core):
+        for initial in ((core,) if retained else (core | neighbours, core)):
             window = set(initial)
             if len(v._json(packet(window))) > MAX_DATA_BYTES:
                 continue

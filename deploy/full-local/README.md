@@ -144,7 +144,7 @@ em diagnóstico ANV8D privado. Falha ao guardá-lo é erro de armazenamento.
 
 A implementação conserva o formato 3 com metadado opcional de releitura,
 sem acrescentá-lo ao pacote do provedor no caminho normal. Usa identidade nova
-e reconhece os checkpoints do renderizador de `b006b7f` por hashes exatos,
+e reconhece os checkpoints dos renderizadores de `b006b7f` e `0894805` por hashes exatos,
 além das versões históricas já aceitas.
 Atualize com backup, análise parada e migração explícita; não apague o progresso
 nem importe resultados rejeitados. Não há variável, provedor ou workflow novo.

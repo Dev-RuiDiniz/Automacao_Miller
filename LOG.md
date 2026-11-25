@@ -6659,3 +6659,18 @@ de um checkpoint com três pedidos, a entrega da fila em várias janelas, a
 conclusão após avanço e o bloqueio persistente sem avanço. A simulação usa
 respostas locais. A VPS não foi consultada durante a alteração de código.
 Implantação e retomada do documento do cliente seguem pendentes.
+
+## 2026-11-25 — Mantém páginas de releitura na janela até avanço validado
+
+A consulta à VPS confirmou `0894805` em execução e 12 lotes concluídos
+no checkpoint migrado. A tentativa 2 parou no lote das páginas 6 a 10 ao
+pedir novamente a página 17, ausente da janela apesar de já ter sido
+entregue no ciclo. O pacote reconstruído com a página 17 cabia no teto local.
+
+A seleção local prioriza a fila pendente e conserva as páginas já relidas
+enquanto couberem até avanço validado. O migrador reconhece a identidade
+de `0894805`. O teste sintético confirmou o reaproveitamento de 12 lotes
+sem novas chamadas para eles. Em 25/11/2026, um ensaio em memória na VPS
+validou o checkpoint real e preservou integralmente os 12 lotes e a fila.
+A janela reconstruída incluiu a página 17 em 83.206 bytes. O ensaio não
+gravou o destino nem chamou a IA. A implantação e a retomada seguem pendentes.

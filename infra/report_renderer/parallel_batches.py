@@ -32,7 +32,8 @@ class AnalysisSampleComplete(Exception):
 
 def scope(task, pages):
     """Contexto conhecido e ainda solicitado; sobreposição exige chamadas sequenciais."""
-    numbers = (ctx.required(task) | ctx.pending(task["context"]) | set(task["context"]["last_window"])
+    numbers = (ctx.required(task) | ctx.pending(task["context"]) | ctx.retained_rereads(task["context"])
+               | set(task["context"]["last_window"])
                | set(range(max(1, task["targets"][0] - 2), min(len(pages), task["targets"][-1] + 2) + 1)))
     for _, unit in v._walk_paths(task.get("continuation") or {}):
         for key in ("paginas_origem", "paginas"):

@@ -375,7 +375,12 @@ com até três pedidos ordinários que acrescentem releituras desde o último
 avanço documental validado. Um quarto pedido admite uma única rodada extra
 quando inclui páginas já entregues, ausentes da janela e ainda não solicitadas
 para releitura no ciclo. Enfileirar somente essas páginas adicionais e manter
-a fila anterior. Durante a rodada extra, atender a fila aceita em janelas
+a fila anterior. A cada nova janela, conservar as páginas já relidas no ciclo
+enquanto couberem.
+Priorizar o núcleo obrigatório e a fila de entregas pendentes antes dessas
+releituras e reservar as páginas vizinhas opcionais para o espaço restante.
+A retenção termina com avanço documental validado e não renova o contador.
+Durante a rodada extra, atender a fila aceita em janelas
 inteiras e bloquear novos pedidos de contexto até haver avanço validado.
 Após entregar a fila, exigir avanço ou conclusão validada do lote. Entregar
 páginas, trocar a janela técnica, retentar transporte ou retomar manualmente

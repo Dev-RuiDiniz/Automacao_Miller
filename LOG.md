@@ -6685,3 +6685,19 @@ O teste HTTPS confirmou login, painel, página de novo upload e logout com
 público com `503`. A execução do protocolo e sua homologação seguem pendentes
 de autorização operacional. A migração ocorreu dentro da VPS, sem chamada
 ao provedor de IA.
+
+## 2026-11-25 — Libera o reprocessamento do protocolo migrado
+
+O usuário autorizou a retomada do documento do protocolo migrado pela
+OpenRouter. Foram consultados os [termos de uso](https://openrouter.ai/terms)
+e a [política de privacidade](https://openrouter.ai/privacy) do provedor.
+A configuração de produção seleciona OpenRouter para o Anvisa V8. O modelo
+configurado para a próxima tentativa é `openai/gpt-6.1-terra`.
+
+Na VPS, a integridade do checkpoint foi conferida e a prévia autenticada
+indicou retomada pela análise do Markdown salvo. O Caddy foi validado e
+recarregado com uma exceção no bloqueio para a rota exata do protocolo. A
+rota retornou `403` sem sessão, e o controle de outro protocolo retornou
+`503`. A validação manteve o contador de tentativas. A configuração anterior
+está em `/opt/backups/automacao-miller/pre-liberacao-reprocessamento-20261125T165343Z`.
+Aguardando a confirmação do cliente no painel e a validação do PDF.

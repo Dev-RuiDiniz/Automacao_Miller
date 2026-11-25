@@ -52,8 +52,10 @@ A implantação na VPS e a retomada do documento do cliente permanecem pendentes
 A VPS do cliente foi atualizada para `0894805`, com seis serviços saudáveis.
 O checkpoint do protocolo interrompido foi migrado e verificado, preservando
 7 lotes concluídos e 18 das 228 páginas. A entrada de novos uploads foi
-restaurada após a manutenção. A retomada depende de autorização operacional
-e o reprocessamento público segue suspenso. Consulte [DEPLOY.md](DEPLOY.md).
+restaurada após a manutenção. Com autorização para a OpenRouter, o
+reprocessamento foi liberado exclusivamente para o protocolo migrado. A
+confirmação do cliente e a validação do PDF seguem pendentes. Consulte
+[DEPLOY.md](DEPLOY.md).
 
 ## Leitura em um minuto
 

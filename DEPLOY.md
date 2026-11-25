@@ -62,6 +62,24 @@ Caddy. Os backups anteriores à atualização estão em
 `/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`. A fotografia
 anterior dos workflows está no arquivo `workflows.json` desse diretório.
 
+## Atualização verificada em 25/11/2026
+
+A VPS executa o commit `0894805` da `main`, com o hotfix de releitura do
+Anvisa V8. A troca recriou somente o renderizador. Os seis serviços estavam
+saudáveis e o webhook de entrada do n8n permaneceu registrado.
+
+O checkpoint do protocolo interrompido foi migrado para a identidade nova,
+com 7 lotes concluídos e 18 das 228 páginas concluídas. A conferência comparou
+o estado completo de origem e destino e confirmou a integridade do original.
+O login, a página de novo upload e o logout foram validados em HTTPS. Os
+novos uploads voltaram à configuração anterior após a manutenção. A rota
+pública de reprocessamento respondeu `503`. A retomada do documento depende
+de autorização operacional.
+
+O backup verificado está em
+`/opt/backups/automacao-miller/pre-0894805-20261125T160734Z`. O diretório da
+versão anterior para rollback é `/opt/automacao-miller-anterior-20261125T160734Z`.
+
 ## Revisão de segurança após a configuração
 
 A revisão de 21/11/2026 usou consultas HTTPS sem credenciais e verificações

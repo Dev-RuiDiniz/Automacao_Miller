@@ -6659,3 +6659,29 @@ de um checkpoint com três pedidos, a entrega da fila em várias janelas, a
 conclusão após avanço e o bloqueio persistente sem avanço. A simulação usa
 respostas locais. A VPS não foi consultada durante a alteração de código.
 Implantação e retomada do documento do cliente seguem pendentes.
+
+## 2026-11-25 — Implanta o hotfix de releitura e migra o checkpoint do cliente
+
+A `main` local avançou para `0894805`, merge da PR #7. O pacote versionado
+teve commit e SHA-256 conferidos. Na VPS, a imagem anterior do renderizador
+foi preservada e a nova foi construída antes da janela. A primeira passagem
+terminou após o backup preliminar e restaurou a entrada antes da troca. A
+execução final suspendeu novos uploads, confirmou zero execuções em andamento
+e verificou os backups PostgreSQL, de artefatos e de diagnósticos em
+`/opt/backups/automacao-miller/pre-0894805-20261125T160734Z`.
+
+A atualização recriou apenas o renderizador. O migrador usou o Markdown
+persistido, com hash conferido, e preservou o checkpoint original. O destino
+correspondeu à identidade da versão ativa e manteve integralmente os lotes
+concluídos e pendentes, incluindo 7 lotes e 18 das 228 páginas concluídas.
+O diretório anterior foi guardado em
+`/opt/automacao-miller-anterior-20261125T160734Z`.
+
+Foram verificados os seis serviços saudáveis, os dois workflows publicados,
+o webhook de entrada, a prontidão do n8n e a presença da configuração da
+OpenRouter no renderizador. A entrada pública de novos uploads foi restaurada.
+O teste HTTPS confirmou login, painel, página de novo upload e logout com
+`200`, painel sem sessão com `403`, rota interna com `404` e reprocessamento
+público com `503`. A execução do protocolo e sua homologação seguem pendentes
+de autorização operacional. A migração ocorreu dentro da VPS, sem chamada
+ao provedor de IA.

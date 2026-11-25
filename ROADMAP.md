@@ -1,6 +1,6 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 24 de novembro de 2026
+**Atualizado em:** 25 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 
 ## VPS do cliente — verificada em 21/11/2026
@@ -46,6 +46,14 @@ validado para prosseguir. A retomada foi verificada com migração explícita
 de um checkpoint sintético da identidade anterior.
 A VPS não foi consultada durante esta atualização de código.
 A implantação na VPS e a retomada do documento do cliente permanecem pendentes.
+
+## Hotfix de releitura na VPS — 25/11/2026
+
+A VPS do cliente foi atualizada para `0894805`, com seis serviços saudáveis.
+O checkpoint do protocolo interrompido foi migrado e verificado, preservando
+7 lotes concluídos e 18 das 228 páginas. A entrada de novos uploads foi
+restaurada após a manutenção. A retomada depende de autorização operacional
+e o reprocessamento público segue suspenso. Consulte [DEPLOY.md](DEPLOY.md).
 
 ## Leitura em um minuto
 

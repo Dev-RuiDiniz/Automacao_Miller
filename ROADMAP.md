@@ -1,6 +1,6 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 23 de novembro de 2026
+**Atualizado em:** 24 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 
 ## VPS do cliente — verificada em 21/11/2026
@@ -35,6 +35,17 @@ A homologação de ponta a ponta e a reconciliação seguem pendentes. O
 reprocessamento continua suspenso no Caddy.
 O n8n opera continuamente na VPS e a conta proprietária será cadastrada no
 primeiro uso administrativo do editor por túnel SSH. Consulte [DEPLOY.md](DEPLOY.md).
+
+## Rodada extra de releitura — 24/11/2026
+
+O teste do cliente em 24/11 chegou ao limite de releituras do Anvisa V8. O
+quarto pedido combinou páginas já solicitadas com páginas ainda não solicitadas
+para releitura no ciclo. A correção na branch `hotfix/rodada-extra-de-releitura`
+permite atender uma vez as páginas ainda não solicitadas e exige avanço
+validado para prosseguir. A retomada foi verificada com migração explícita
+de um checkpoint sintético da identidade anterior.
+A VPS não foi consultada durante esta atualização de código.
+A implantação na VPS e a retomada do documento do cliente permanecem pendentes.
 
 ## Leitura em um minuto
 

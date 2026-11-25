@@ -6636,3 +6636,26 @@ Foram verificados o login e o logout do operador, HTTP `200` em `/new` com
 sessão e `403` sem sessão. O webhook de entrada estava registrado, com zero
 documentos e zero execuções. A homologação de análise e download fica para
 a simulação do cliente.
+
+## 2026-11-24 — Permite rodada extra controlada de releitura
+
+No teste do cliente de 24/11, o quarto pedido de releitura incluiu páginas
+repetidas e páginas ainda não solicitadas para releitura naquele ciclo. O
+renderizador rejeitou o pedido inteiro ao atingir o limite de três. O ajuste
+admite uma rodada extra para enfileirar somente as páginas ainda não solicitadas
+no ciclo. Preserva a fila anterior e encerra a análise se houver novo pedido
+de contexto antes de avanço validado ou se a fila acabar sem avanço. A conclusão
+validada do lote encerra a rodada.
+
+O contador existente guarda o uso da rodada extra, inclusive na retomada. A
+identidade muda com a implementação. A migração explícita reconhece os hashes
+do renderizador de `b006b7f`, copia o estado validado para a nova identidade e
+preserva o arquivo original. A versão anterior rejeita estados pendentes cujo
+contador já esteja em quatro.
+
+Os testes sintéticos reproduziram o erro antes da correção e passaram com o
+ajuste. Os quatro casos conferem a seleção de páginas, a migração e retomada
+de um checkpoint com três pedidos, a entrega da fila em várias janelas, a
+conclusão após avanço e o bloqueio persistente sem avanço. A simulação usa
+respostas locais. A VPS não foi consultada durante a alteração de código.
+Implantação e retomada do documento do cliente seguem pendentes.

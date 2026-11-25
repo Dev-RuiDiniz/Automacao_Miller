@@ -371,10 +371,16 @@ um limite de saída não deve descartar pedidos de contexto já aceitos.
 Separar entrega histórica da presença na chamada atual. Uma página já
 entregue e ausente da janela pode ser explicitamente reenfileirada para
 releitura, sem apagar o histórico. Guardar fila e contador no checkpoint,
-com até três pedidos que acrescentem releituras desde o último avanço
-documental validado. Entregar páginas, trocar a janela técnica, retentar
-transporte ou retomar manualmente não renova esse contador nem os demais
-orçamentos. Avanço validado libera o orçamento próprio de releitura,
+com até três pedidos ordinários que acrescentem releituras desde o último
+avanço documental validado. Um quarto pedido admite uma única rodada extra
+quando inclui páginas já entregues, ausentes da janela e ainda não solicitadas
+para releitura no ciclo. Enfileirar somente essas páginas adicionais e manter
+a fila anterior. Durante a rodada extra, atender a fila aceita em janelas
+inteiras e bloquear novos pedidos de contexto até haver avanço validado.
+Após entregar a fila, exigir avanço ou conclusão validada do lote. Entregar
+páginas, trocar a janela técnica, retentar transporte ou retomar manualmente
+não renova esse contador nem os demais orçamentos. Avanço validado libera o
+orçamento próprio de releitura,
 conservando páginas ainda pendentes. Releituras não consomem o limite de
 ampliações para páginas novas nem autorizam encerrar revisão automaticamente.
 

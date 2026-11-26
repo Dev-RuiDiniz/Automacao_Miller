@@ -59,6 +59,12 @@ confirmação do cliente e a validação do PDF seguem pendentes. Consulte
 
 ## Leitura em um minuto
 
+**25/11/2026 — Retenção de páginas de releitura.** A tentativa 2 na VPS do
+cliente parou após a página 17 sair da janela, com 12 lotes concluídos no
+checkpoint migrado. O ajuste local mantém as releituras do ciclo na janela
+enquanto couberem e permite migrar o checkpoint de `0894805`. Implantação,
+migração do checkpoint real e retomada seguem pendentes.
+
 A homologação ainda está incompleta. Na VPS de testes, a verificação de
 27/10/2026 encontrou o commit `29a6b4b` com o v2 híbrido publicado. Um PDF
 sintético chegou a `aguardando_envio`, com qualidade reprovada por omitir a

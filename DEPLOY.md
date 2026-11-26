@@ -267,8 +267,10 @@ credenciais e valide o estado publicado depois da importação.
 ### Migrar o checkpoint Anvisa V8 antes da retomada
 
 Use este roteiro para retomar o protocolo interrompido no limite de
-releituras após atualizar o renderizador de `b006b7f` para a versão com a
-rodada extra. A versão nova usa outra chave de checkpoint. Se o protocolo
+releituras após atualizar o renderizador. Para a correção que mantém as páginas
+de releitura na janela, use o checkpoint mais recente, da versão `0894805`,
+que já preserva 12 lotes concluídos. A versão nova usa outra chave de
+checkpoint. Se o protocolo
 for reprocessado antes da migração, o renderizador pode iniciar a análise
 do zero, gerar novas cobranças e criar um destino que o migrador recusará
 sobrescrever.
@@ -320,8 +322,8 @@ da tentativa antes de trocar a versão. Faça backup das duas identidades de
 checkpoint e siga o roteiro para [voltar à versão anterior](#voltar-à-versão-anterior),
 mantendo o volume de diagnósticos. Confirme o commit restaurado, a saúde do
 renderizador e a presença do checkpoint original antes de qualquer nova
-tentativa. A versão anterior usa o estado de origem, com o limite de três
-releituras. O progresso posterior permanece no destino e fica disponível
+tentativa. A versão anterior usa o estado e a regra de releitura da origem.
+O progresso posterior permanece no destino e fica disponível
 para a versão nova. Mantenha o protocolo suspenso até decidir em qual
 versão retomar. Preserve o banco e os demais artefatos quando o rollback
 for apenas do renderizador.

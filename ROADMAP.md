@@ -1,6 +1,6 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 24 de novembro de 2026
+**Atualizado em:** 26 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 
 ## VPS do cliente — verificada em 21/11/2026
@@ -48,6 +48,12 @@ A VPS não foi consultada durante esta atualização de código.
 A implantação na VPS e a retomada do documento do cliente permanecem pendentes.
 
 ## Leitura em um minuto
+
+**26/11/2026 — Luna opcional.** Modo em até duas chamadas em revisão,
+com o Terra como padrão. O ensaio isolado com 228 páginas sintéticas
+validou quatro fichas de referência, incluindo atos de fronteira.
+A implantação e a homologação com documentos autorizados seguem pendentes.
+O protocolo existente conserva o checkpoint dos 26 lotes e deve retomar no Terra.
 
 **25/11/2026 — Retenção de páginas de releitura.** A tentativa 2 na VPS do
 cliente parou após a página 17 sair da janela, com 12 lotes concluídos no

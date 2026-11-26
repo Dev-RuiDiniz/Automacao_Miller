@@ -1119,6 +1119,23 @@ Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros e download autenticado somente após
 `concluido` continuam obrigatórios.
 
+## Modo opcional Anvisa V8 com Luna
+
+No provedor OpenRouter, o renderizador pode selecionar GPT-6 Luna para
+protocolos novos. O Markdown paginado é dividido em duas faixas contíguas,
+com até duas páginas de sobreposição por lado. A página de início da unidade
+determina a parte responsável pela ficha. Um documento de uma página exige uma
+chamada. O índice de ocorrências literais orienta a leitura sem decidir
+pertinência ou situação regulatória.
+
+O modelo retorna JSON estruturado com todo o contrato V8, incluindo justificativa
+nas fichas completas, IDs no inventário e observações de cobertura de até
+96 caracteres. O renderizador valida cobertura e citações por parte e só gera
+um PDF e um pacote de verificação quando todas as partes passam. Uma falha
+encerra a tentativa sem chamada extra. O modo Luna não reutiliza nem migra
+checkpoints Terra. Protocolos com checkpoint Terra da versão em uso devem
+retomar no Terra.
+
 ## Decisão de arquitetura híbrida — 2026-10-27
 
 O fluxo alvo passa a separar leitura mecânica, busca de lacunas e interpretação:

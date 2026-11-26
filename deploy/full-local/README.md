@@ -6,6 +6,13 @@ Docker `miller-full-local`, banco e dados do n8n próprios e volume privado
 
 ## Configuração
 
+Para testar Luna em um protocolo sintético novo, selecione
+`ANVISA_REPORT_PROVIDER=openrouter` e
+`ANVISA_V8_MODEL=openai/gpt-6-luna` no `.env` local. O Luna usa duas faixas
+com sobreposição e gera um PDF único após validar ambas. Uma falha encerra
+a tentativa sem correção automática. Para retomar protocolos com progresso
+salvo no Terra, mantenha `ANVISA_V8_MODEL=openai/gpt-6.1-terra`.
+
 Preencha o `.env` protegido seguindo `.env.example` e
 [o guia da stack](../README.md). Para analisar pelo OpenRouter, configure:
 

@@ -6674,3 +6674,16 @@ sem novas chamadas para eles. Em 25/11/2026, um ensaio em memória na VPS
 validou o checkpoint real e preservou integralmente os 12 lotes e a fila.
 A janela reconstruída incluiu a página 17 em 83.206 bytes. O ensaio não
 gravou o destino nem chamou a IA. A implantação e a retomada seguem pendentes.
+
+## 2026-11-26 — Adiciona Luna opcional em até duas chamadas
+
+O ensaio isolado do Luna com 228 páginas sintéticas retornou as quatro fichas
+esperadas, incluindo os atos de fronteira. O contrato conferiu 83 ocorrências de
+citações literais e gerou PDF com quatro links verificados. O ensaio não usou o
+protocolo do cliente.
+
+O renderizador aceita a opção Luna com esquema estruturado, índice de ocorrências
+literais e duas faixas com sobreposição. Terra permanece padrão e os componentes
+que definem a identidade do checkpoint Terra foram preservados. A API bloqueia
+Luna quando existe checkpoint Terra da versão atual para a fonte e o protocolo.
+A alteração não foi implantada e o protocolo não foi reprocessado.

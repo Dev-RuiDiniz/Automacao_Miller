@@ -11,7 +11,7 @@
 
 ## 2. Visão do produto
 
-O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker. O Ollama é o caminho local padrão. Para o relatório Anvisa V8, há uma opção explícita via OpenRouter com GPT-6.1 Terra; ela só pode receber Markdown autorizado após revisão dos termos e da privacidade do provedor, sem fallback automático. A integração NVIDIA NIM de produção permanece condicionada a endpoint/licença que permita o tipo de dado processado.
+O produto será uma solução self-hosted de automação regulatória construída principalmente com **n8n + Ollama + PostgreSQL**, executada em servidor Linux via Docker. O Ollama é o caminho local padrão. O relatório Anvisa V8 usa GPT-6 Luna por padrão quando o OpenRouter é selecionado. O provedor só pode receber Markdown autorizado após revisão dos termos e da privacidade aplicáveis, sem fallback automático. A integração NVIDIA NIM de produção permanece condicionada a endpoint/licença que permita o tipo de dado processado.
 
 O caminho ativo recebe documentos pela landing privada e mantém os arquivos no
 volume Docker e os metadados no PostgreSQL. O Google Drive permanece apenas nos
@@ -176,9 +176,10 @@ novo artefato/hash e exige nova validação, preservando a fonte anterior para a
 
 ### RF-04 — Análise por IA
 
-A análise de documentos reais usa Ollama local por padrão. A configuração
-`ANVISA_REPORT_PROVIDER=openrouter` seleciona o GPT-6.1 Terra (`openai/gpt-6.1-terra`)
-para análise Anvisa com o [V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt)
+A análise local usa Ollama. A configuração `ANVISA_REPORT_PROVIDER=openrouter`
+seleciona o Anvisa V8, com GPT-6 Luna (`openai/gpt-6-luna`) como modelo padrão.
+Para retomar um checkpoint Terra, selecione `ANVISA_V8_MODEL=openai/gpt-6.1-terra`.
+Ambos usam o [V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt)
 inalterado. O Markdown paginado persistido é a única fonte documental em ambos
 os caminhos. No modo OpenRouter não são enviados o PDF bruto, o protocolo, o
 nome do arquivo ou credenciais no conteúdo da solicitação. A integração usa
@@ -839,8 +840,8 @@ O ambiente deve ser executável em servidor Linux utilizando Docker.
 
 ### RNF-02 — Privacidade operacional
 
-A análise ocorre localmente por Ollama por padrão. Quando selecionado o modo
-OpenRouter autorizado, somente o Markdown paginado é enviado ao Terra. A
+A análise local ocorre por Ollama. No modo OpenRouter autorizado, o Markdown
+paginado é a única fonte documental enviada ao modelo Anvisa V8. A
 chave não passa pelo navegador nem pelo n8n; fica no ambiente do serviço que
 chama a API. A avaliação com a
 API Trial gratuita da NVIDIA usa apenas um texto artificial fixo, sem documento
@@ -1119,10 +1120,10 @@ Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros e download autenticado somente após
 `concluido` continuam obrigatórios.
 
-## Modo opcional Anvisa V8 com Luna
+## Modelo padrão do Anvisa V8 no OpenRouter
 
-No provedor OpenRouter, o renderizador pode selecionar GPT-6 Luna para
-protocolos novos. O Markdown paginado é dividido em duas faixas contíguas,
+No provedor OpenRouter, o renderizador usa GPT-6 Luna por padrão.
+O Markdown paginado é dividido em duas faixas contíguas,
 com até duas páginas de sobreposição por lado. A página de início da unidade
 determina a parte responsável pela ficha. Um documento de uma página exige uma
 chamada. O índice de ocorrências literais orienta a leitura sem decidir

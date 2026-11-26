@@ -6687,3 +6687,10 @@ literais e duas faixas com sobreposição. Terra permanece padrão e os componen
 que definem a identidade do checkpoint Terra foram preservados. A API bloqueia
 Luna quando existe checkpoint Terra da versão atual para a fonte e o protocolo.
 A alteração não foi implantada e o protocolo não foi reprocessado.
+
+## 2026-11-26 — Define Luna como padrão do Anvisa V8 no OpenRouter
+
+O Luna passou a ser a escolha do renderizador quando `ANVISA_V8_MODEL`
+está ausente ou vazio. A seleção explícita do Terra permanece disponível
+para retomar seu checkpoint. A configuração que seleciona entre o provedor
+local Ollama e o OpenRouter continua independente.

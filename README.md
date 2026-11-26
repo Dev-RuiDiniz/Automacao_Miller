@@ -13,7 +13,7 @@ A IA ajuda a ler e resumir. Ela não decide o que a empresa deve fazer e não su
 1. Uma pessoa autorizada entra na landing e envia um PDF.
 2. O sistema cria um protocolo e guarda o original em armazenamento privado.
 3. O PDF é convertido para texto organizado por página.
-4. O provedor configurado analisa todas as páginas em blocos: Ollama no modo local ou Terra no modo Anvisa V8.
+4. O provedor configurado analisa todas as páginas. Ollama atende o modo local, e Luna é o padrão do Anvisa V8 no OpenRouter.
 5. O sistema confere se as páginas foram cobertas e se as citações aparecem no texto original.
 6. O sistema monta um relatório em Markdown e PDF.
 7. O operador encontra o relatório no painel e pode conferi-lo.
@@ -104,10 +104,12 @@ estiver visível. As atualizações preservam o formulário e a aba selecionada.
 Durante a chamada de IA, a etapa permanece em análise até o fluxo registrar
 o próximo ponto; a tela não estima percentual de conclusão.
 
-### Usar o V8 com Terra no OpenRouter
+### Usar o Anvisa V8 no OpenRouter
 
 No `.env` protegido da stack, configure `ANVISA_REPORT_PROVIDER=openrouter` e
-preencha `OPENROUTER_API_KEY`. O modelo é `openai/gpt-6.1-terra`. O
+preencha `OPENROUTER_API_KEY`. O modelo padrão é `openai/gpt-6-luna`.
+Para retomar um protocolo com checkpoint Terra, selecione
+`ANVISA_V8_MODEL=openai/gpt-6.1-terra`. O
 [prompt aprovado](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt) é incluído
 no build do renderizador e conferido por SHA-256 antes da chamada.
 

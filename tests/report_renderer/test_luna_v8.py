@@ -1,6 +1,7 @@
 import hashlib
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from infra.report_renderer import anvisa_v8 as v, luna_v8 as luna
@@ -18,14 +19,18 @@ def _payload(text):
     }
 
 
-def _client(monkeypatch):
-    monkeypatch.setenv("ANVISA_V8_MODEL", luna.MODEL)
+def _client(monkeypatch, model=None):
+    if model is None:
+        monkeypatch.delenv("ANVISA_V8_MODEL", raising=False)
+    else:
+        monkeypatch.setenv("ANVISA_V8_MODEL", model)
     monkeypatch.setenv("INTERNAL_API_TOKEN", "token-sintetico")
     monkeypatch.setenv("OPENROUTER_API_KEY", "chave-sintetica")
     return TestClient(app)
 
 
-def test_luna_consolida_duas_partes_com_evidencias_de_fronteira(monkeypatch):
+@pytest.mark.parametrize("model", [None, ""], ids=["ausente", "vazio"])
+def test_luna_padrao_consolida_duas_partes_com_evidencias_de_fronteira(monkeypatch, model):
     text = source(8).replace("Evento A4", "Evento A4, processo 25351.004110/2026-19")
     calls = []
 
@@ -44,7 +49,7 @@ def test_luna_consolida_duas_partes_com_evidencias_de_fronteira(monkeypatch):
         return response(targets, [record])
 
     monkeypatch.setattr(luna, "_request", request)
-    result = _client(monkeypatch).post("/v1/analyze-anvisa-v8", json=_payload(text),
+    result = _client(monkeypatch, model).post("/v1/analyze-anvisa-v8", json=_payload(text),
                                       headers={"X-Internal-Token": "token-sintetico"})
     assert result.status_code == 200, result.text
     output = result.json()
@@ -66,7 +71,7 @@ def test_luna_rejeita_ficha_invalida_sem_terceira_chamada(monkeypatch):
         return response(targets, [record])
 
     monkeypatch.setattr(luna, "_request", request)
-    result = _client(monkeypatch).post("/v1/analyze-anvisa-v8", json=_payload(source(8)),
+    result = _client(monkeypatch, luna.MODEL).post("/v1/analyze-anvisa-v8", json=_payload(source(8)),
                                       headers={"X-Internal-Token": "token-sintetico"})
     assert result.status_code == 422
     assert "ANV8D-" in result.json()["detail"]

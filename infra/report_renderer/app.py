@@ -726,7 +726,7 @@ def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = He
             raise ValueError
     except ValueError:
         raise HTTPException(status_code=503, detail="IA: OPENROUTER_TIMEOUT_SECONDS inválido.") from None
-    model = os.environ.get("ANVISA_V8_MODEL", anvisa_v8.MODEL).strip() or anvisa_v8.MODEL
+    model = os.environ.get("ANVISA_V8_MODEL", "").strip() or luna_v8.MODEL
     if model not in {anvisa_v8.MODEL, luna_v8.MODEL}:
         raise HTTPException(status_code=503, detail="IA: ANVISA_V8_MODEL inválido.")
     try:

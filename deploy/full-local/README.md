@@ -106,6 +106,17 @@ validados de grupos pendentes. Arquivos usam `600` e diretórios `700`.
 Mantenha o volume completo nas cópias protegidas; recriar o contêiner preserva
 o progresso, mas remover o volume inteiro o apaga.
 
+O Anvisa V8 grava `parte-1.md` e `parte-2.md` ao lado de `state.json`. A
+primeira parte pode ser consultada assim que sua faixa de páginas estiver
+validada. A segunda fica disponível após o fechamento das duas faixas. As
+fichas preservam as referências ao Markdown de origem, inclusive quando uma
+citação aponta para uma página da outra parte. O PDF fica disponível na
+landing após a consolidação. Para listar os arquivos no volume privado:
+
+```bash
+docker compose -f docker-compose.yml -f deploy/full-local/compose.yml exec -T report-renderer find /data/diagnostics/checkpoints -type f \( -name parte-1.md -o -name parte-2.md \) -print
+```
+
 Atualize somente o renderizador, sem interromper uma análise ativa. Os
 workflows já enviam o contexto necessário; não há variável nova. **Reprocessar**
 continua mostrando a retomada do Markdown salvo, e o renderizador recupera

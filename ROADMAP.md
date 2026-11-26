@@ -57,6 +57,13 @@ reprocessamento foi liberado exclusivamente para o protocolo migrado. A
 confirmação do cliente e a validação do PDF seguem pendentes. Consulte
 [DEPLOY.md](DEPLOY.md).
 
+## Anvisa V8 em duas partes — 25/11/2026
+
+A branch `hotfix/refatorando-fluxo` salva dois Markdowns intermediários no
+checkpoint e mantém um PDF final após a consolidação. A stack local está
+disponível para teste manual em `127.0.0.1:18085`. A validação com OpenRouter
+real e a implantação na VPS seguem pendentes.
+
 ## Leitura em um minuto
 
 **25/11/2026 — Retenção de páginas de releitura.** A tentativa 2 na VPS do

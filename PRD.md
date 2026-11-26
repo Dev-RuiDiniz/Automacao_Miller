@@ -189,6 +189,18 @@ fichas e pendências, bem como Markdown de consulta e ZIP interno da mesma
 revisão contendo PDF, JSONL, cobertura e verificação. A aprovação humana de um
 PDF anterior não homologa novas respostas do modelo ou da API.
 
+O Anvisa V8 deve materializar `parte-1.md` e `parte-2.md` no diretório
+privado do checkpoint. As partes cobrem duas faixas consecutivas de páginas;
+a primeira recebe a página excedente quando a contagem é ímpar. Cada ficha
+fica na parte de sua página inicial indicada pelo ID, com evidências de outras
+páginas preservadas. Salvar a primeira parte assim que todos os seus lotes
+estiverem validados e a segunda após a validação das duas faixas. Uma parte
+vazia registra sua ausência de páginas. A retomada recompõe os arquivos a partir
+dos lotes validados. Consolidar os registros estruturados das partes, conferindo
+duplicidades e preservando a validação de referências e inventários antes de
+gerar o relatório final. Os tamanhos dos lotes internos da IA continuam
+regidos pelos orçamentos e validações do V8.
+
 Incluídos e pendentes usam a ficha completa com `justificativa_destino`.
 Excluídos e representações duplicadas podem usar o registro compacto do V8,
 com `justificativa`; para compatibilidade, nesses compactos também é aceita

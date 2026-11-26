@@ -84,7 +84,7 @@ flowchart TD
     M --> OR{Workflow e provedor configurados}
     OR -- OpenRouter --> CPAI[Carregar e revalidar progresso privado da análise]
     CPAI -- Erro de integridade --> X
-    CPAI -- Análise já concluída --> V8
+    CPAI -- Análise já concluída --> MDV8
     CPAI -- Lotes pendentes --> DENS[Selecionar lote menor ou próximo grupo de eventos]
     DENS --> CPDEP{Contexto dos lotes permite concorrência?}
     CPDEP -- Sim --> CPPOOL[Ocupar até duas vagas de API com lotes independentes]
@@ -110,9 +110,12 @@ flowchart TD
     LOT -- Não --> CONTIA{Há progresso e limites disponíveis?}
     CONTIA -- Sim --> DENS
     CONTIA -- Não --> X
-    LOT -- Sim --> FINIA{Todos os lotes concluídos?}
+    LOT -- Sim --> MDV8[Salvar Markdown das partes já validadas]
+    MDV8 -- Falha de armazenamento --> X
+    MDV8 --> FINIA{Todos os lotes concluídos?}
     FINIA -- Não --> DENS
-    FINIA -- Sim --> V8[Montar PDF com índice, fichas e ZIP de verificação]
+    FINIA -- Sim --> UNV8[Consolidar os registros das partes e conferir referências e duplicidades]
+    UNV8 --> V8[Montar PDF com índice, fichas e ZIP de verificação]
     V8 --> W
     OR -- Ollama --> M1[Gateway relê o Markdown persistido]
     M1 --> M2[Localizar termos, identificadores, datas e durações literais]

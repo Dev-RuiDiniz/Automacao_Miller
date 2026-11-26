@@ -6716,3 +6716,25 @@ sem novas chamadas para eles. Em 25/11/2026, um ensaio em memória na VPS
 validou o checkpoint real e preservou integralmente os 12 lotes e a fila.
 A janela reconstruída incluiu a página 17 em 83.206 bytes. O ensaio não
 gravou o destino nem chamou a IA. A implantação e a retomada seguem pendentes.
+
+## 2026-11-25 — Materializa o relatório Anvisa V8 em duas partes
+
+A branch incorporou a retenção de páginas da `main` e passou a salvar
+`parte-1.md` e `parte-2.md` no checkpoint privado quando as faixas de
+páginas estão validadas. A divisão usa a página inicial do ID da ficha e
+preserva as evidências entre faixas. A retomada reconstitui os arquivos com
+os dados já validados. A consolidação compara o conjunto estruturado com a
+análise final, usa os controles de duplicidade do V8 e gera o PDF único.
+A identidade do checkpoint da `7204ede` permanece compatível.
+
+A suíte passou com 442 testes Python, incluindo contratos com Node.js. Os
+novos testes da rota confirmaram gravação intermediária, referências entre
+partes, recuperação de falha na gravação, lote interno que cruza a divisão
+e leitura do PDF consolidado. As respostas do modelo foram simuladas.
+
+Em 25/11 a stack local existente recebeu a migração `006` após backup e
+os workflows atuais de processamento e erros, com os dez nós PostgreSQL
+vinculados à credencial local. Foram verificados seis serviços saudáveis, o
+webhook registrado e o login, a página de upload e o logout na landing em
+`127.0.0.1:18085`. O teste manual com a
+OpenRouter e a implantação na VPS ficaram pendentes.

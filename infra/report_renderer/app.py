@@ -18,7 +18,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from . import analysis_checkpoint, anvisa_pdf, anvisa_v8, diagnostics, incremental
+from . import analysis_checkpoint, anvisa_pdf, anvisa_v8, diagnostics, incremental, report_parts
 
 REPORT_VERSION = "1.3.0"
 BRAND_NAVY = "#123B5D"
@@ -729,9 +729,13 @@ def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = He
     try:
         writer = diagnostics.DiagnosticWriter(hashlib.sha256(markdown.encode()).hexdigest(), context)
         identity = incremental.identity(hashlib.sha256(markdown.encode()).hexdigest(), page_count)
-        with analysis_checkpoint.AnalysisCheckpoint(identity, context.get("submission_id", "avulsa")) as checkpoint:
+        parts = report_parts.ReportParts(page_count)
+        with analysis_checkpoint.AnalysisCheckpoint(
+            identity, context.get("submission_id", "avulsa"), save_parts=parts.save
+        ) as checkpoint:
             records, coverage = anvisa_v8.analyze(markdown, page_count, expected_hash, key, timeout,
                                                  diagnostic_sink=writer, checkpoint_store=checkpoint)
+            records = parts.consolidate(records)
         coverage["fonte"]["nome"] = filename
         coverage["avisos"] = warnings
     except anvisa_v8.AnvisaError as exc:

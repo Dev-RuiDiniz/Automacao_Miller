@@ -25,13 +25,34 @@ def encode(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
 
 
+def write_atomically(path: Path, data: bytes):
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.stem}-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        try:
+            Path(temporary).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 class AnalysisCheckpoint:
-    def __init__(self, identity: dict, scope: str):
+    def __init__(self, identity: dict, scope: str, *, save_parts=None):
         self.identity = {**identity, "scope": scope}
         self.key = hashlib.sha256(encode({"identity": identity, "scope": scope})).hexdigest()
         self.directory = CHECKPOINTS_DIR / self.key
         self.path = self.directory / "state.json"
         self.lock = None
+        self.save_parts = save_parts
 
     def __enter__(self):
         try:
@@ -74,7 +95,6 @@ class AnalysisCheckpoint:
             raise CheckpointStorageError("Checkpoint privado ausente, inválido ou divergente.") from None
 
     def save(self, state):
-        temporary = None
         try:
             if self.lock is None:
                 raise ValueError
@@ -82,25 +102,11 @@ class AnalysisCheckpoint:
                            "sha256": hashlib.sha256(encode(state)).hexdigest()})
             if len(data) > MAX_BYTES:
                 raise ValueError
-            descriptor, temporary = tempfile.mkstemp(prefix=".state-", dir=self.directory)
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, self.path)
-            directory = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY)
-            try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
+            write_atomically(self.path, data)
             # Marca que já houve estado persistido; sua remoção não é um início novo.
             os.pwrite(self.lock, b"1", 0)
             os.fsync(self.lock)
+            if self.save_parts is not None:
+                self.save_parts(self.directory, state)
         except (OSError, ValueError, TypeError, RecursionError):
             raise CheckpointStorageError("Não foi possível preservar o checkpoint privado.") from None
-        finally:
-            if temporary is not None:
-                try:
-                    Path(temporary).unlink(missing_ok=True)
-                except OSError:
-                    pass

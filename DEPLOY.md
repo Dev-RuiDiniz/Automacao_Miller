@@ -62,6 +62,37 @@ Caddy. Os backups anteriores à atualização estão em
 `/opt/backups/automacao-miller/pre-b006b7f-20261124T020251Z`. A fotografia
 anterior dos workflows está no arquivo `workflows.json` desse diretório.
 
+## Atualização verificada em 25/11/2026
+
+A VPS executa o commit `0894805` da `main`, com o hotfix de releitura do
+Anvisa V8. A troca recriou somente o renderizador. Os seis serviços estavam
+saudáveis e o webhook de entrada do n8n permaneceu registrado.
+
+O checkpoint do protocolo interrompido foi migrado para a identidade nova,
+com 7 lotes concluídos e 18 das 228 páginas concluídas. A conferência comparou
+o estado completo de origem e destino e confirmou a integridade do original.
+O login, a página de novo upload e o logout foram validados em HTTPS. Os
+novos uploads voltaram à configuração anterior após a manutenção. A rota
+pública de reprocessamento respondeu `503`. A retomada do documento depende
+de autorização operacional.
+
+O backup verificado está em
+`/opt/backups/automacao-miller/pre-0894805-20261125T160734Z`. O diretório da
+versão anterior para rollback é `/opt/automacao-miller-anterior-20261125T160734Z`.
+
+### Liberação pontual do protocolo migrado — 25/11/2026
+
+Após autorização do usuário para processar o documento pela OpenRouter, o
+Caddy passou a aceitar o `POST` de reprocessamento exclusivamente na rota
+exata do protocolo migrado. A prévia autenticada indicou análise do Markdown
+salvo. A rota liberada continuou exigindo autenticação, com `403` sem sessão.
+A verificação de outra rota de reprocessamento retornou `503`. O contador
+de tentativas do protocolo permaneceu no valor anterior durante a validação.
+
+A configuração anterior está em
+`/opt/backups/automacao-miller/pre-liberacao-reprocessamento-20261125T165343Z/Caddyfile`.
+O cliente inicia a tentativa ao confirmar **Reprocessar** no mesmo protocolo.
+
 ## Revisão de segurança após a configuração
 
 A revisão de 21/11/2026 usou consultas HTTPS sem credenciais e verificações

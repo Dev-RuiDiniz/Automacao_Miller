@@ -1,6 +1,6 @@
 # ROADMAP.md — plano de execução da Automação Miller
 
-**Atualizado em:** 24 de novembro de 2026
+**Atualizado em:** 25 de novembro de 2026
 **Objetivo:** transformar o estado atual em uma operação segura, validada e aceita pelo responsável operacional.
 
 ## VPS do cliente — verificada em 21/11/2026
@@ -46,6 +46,23 @@ validado para prosseguir. A retomada foi verificada com migração explícita
 de um checkpoint sintético da identidade anterior.
 A VPS não foi consultada durante esta atualização de código.
 A implantação na VPS e a retomada do documento do cliente permanecem pendentes.
+
+## Hotfix de releitura na VPS — 25/11/2026
+
+A VPS do cliente foi atualizada para `0894805`, com seis serviços saudáveis.
+O checkpoint do protocolo interrompido foi migrado e verificado, preservando
+7 lotes concluídos e 18 das 228 páginas. A entrada de novos uploads foi
+restaurada após a manutenção. Com autorização para a OpenRouter, o
+reprocessamento foi liberado exclusivamente para o protocolo migrado. A
+confirmação do cliente e a validação do PDF seguem pendentes. Consulte
+[DEPLOY.md](DEPLOY.md).
+
+## Anvisa V8 em duas partes — 25/11/2026
+
+A branch `hotfix/refatorando-fluxo` salva dois Markdowns intermediários no
+checkpoint e mantém um PDF final após a consolidação. A stack local está
+disponível para teste manual em `127.0.0.1:18085`. A validação com OpenRouter
+real e a implantação na VPS seguem pendentes.
 
 ## Leitura em um minuto
 

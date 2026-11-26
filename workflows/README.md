@@ -276,11 +276,12 @@ Importe o export interno atualizado e associe a credencial PostgreSQL no
 ambiente de homologação. Os exports do Git permanecem inativos.
 
 Depois de persistir o Markdown, o workflow chama a rota interna autenticada
-do renderizador. O serviço envia o V8 intacto e os blocos paginados ao Terra
-(`openai/gpt-6.1-terra`), sem PDF bruto nem protocolo. O serviço pede contexto adicional quando a
-resposta informa que o ato continua fora do bloco. Confere hashes, cobertura,
-citações e reconciliação do inventário antes de escrever o relatório; em caso
-de falha, o workflow registra erro e não troca para Ollama automaticamente.
+do renderizador. Por padrão, envia o V8 intacto e até duas faixas paginadas
+ao Luna (`openai/gpt-6-luna`), sem PDF bruto nem protocolo. Selecione
+`ANVISA_V8_MODEL=openai/gpt-6.1-terra` para retomar um checkpoint Terra.
+O renderizador confere hashes, cobertura, citações e reconciliação do
+inventário antes de escrever o relatório. Em caso de falha, o workflow
+registra o erro e mantém o provedor selecionado.
 
 O validador aceita `justificativa` nos registros compactos de excluídos e
 representações duplicadas, conforme a seção 6 do V8. Também aceita a chave
@@ -289,7 +290,7 @@ valida os textos e preserva ambos, sem normalizar a resposta. Incluídos e
 pendentes continuam exigindo `justificativa_destino` e todos os campos da ficha.
 Nenhuma dessas formas dispensa a validação literal, de páginas ou de inventário.
 
-A fila começa com até cinco páginas-alvo; lotes com mais de 32.000 caracteres
+No Terra, a fila começa com até cinco páginas-alvo; lotes com mais de 32.000 caracteres
 nos alvos são divididos por páginas, mantendo os textos inteiros e contexto
 de duas páginas em cada direção. O modelo pode pedir contexto adicional.
 Desde a primeira chamada e nas correções, são solicitados grupos de até quatro

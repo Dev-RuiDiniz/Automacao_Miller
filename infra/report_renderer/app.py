@@ -18,7 +18,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from . import analysis_checkpoint, anvisa_pdf, anvisa_v8, diagnostics, incremental
+from . import analysis_checkpoint, anvisa_pdf, anvisa_v8, diagnostics, incremental, luna_v8
 
 REPORT_VERSION = "1.3.0"
 BRAND_NAVY = "#123B5D"
@@ -726,12 +726,22 @@ def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = He
             raise ValueError
     except ValueError:
         raise HTTPException(status_code=503, detail="IA: OPENROUTER_TIMEOUT_SECONDS inválido.") from None
+    model = os.environ.get("ANVISA_V8_MODEL", "").strip() or luna_v8.MODEL
+    if model not in {anvisa_v8.MODEL, luna_v8.MODEL}:
+        raise HTTPException(status_code=503, detail="IA: ANVISA_V8_MODEL inválido.")
     try:
-        writer = diagnostics.DiagnosticWriter(hashlib.sha256(markdown.encode()).hexdigest(), context)
-        identity = incremental.identity(hashlib.sha256(markdown.encode()).hexdigest(), page_count)
+        source_hash = hashlib.sha256(markdown.encode()).hexdigest()
+        identity = incremental.identity(source_hash, page_count)
         with analysis_checkpoint.AnalysisCheckpoint(identity, context.get("submission_id", "avulsa")) as checkpoint:
-            records, coverage = anvisa_v8.analyze(markdown, page_count, expected_hash, key, timeout,
-                                                 diagnostic_sink=writer, checkpoint_store=checkpoint)
+            if model == luna_v8.MODEL and checkpoint.load() is not None:
+                raise HTTPException(status_code=409, detail="O protocolo tem checkpoint Terra. Use Terra para retomar o progresso.")
+            writer = diagnostics.DiagnosticWriter(source_hash, context)
+            if model == luna_v8.MODEL:
+                records, coverage = luna_v8.analyze(markdown, page_count, expected_hash, key, timeout,
+                                                   diagnostic_sink=writer)
+            else:
+                records, coverage = anvisa_v8.analyze(markdown, page_count, expected_hash, key, timeout,
+                                                     diagnostic_sink=writer, checkpoint_store=checkpoint)
         coverage["fonte"]["nome"] = filename
         coverage["avisos"] = warnings
     except anvisa_v8.AnvisaError as exc:
@@ -758,7 +768,7 @@ def analyze_anvisa_v8(payload: dict[str, Any], x_internal_token: str | None = He
         "report_pdf_sha256": hashlib.sha256(pdf).hexdigest(),
         "bundle_base64": base64.b64encode(bundle).decode("ascii"),
         "bundle_sha256": hashlib.sha256(bundle).hexdigest(),
-        "report_context": {"provider": "openrouter", "model": anvisa_v8.MODEL,
+        "report_context": {"provider": "openrouter", "model": model,
                            "prompt_sha256": anvisa_v8.PROMPT_HASH, "source_sha256": expected_hash,
                            "pages_analyzed": page_count, "pdf": checks,
                             "analysis_checkpoint": coverage["processamento_incremental"],

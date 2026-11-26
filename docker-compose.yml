@@ -91,6 +91,7 @@ services:
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_TIMEOUT_SECONDS: ${OPENROUTER_TIMEOUT_SECONDS:-0}
+      ANVISA_V8_MODEL: ${ANVISA_V8_MODEL:-openai/gpt-6-luna}
     volumes:
       - automacao_miller_diagnostics_data:/data/diagnostics
     healthcheck:

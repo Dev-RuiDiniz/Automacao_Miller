@@ -6694,3 +6694,9 @@ O Luna passou a ser a escolha do renderizador quando `ANVISA_V8_MODEL`
 está ausente ou vazio. A seleção explícita do Terra permanece disponível
 para retomar seu checkpoint. A configuração que seleciona entre o provedor
 local Ollama e o OpenRouter continua independente.
+
+## 2026-11-26 — Fixa o Luna na stack Anvisa V8
+
+O Compose fixa o Luna no renderizador, inclusive quando um arquivo de
+ambiente antigo seleciona Terra. Os checkpoints Terra são preservados
+para auditoria. A implantação mantém o volume de diagnósticos.

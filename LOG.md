@@ -6712,3 +6712,10 @@ Na apresentação resumida do ensaio isolado do cliente, o PDF passou de
 370 para 15 páginas e manteve 235 fichas resumidas, com todos os links do
 índice conferidos. O pacote preservou os 823 registros estruturados
 byte a byte. Nenhuma nova chamada ao modelo foi feita.
+
+## 2026-11-26 — Apresenta resultados técnicos diretamente no PDF Anvisa
+
+O relatório começa com o resumo executivo e apresenta os resultados por
+categoria, com atos, decisões, processos disponíveis e páginas da fonte.
+O formato resumido mantém o teto de 20 páginas. O Markdown e os registros
+integrais continuam disponíveis para conferência privada.

@@ -32,8 +32,10 @@ def test_relatorio_anvisa_limita_pdf_e_preserva_markdown_integral():
     assert len(reader.pages) == checks["paginas_relatorio"] <= 20
     assert checks["modo"] == "resumido"
     assert 0 < checks["fichas_no_pdf"] < checks["fichas_totais"] == 420
-    assert checks["fichas_no_pdf"] == checks["entradas_indice"]
-    assert "de 420 fichas incluídas ou pendentes" in " ".join(page.extract_text() for page in reader.pages)
+    rendered = " ".join(page.extract_text() for page in reader.pages)
+    assert checks["entradas_indice"] == 0
+    assert "de 420 fichas incluídas ou pendentes" in rendered
+    assert "Resultados técnicos" in rendered and "Índice de assuntos" not in rendered
     assert all(f"### Ficha {record['id']} -" in markdown for record in records)
 
 
@@ -189,12 +191,13 @@ def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_
     payload = response.json()
     assert payload["prompt_version"] == "V8-autossuficiente"
     assert payload["report_context"]["model"] == "openai/gpt-6.1-terra"
-    assert payload["report_context"]["pdf"]["entradas_indice"] == 2
+    assert payload["report_context"]["pdf"]["fichas_no_pdf"] == 1
     pdf = base64.b64decode(payload["report_pdf_base64"])
     assert payload["report_pdf_sha256"] == hashlib.sha256(pdf).hexdigest()
     assert payload["bundle_sha256"] == hashlib.sha256(base64.b64decode(payload["bundle_base64"])).hexdigest()
     text = pdf_text(pdf)
-    assert text.index("Índice de assuntos") < text.index("Resumo executivo") < text.index("Ficha " + rid)
+    assert "Índice de assuntos" not in text
+    assert text.index("Resumo executivo") < text.index("Resultados técnicos") < text.index("Ficha " + rid)
     assert "25351.000001/2026-00" in text
     assert "Art. 1. Aprovar a peticao." in text
     assert "1111111/26-1" in text and "2222222/26-2" in text

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from collections import Counter, defaultdict
+from collections import defaultdict
 from html import escape
 from textwrap import shorten
 
@@ -67,20 +67,6 @@ def _details(label: str, data):
         yield f"{label}: {data}"
 
 
-def _index(record):
-    companies = [f"{_value(entity.get('nome'))} ({entity.get('papel', 'papel não indicado')})"
-                 for entity in record["entidades"] if isinstance(entity, dict) and _value(entity.get("nome"))]
-    source_pages = ", ".join(map(str, record["paginas_origem"]))
-    main = " | ".join(s for s in (_value(record["objeto"]), "; ".join(companies),
-        _value(record["decisao"]), f"Fonte p. {source_pages}") if s)
-    for petition in record["peticoes"] or [{}]:
-        subject = _value(petition.get("assunto"))
-        ids = ", ".join(_value(value) for value in petition.get("expedientes", []) if _value(value))
-        if not ids:
-            ids = ", ".join(_value(value) for value in record["processos"] if _value(value))
-        yield " | ".join(s for s in (record["id"], main, subject, ids) if s)
-
-
 def _sections(records: list[dict], coverage: dict, filename: str, warnings: list[str]):
     groups = defaultdict(list)
     for record in records:
@@ -90,20 +76,6 @@ def _sections(records: list[dict], coverage: dict, filename: str, warnings: list
     ordered = {**dict.fromkeys(CATEGORIES), **{name: None for name in groups}}
     yield "title", TITLE, ""
     yield "body", f"Fonte: {filename} | {len(coverage['paginas'])} páginas do Markdown. A numeração do relatório é distinta da fonte.", ""
-    yield "heading", "Índice de assuntos e páginas de origem", ""
-    for category in ordered:
-        if groups[category]:
-            yield "subheading", category.capitalize(), ""
-        for record in groups[category]:
-            for entry in _index(record):
-                yield "index", entry, record["id"]
-    if pending:
-        yield "subheading", "Pendências de pertinência", ""
-        for record in pending:
-            for entry in _index(record):
-                yield "index", entry, record["id"]
-    if not groups or not any(groups.values()):
-        yield "body", "Nenhuma ficha incluída no recorte analisado. Consulte as pendências ao final.", ""
     yield "heading", "Resumo executivo", ""
     counts = coverage["totais_por_destino"]
     yield "body", (f"Páginas analisadas segundo o modelo: {len(coverage['paginas'])}. "
@@ -126,6 +98,7 @@ def _sections(records: list[dict], coverage: dict, filename: str, warnings: list
         for (page, quote) in references:
             yield "evidence", f"Evidência literal (fonte p. {page}): {quote.strip()}", ""
 
+    yield "heading", "Resultados técnicos", ""
     for category in ordered:
         yield "heading", f"Fichas - {category}", ""
         if not groups[category]:
@@ -150,12 +123,7 @@ def _brief(value, length):
 def _compact_sections(records, coverage, filename, warnings, limit):
     yield "title", TITLE, ""
     yield "body", f"Fonte: {_brief(filename, 120)} | {len(coverage['paginas'])} páginas do Markdown.", ""
-    yield "heading", "Índice de assuntos e páginas de origem", ""
     selected = records[:limit]
-    for record in selected:
-        label = _brief(_value(record["objeto"]), 80) or "Objeto não identificado"
-        pages = _brief(", ".join(map(str, record["paginas_origem"])), 45)
-        yield "compact_index", f"{record['id']} | {label} | Fonte p. {pages}", record["id"]
     yield "heading", "Resumo executivo", ""
     counts = coverage["totais_por_destino"]
     yield "body", (f"Incluídos: {counts.get('incluido', 0)}. Pendentes: {counts.get('pendente', 0)}. "
@@ -167,43 +135,45 @@ def _compact_sections(records, coverage, filename, warnings, limit):
     if warnings:
         yield "body", f"Avisos do conversor: {len(warnings)}. Consulte o Markdown para ler os avisos.", ""
     yield "body", "A análise automatizada é apoio documental. Confira as fichas e as páginas da fonte.", ""
+    yield "heading", "Resultados técnicos", ""
+    groups = defaultdict(list)
     for record in selected:
-        label = _brief(_value(record["objeto"]), 95) or "Objeto não identificado"
-        pages = _brief(", ".join(map(str, record["paginas_origem"])), 45)
-        decision = record["justificativa_destino"] if record["destino"] == "pendente" else _value(record["decisao"])
-        summary = _brief(decision, 175) or "Consulte a ficha integral."
-        status = "Pertinência pendente" if record["destino"] == "pendente" else "Incluído"
-        yield "compact_card", (f"Ficha {record['id']} - {label}\n"
-                               f"{status} | Fonte p. {pages} | {summary}"), record["id"]
-
-
-class _CardHeading(Paragraph):
-    key = ""
-
-    def split(self, *args):
-        parts = super().split(*args)
-        if parts:
-            parts[0].key = self.key
-        return parts
-
-    def draw(self):
-        if self.key:
-            self.canv.bookmarkHorizontal(self.key, 0, self.height)
-        super().draw()
-
-
-class _IndexEntry(Paragraph):
-    key = ""
-
-    def split(self, *args):
-        parts = super().split(*args)
-        for part in parts:
-            part.key = self.key
-        return parts
-
-    def draw(self):
-        super().draw()
-        self.canv.linkRect(self.key, self.key, (0, 0, self.width, self.height), relative=1, thickness=0)
+        category = "Pendências de pertinência" if record["destino"] == "pendente" else record["categoria"].capitalize()
+        groups[category].append(record)
+    for category, group in groups.items():
+        yield "subheading", category, ""
+        for record in group:
+            label = _brief(_value(record["objeto"]), 105) or "Objeto não identificado"
+            pages = _brief(", ".join(map(str, record["paginas_origem"])), 50)
+            act = _brief(_value(record["ato"]), 80)
+            processes = _brief(", ".join(_value(item) for item in record["processos"] if _value(item)), 65)
+            references = [f"Fonte p. {pages}"]
+            if act:
+                references.append(f"Ato: {act}")
+            if processes:
+                references.append(f"Processo: {processes}")
+            if record["apresentacoes"]:
+                references.append(f"Apresentações: {len(record['apresentacoes'])}")
+            entities = "; ".join(_value(item.get("nome")) for item in record["entidades"]
+                                 if isinstance(item, dict) and _value(item.get("nome")))
+            detail = [f"Entidade: {_brief(entities, 90)}"] if entities else []
+            expiry = _brief(_value(record["campos_adicionais"].get("validade_registro")), 55)
+            if expiry:
+                detail.append(f"Validade do registro: {expiry}")
+            example = next((item for item in record["apresentacoes"]
+                            if isinstance(item, dict) and _value(item.get("registro"))), None)
+            if example:
+                registration = _brief(_value(example["registro"]), 32)
+                shelf_life = _brief(_value(example.get("validade")), 40)
+                detail.append(f"Exemplo de apresentação: {registration}" + (f" ({shelf_life})" if shelf_life else ""))
+            pending = record["destino"] == "pendente"
+            decision = record["justificativa_destino"] if pending else _value(record["decisao"])
+            summary = _brief(decision, 210) or "Consulte a ficha integral."
+            label_decision = "Pendência" if pending else "Decisão"
+            lines = [f"Ficha {record['id']} - {label}", " | ".join(references), f"{label_decision}: {summary}"]
+            if detail:
+                lines.append(" | ".join(detail))
+            yield "compact_card", "\n".join(lines), record["id"]
 
 
 def _footer(canvas, document):
@@ -219,29 +189,23 @@ def _verify_pdf(data: bytes, expected: list[str]):
     reader = PdfReader(io.BytesIO(data), strict=True)
     if len(reader.pages) > MAX_REPORT_PAGES:
         raise AnvisaError(f"PDF: o relatório excede o limite de {MAX_REPORT_PAGES} páginas.")
-    page_for = {page.indirect_reference.idnum: page for page in reader.pages}
-    text_for = {n: " ".join(page.extract_text().split()) for n, page in page_for.items()}
-    if not reader.pages or "Índice de assuntos" not in next(iter(text_for.values()), ""):
-        raise AnvisaError("PDF: índice inicial não localizado.")
-    found = Counter()
-    for page in reader.pages:
-        for annotation in page.get("/Annots", []):
-            link = annotation.get_object()
-            if link.get("/Subtype") == "/Link":
-                dest = link.get("/Dest")
-                rid = link.get("/Contents")
-                if not dest or not rid or f"Ficha {rid} -" not in text_for.get(dest[0].idnum, ""):
-                    raise AnvisaError("PDF: índice contém destino sem ficha correspondente.")
-                found[rid] += 1
-    # Uma entrada partida entre páginas produz mais de uma área clicável.
-    counts = Counter(expected)
-    if found.keys() != counts.keys() or any(found[rid] < count for rid, count in counts.items()):
-        raise AnvisaError("PDF: ficha não acessível pelo índice.")
-    return {"paginas_relatorio": len(reader.pages), "entradas_indice": len(expected)}
+    page_text = [" ".join(page.extract_text().split()) for page in reader.pages]
+    if not page_text or "Resumo executivo" not in page_text[0]:
+        raise AnvisaError("PDF: resumo executivo inicial não localizado.")
+    rendered = " ".join(page_text)
+    if any(f"Ficha {rid} -" not in rendered for rid in expected):
+        raise AnvisaError("PDF: ficha esperada não localizada no relatório.")
+    return {"paginas_relatorio": len(reader.pages), "fichas_no_pdf": len(expected), "entradas_indice": 0}
 
 
 class _PageLimit(Exception):
     pass
+
+
+class _CompactCard(Paragraph):
+    def split(self, *_):
+        # As fichas resumidas cabem em uma página e devem ficar inteiras.
+        return []
 
 
 def _bounded_footer(canvas, document):
@@ -259,9 +223,7 @@ def _build_pdf(sections):
         "subheading": ParagraphStyle("V8Subheading", parent=base["Heading3"], fontSize=10, leading=13, textColor=navy, keepWithNext=True),
         "card": ParagraphStyle("V8Card", parent=base["Heading3"], fontSize=10, leading=13, spaceBefore=9, textColor=navy, keepWithNext=True),
         "body": ParagraphStyle("V8Body", parent=base["BodyText"], fontSize=9, leading=12, spaceAfter=4),
-        "index": ParagraphStyle("V8Index", parent=base["BodyText"], fontSize=8.5, leading=11, spaceAfter=5, textColor=navy),
         "evidence": ParagraphStyle("V8Evidence", parent=base["BodyText"], fontSize=8, leading=10.5, spaceAfter=4, textColor=colors.HexColor("#334155")),
-        "compact_index": ParagraphStyle("V8CompactIndex", parent=base["BodyText"], fontSize=8.5, leading=10, spaceAfter=2, textColor=navy),
         "compact_card": ParagraphStyle("V8CompactCard", parent=base["BodyText"], fontSize=8.5, leading=10, spaceAfter=4, textColor=navy),
     }
     output = io.BytesIO()
@@ -270,14 +232,13 @@ def _build_pdf(sections):
     story, expected = [], []
     for kind, text, key in sections:
         safe = escape(text).replace("\n", "<br/>")
-        if kind in {"index", "compact_index"}:
+        if kind in {"card", "compact_card"}:
             expected.append(key)
-        cls = {"card": _CardHeading, "compact_card": _CardHeading,
-               "index": _IndexEntry, "compact_index": _IndexEntry}.get(kind, Paragraph)
-        item = cls(safe, styles[kind])
-        if key:
-            item.key = key
-        story.append(item)
+        if kind == "compact_card":
+            heading, details = safe.split("<br/>", 1)
+            story.append(_CompactCard(f"<b>{heading}</b><br/>{details}", styles[kind]))
+        else:
+            story.append(Paragraph(safe, styles[kind]))
     document.build(story, onFirstPage=_bounded_footer, onLaterPages=_bounded_footer)
     pdf = output.getvalue()
     return pdf, _verify_pdf(pdf, expected)
@@ -285,7 +246,7 @@ def _build_pdf(sections):
 
 def render(records: list[dict], coverage: dict, filename: str, warnings: list[str]):
     sections = list(_sections(records, coverage, filename, warnings))
-    prefixes = {"title": "# ", "heading": "## ", "subheading": "### ", "card": "### ", "index": "- "}
+    prefixes = {"title": "# ", "heading": "## ", "subheading": "### ", "card": "### "}
     markdown = "\n\n".join(prefixes.get(kind, "") + text.replace("<", "&lt;").replace(">", "&gt;")
                            for kind, text, _ in sections) + "\n"
     try:

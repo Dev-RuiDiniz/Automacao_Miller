@@ -184,7 +184,7 @@ os caminhos. No modo OpenRouter não são enviados o PDF bruto, o protocolo, o
 nome do arquivo ou credenciais no conteúdo da solicitação. A integração usa
 blocos de páginas, permite recuperar contexto e valida cobertura, evidências
 literais e reconciliação dos registros. Saída incompleta ou inválida bloqueia
-o relatório V8. A aplicação produz PDF com índice inicial clicável, resumo,
+o relatório V8. A aplicação produz PDF técnico com resumo, resultados por categoria,
 fichas e pendências, bem como Markdown de consulta e ZIP interno da mesma
 revisão contendo PDF, JSONL, cobertura e verificação. A aprovação humana de um
 PDF anterior não homologa novas respostas do modelo ou da API.
@@ -544,8 +544,10 @@ O sistema deve gerar automaticamente um relatório padronizado com base nos dado
 ### RF-10 — Geração de PDF
 
 O PDF final do Anvisa V8 tem no máximo **20 páginas**. Quando o conteúdo
-detalhado exceder esse teto, o renderizador gera uma versão resumida, com
-índice navegável e indicação de quantas fichas foram exibidas. A cobertura,
+detalhado exceder esse teto, o renderizador gera um relatório técnico resumido
+com decisões, atos, processos disponíveis, páginas de origem e indicação de quantas
+fichas foram exibidas. O PDF apresenta os resultados diretamente, sem índice
+de assuntos. A cobertura,
 as fichas e as evidências integrais permanecem nos artefatos do processamento
 e no pacote privado de verificação.
 

@@ -276,9 +276,9 @@ Importe o export interno atualizado e associe a credencial PostgreSQL no
 ambiente de homologação. Os exports do Git permanecem inativos.
 
 Depois de persistir o Markdown, o workflow chama a rota interna autenticada
-do renderizador. Por padrão, envia o V8 intacto e até duas faixas paginadas
-ao Luna (`openai/gpt-6-luna`), sem PDF bruto nem protocolo. Selecione
-`ANVISA_V8_MODEL=openai/gpt-6.1-terra` para retomar um checkpoint Terra.
+do renderizador. Na stack Docker, envia o V8 intacto e até duas faixas paginadas
+ao Luna (`openai/gpt-6-luna`), sem PDF bruto nem protocolo. Os checkpoints
+Terra ficam guardados para auditoria.
 O renderizador confere hashes, cobertura, citações e reconciliação do
 inventário antes de escrever o relatório. Em caso de falha, o workflow
 registra o erro e mantém o provedor selecionado.

@@ -49,11 +49,15 @@ A implantação na VPS e a retomada do documento do cliente permanecem pendentes
 
 ## Leitura em um minuto
 
-**26/11/2026 — Luna como padrão do Anvisa V8.** Modo em até duas chamadas
+**26/11/2026 — Limite do PDF Anvisa V8.** O renderizador gera uma versão
+resumida quando o conteúdo excede 20 páginas. As fichas integrais permanecem
+no Markdown e no pacote de verificação. Implantação pendente.
+
+**26/11/2026 — Luna como único modelo da stack Anvisa V8.** Modo em até duas chamadas
 em revisão. O ensaio isolado com 228 páginas sintéticas
 validou quatro fichas de referência, incluindo atos de fronteira.
 A implantação e a homologação com documentos autorizados seguem pendentes.
-O protocolo existente conserva o checkpoint dos 26 lotes e deve retomar no Terra.
+O checkpoint histórico dos 26 lotes do protocolo existente fica preservado.
 
 **25/11/2026 — Retenção de páginas de releitura.** A tentativa 2 na VPS do
 cliente parou após a página 17 sair da janela, com 12 lotes concluídos no

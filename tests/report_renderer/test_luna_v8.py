@@ -55,7 +55,7 @@ def test_luna_padrao_consolida_duas_partes_com_evidencias_de_fronteira(monkeypat
     output = result.json()
     assert sorted(calls) == [[1, 2, 3, 4], [5, 6, 7, 8]]
     assert output["report_context"]["model"] == luna.MODEL
-    assert output["report_context"]["pdf"]["entradas_indice"] == 2
+    assert output["report_context"]["pdf"]["fichas_no_pdf"] == 2
     assert output["report_context"]["analysis_checkpoint"]["chamadas"] == 2
     assert output["report_context"]["references_confirmed"] > 0
 

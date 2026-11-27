@@ -10,11 +10,33 @@ from pypdf import PdfReader
 from reportlab.pdfgen.canvas import Canvas
 
 from infra.pdf_converter.converter import convert_pdf_bytes
-from infra.report_renderer import anvisa_v8
+from infra.report_renderer import anvisa_pdf, anvisa_v8
 from infra.report_renderer.app import app
+from tests.report_renderer.test_incremental import full_record
 
 
 client = TestClient(app)
+
+
+def test_relatorio_anvisa_limita_pdf_e_preserva_markdown_integral():
+    records = [full_record(n) for n in range(1, 421)]
+    coverage = {
+        "paginas": [{"pagina": n} for n in range(1, 421)],
+        "totais_por_destino": {"incluido": 420},
+        "evidencias_literais_conferidas": 420,
+    }
+
+    markdown, pdf, checks = anvisa_pdf.render(records, coverage, "sintetico.pdf", [])
+
+    reader = PdfReader(BytesIO(pdf), strict=True)
+    assert len(reader.pages) == checks["paginas_relatorio"] <= 20
+    assert checks["modo"] == "resumido"
+    assert 0 < checks["fichas_no_pdf"] < checks["fichas_totais"] == 420
+    rendered = " ".join(page.extract_text() for page in reader.pages)
+    assert checks["entradas_indice"] == 0
+    assert "de 420 fichas incluídas ou pendentes" in rendered
+    assert "Resultados técnicos" in rendered and "Índice de assuntos" not in rendered
+    assert all(f"### Ficha {record['id']} -" in markdown for record in records)
 
 
 def sample_payload() -> dict:
@@ -169,12 +191,13 @@ def test_anvisa_v8_converts_uses_terra_and_packages_linked_pdf(monkeypatch, tmp_
     payload = response.json()
     assert payload["prompt_version"] == "V8-autossuficiente"
     assert payload["report_context"]["model"] == "openai/gpt-6.1-terra"
-    assert payload["report_context"]["pdf"]["entradas_indice"] == 2
+    assert payload["report_context"]["pdf"]["fichas_no_pdf"] == 1
     pdf = base64.b64decode(payload["report_pdf_base64"])
     assert payload["report_pdf_sha256"] == hashlib.sha256(pdf).hexdigest()
     assert payload["bundle_sha256"] == hashlib.sha256(base64.b64decode(payload["bundle_base64"])).hexdigest()
     text = pdf_text(pdf)
-    assert text.index("Índice de assuntos") < text.index("Resumo executivo") < text.index("Ficha " + rid)
+    assert "Índice de assuntos" not in text
+    assert text.index("Resumo executivo") < text.index("Resultados técnicos") < text.index("Ficha " + rid)
     assert "25351.000001/2026-00" in text
     assert "Art. 1. Aprovar a peticao." in text
     assert "1111111/26-1" in text and "2222222/26-2" in text

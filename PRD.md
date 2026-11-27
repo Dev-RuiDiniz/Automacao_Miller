@@ -177,15 +177,14 @@ novo artefato/hash e exige nova validação, preservando a fonte anterior para a
 ### RF-04 — Análise por IA
 
 A análise local usa Ollama. A configuração `ANVISA_REPORT_PROVIDER=openrouter`
-seleciona o Anvisa V8, com GPT-6 Luna (`openai/gpt-6-luna`) como modelo padrão.
-Para retomar um checkpoint Terra, selecione `ANVISA_V8_MODEL=openai/gpt-6.1-terra`.
+seleciona o Anvisa V8, com GPT-6 Luna (`openai/gpt-6-luna`) fixado no Compose.
 Ambos usam o [V8 autossuficiente](prompts/chatgpt-anvisa-pdf-v8-autossuficiente.txt)
 inalterado. O Markdown paginado persistido é a única fonte documental em ambos
 os caminhos. No modo OpenRouter não são enviados o PDF bruto, o protocolo, o
 nome do arquivo ou credenciais no conteúdo da solicitação. A integração usa
 blocos de páginas, permite recuperar contexto e valida cobertura, evidências
 literais e reconciliação dos registros. Saída incompleta ou inválida bloqueia
-o relatório V8. A aplicação produz PDF com índice inicial clicável, resumo,
+o relatório V8. A aplicação produz PDF técnico com resumo, resultados por categoria,
 fichas e pendências, bem como Markdown de consulta e ZIP interno da mesma
 revisão contendo PDF, JSONL, cobertura e verificação. A aprovação humana de um
 PDF anterior não homologa novas respostas do modelo ou da API.
@@ -543,6 +542,14 @@ humana não é obrigatória para concluir o processamento.
 O sistema deve gerar automaticamente um relatório padronizado com base nos dados processados.
 
 ### RF-10 — Geração de PDF
+
+O PDF final do Anvisa V8 tem no máximo **20 páginas**. Quando o conteúdo
+detalhado exceder esse teto, o renderizador gera um relatório técnico resumido
+com decisões, atos, processos disponíveis, páginas de origem e indicação de quantas
+fichas foram exibidas. O PDF apresenta os resultados diretamente, sem índice
+de assuntos. A cobertura,
+as fichas e as evidências integrais permanecem nos artefatos do processamento
+e no pacote privado de verificação.
 
 O relatório final deve ser convertido para PDF.
 
@@ -1120,9 +1127,9 @@ Persistência PostgreSQL, deduplicação por SHA-256, controle de tentativas,
 reconciliação, classificação de erros e download autenticado somente após
 `concluido` continuam obrigatórios.
 
-## Modelo padrão do Anvisa V8 no OpenRouter
+## Modelo Anvisa V8 no OpenRouter
 
-No provedor OpenRouter, o renderizador usa GPT-6 Luna por padrão.
+No provedor OpenRouter, a stack Docker do sistema usa somente GPT-6 Luna.
 O Markdown paginado é dividido em duas faixas contíguas,
 com até duas páginas de sobreposição por lado. A página de início da unidade
 determina a parte responsável pela ficha. Um documento de uma página exige uma
@@ -1134,8 +1141,7 @@ nas fichas completas, IDs no inventário e observações de cobertura de até
 96 caracteres. O renderizador valida cobertura e citações por parte e só gera
 um PDF e um pacote de verificação quando todas as partes passam. Uma falha
 encerra a tentativa sem chamada extra. O modo Luna não reutiliza nem migra
-checkpoints Terra. Protocolos com checkpoint Terra da versão em uso devem
-retomar no Terra.
+checkpoints Terra. Esses checkpoints permanecem guardados para auditoria.
 
 ## Decisão de arquitetura híbrida — 2026-10-27
 

@@ -6694,3 +6694,28 @@ O Luna passou a ser a escolha do renderizador quando `ANVISA_V8_MODEL`
 está ausente ou vazio. A seleção explícita do Terra permanece disponível
 para retomar seu checkpoint. A configuração que seleciona entre o provedor
 local Ollama e o OpenRouter continua independente.
+
+## 2026-11-26 — Fixa o Luna na stack Anvisa V8
+
+O Compose fixa o Luna no renderizador, inclusive quando um arquivo de
+ambiente antigo seleciona Terra. Os checkpoints Terra são preservados
+para auditoria. A implantação mantém o volume de diagnósticos.
+
+## 2026-11-26 — Limita o PDF Anvisa V8 a 20 páginas
+
+O renderizador mantém o Markdown integral. Quando a diagramação detalhada
+excede 20 páginas, gera um PDF resumido com índice verificado e informa a
+quantidade de fichas exibidas. Os registros completos continuam no pacote
+privado de verificação. A regra não altera a análise nem seus checkpoints.
+
+Na apresentação resumida do ensaio isolado do cliente, o PDF passou de
+370 para 15 páginas e manteve 235 fichas resumidas, com todos os links do
+índice conferidos. O pacote preservou os 823 registros estruturados
+byte a byte. Nenhuma nova chamada ao modelo foi feita.
+
+## 2026-11-26 — Apresenta resultados técnicos diretamente no PDF Anvisa
+
+O relatório começa com o resumo executivo e apresenta os resultados por
+categoria, com atos, decisões, processos disponíveis e páginas da fonte.
+O formato resumido mantém o teto de 20 páginas. O Markdown e os registros
+integrais continuam disponíveis para conferência privada.

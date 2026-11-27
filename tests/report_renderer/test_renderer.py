@@ -10,11 +10,31 @@ from pypdf import PdfReader
 from reportlab.pdfgen.canvas import Canvas
 
 from infra.pdf_converter.converter import convert_pdf_bytes
-from infra.report_renderer import anvisa_v8
+from infra.report_renderer import anvisa_pdf, anvisa_v8
 from infra.report_renderer.app import app
+from tests.report_renderer.test_incremental import full_record
 
 
 client = TestClient(app)
+
+
+def test_relatorio_anvisa_limita_pdf_e_preserva_markdown_integral():
+    records = [full_record(n) for n in range(1, 421)]
+    coverage = {
+        "paginas": [{"pagina": n} for n in range(1, 421)],
+        "totais_por_destino": {"incluido": 420},
+        "evidencias_literais_conferidas": 420,
+    }
+
+    markdown, pdf, checks = anvisa_pdf.render(records, coverage, "sintetico.pdf", [])
+
+    reader = PdfReader(BytesIO(pdf), strict=True)
+    assert len(reader.pages) == checks["paginas_relatorio"] <= 20
+    assert checks["modo"] == "resumido"
+    assert 0 < checks["fichas_no_pdf"] < checks["fichas_totais"] == 420
+    assert checks["fichas_no_pdf"] == checks["entradas_indice"]
+    assert "de 420 fichas incluídas ou pendentes" in " ".join(page.extract_text() for page in reader.pages)
+    assert all(f"### Ficha {record['id']} -" in markdown for record in records)
 
 
 def sample_payload() -> dict:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 from collections import Counter, defaultdict
 from html import escape
+from textwrap import shorten
 
 from pypdf import PdfReader
 from reportlab.lib import colors
@@ -16,6 +17,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate
 from .anvisa_v8 import AnvisaError, _walk
 
 TITLE = "Relatório Anvisa - Medicamentos, Estudos Clínicos e Suplementos Alimentares"
+MAX_REPORT_PAGES = 20
 CATEGORIES = (
     "medicamentos", "estudos/ensaios clínicos", "suplementos alimentares",
     "normas e retificações pertinentes", "AFE/AE e atividades farmacêuticas",
@@ -140,6 +142,41 @@ def _sections(records: list[dict], coverage: dict, filename: str, warnings: list
     yield "body", "Os controles automáticos de cobertura, evidências e navegação não comprovam completude semântica. Confira as fichas e a fonte quando necessário.", ""
 
 
+def _brief(value, length):
+    text = " ".join(value.split())
+    return shorten(text, width=length, placeholder="...") if len(text) > length else text
+
+
+def _compact_sections(records, coverage, filename, warnings, limit):
+    yield "title", TITLE, ""
+    yield "body", f"Fonte: {_brief(filename, 120)} | {len(coverage['paginas'])} páginas do Markdown.", ""
+    yield "heading", "Índice de assuntos e páginas de origem", ""
+    selected = records[:limit]
+    for record in selected:
+        label = _brief(_value(record["objeto"]), 80) or "Objeto não identificado"
+        pages = _brief(", ".join(map(str, record["paginas_origem"])), 45)
+        yield "compact_index", f"{record['id']} | {label} | Fonte p. {pages}", record["id"]
+    yield "heading", "Resumo executivo", ""
+    counts = coverage["totais_por_destino"]
+    yield "body", (f"Incluídos: {counts.get('incluido', 0)}. Pendentes: {counts.get('pendente', 0)}. "
+                   f"Excluídos: {counts.get('excluido', 0)}. "
+                   f"Representações duplicadas: {counts.get('representacao_duplicada', 0)}. "
+                   f"Evidências literais conferidas: {coverage['evidencias_literais_conferidas']}."), ""
+    yield "body", (f"Este PDF resume {len(selected)} de {len(records)} fichas incluídas ou pendentes. "
+                   "O Markdown e o pacote de verificação preservam as fichas e evidências detalhadas."), ""
+    if warnings:
+        yield "body", f"Avisos do conversor: {len(warnings)}. Consulte o Markdown para ler os avisos.", ""
+    yield "body", "A análise automatizada é apoio documental. Confira as fichas e as páginas da fonte.", ""
+    for record in selected:
+        label = _brief(_value(record["objeto"]), 95) or "Objeto não identificado"
+        pages = _brief(", ".join(map(str, record["paginas_origem"])), 45)
+        decision = record["justificativa_destino"] if record["destino"] == "pendente" else _value(record["decisao"])
+        summary = _brief(decision, 175) or "Consulte a ficha integral."
+        status = "Pertinência pendente" if record["destino"] == "pendente" else "Incluído"
+        yield "compact_card", (f"Ficha {record['id']} - {label}\n"
+                               f"{status} | Fonte p. {pages} | {summary}"), record["id"]
+
+
 class _CardHeading(Paragraph):
     key = ""
 
@@ -180,6 +217,8 @@ def _footer(canvas, document):
 
 def _verify_pdf(data: bytes, expected: list[str]):
     reader = PdfReader(io.BytesIO(data), strict=True)
+    if len(reader.pages) > MAX_REPORT_PAGES:
+        raise AnvisaError(f"PDF: o relatório excede o limite de {MAX_REPORT_PAGES} páginas.")
     page_for = {page.indirect_reference.idnum: page for page in reader.pages}
     text_for = {n: " ".join(page.extract_text().split()) for n, page in page_for.items()}
     if not reader.pages or "Índice de assuntos" not in next(iter(text_for.values()), ""):
@@ -201,7 +240,17 @@ def _verify_pdf(data: bytes, expected: list[str]):
     return {"paginas_relatorio": len(reader.pages), "entradas_indice": len(expected)}
 
 
-def render(records: list[dict], coverage: dict, filename: str, warnings: list[str]):
+class _PageLimit(Exception):
+    pass
+
+
+def _bounded_footer(canvas, document):
+    if document.page > MAX_REPORT_PAGES:
+        raise _PageLimit
+    _footer(canvas, document)
+
+
+def _build_pdf(sections):
     base = getSampleStyleSheet()
     navy = colors.HexColor("#163353")
     styles = {
@@ -212,25 +261,45 @@ def render(records: list[dict], coverage: dict, filename: str, warnings: list[st
         "body": ParagraphStyle("V8Body", parent=base["BodyText"], fontSize=9, leading=12, spaceAfter=4),
         "index": ParagraphStyle("V8Index", parent=base["BodyText"], fontSize=8.5, leading=11, spaceAfter=5, textColor=navy),
         "evidence": ParagraphStyle("V8Evidence", parent=base["BodyText"], fontSize=8, leading=10.5, spaceAfter=4, textColor=colors.HexColor("#334155")),
+        "compact_index": ParagraphStyle("V8CompactIndex", parent=base["BodyText"], fontSize=8.5, leading=10, spaceAfter=2, textColor=navy),
+        "compact_card": ParagraphStyle("V8CompactCard", parent=base["BodyText"], fontSize=8.5, leading=10, spaceAfter=4, textColor=navy),
     }
     output = io.BytesIO()
     document = SimpleDocTemplate(output, pagesize=A4, title=TITLE, author="DB Tecnologia",
                                  leftMargin=16 * mm, rightMargin=16 * mm, topMargin=15 * mm, bottomMargin=18 * mm)
-    story, markdown, expected = [], [], []
-    for kind, text, key in _sections(records, coverage, filename, warnings):
+    story, expected = [], []
+    for kind, text, key in sections:
         safe = escape(text).replace("\n", "<br/>")
-        md_text = text.replace("<", "&lt;").replace(">", "&gt;")
-        if kind == "index":
+        if kind in {"index", "compact_index"}:
             expected.append(key)
-            markdown.append(f"- {md_text}")
-        else:
-            prefix = {"title": "# ", "heading": "## ", "subheading": "### ", "card": "### "}.get(kind, "")
-            markdown.append(prefix + md_text)
-        cls = {"card": _CardHeading, "index": _IndexEntry}.get(kind, Paragraph)
+        cls = {"card": _CardHeading, "compact_card": _CardHeading,
+               "index": _IndexEntry, "compact_index": _IndexEntry}.get(kind, Paragraph)
         item = cls(safe, styles[kind])
         if key:
             item.key = key
         story.append(item)
-    document.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    document.build(story, onFirstPage=_bounded_footer, onLaterPages=_bounded_footer)
     pdf = output.getvalue()
-    return "\n\n".join(markdown) + "\n", pdf, _verify_pdf(pdf, expected)
+    return pdf, _verify_pdf(pdf, expected)
+
+
+def render(records: list[dict], coverage: dict, filename: str, warnings: list[str]):
+    sections = list(_sections(records, coverage, filename, warnings))
+    prefixes = {"title": "# ", "heading": "## ", "subheading": "### ", "card": "### ", "index": "- "}
+    markdown = "\n\n".join(prefixes.get(kind, "") + text.replace("<", "&lt;").replace(">", "&gt;")
+                           for kind, text, _ in sections) + "\n"
+    try:
+        pdf, checks = _build_pdf(sections)
+    except _PageLimit:
+        visible = [r for destination in ("pendente", "incluido") for r in records if r["destino"] == destination]
+        limit = len(visible)
+        while True:
+            try:
+                pdf, checks = _build_pdf(_compact_sections(visible, coverage, filename, warnings, limit))
+                break
+            except _PageLimit:
+                if not limit:
+                    raise AnvisaError("PDF: o resumo excede o limite de páginas.") from None
+                limit = limit * 4 // 5
+        checks.update(modo="resumido", fichas_no_pdf=limit, fichas_totais=len(visible))
+    return markdown, pdf, checks

@@ -543,6 +543,12 @@ O sistema deve gerar automaticamente um relatório padronizado com base nos dado
 
 ### RF-10 — Geração de PDF
 
+O PDF final do Anvisa V8 tem no máximo **20 páginas**. Quando o conteúdo
+detalhado exceder esse teto, o renderizador gera uma versão resumida, com
+índice navegável e indicação de quantas fichas foram exibidas. A cobertura,
+as fichas e as evidências integrais permanecem nos artefatos do processamento
+e no pacote privado de verificação.
+
 O relatório final deve ser convertido para PDF.
 
 ### RF-11 — Armazenamento

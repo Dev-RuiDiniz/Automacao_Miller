@@ -6700,3 +6700,15 @@ local Ollama e o OpenRouter continua independente.
 O Compose fixa o Luna no renderizador, inclusive quando um arquivo de
 ambiente antigo seleciona Terra. Os checkpoints Terra são preservados
 para auditoria. A implantação mantém o volume de diagnósticos.
+
+## 2026-11-26 — Limita o PDF Anvisa V8 a 20 páginas
+
+O renderizador mantém o Markdown integral. Quando a diagramação detalhada
+excede 20 páginas, gera um PDF resumido com índice verificado e informa a
+quantidade de fichas exibidas. Os registros completos continuam no pacote
+privado de verificação. A regra não altera a análise nem seus checkpoints.
+
+Na apresentação resumida do ensaio isolado do cliente, o PDF passou de
+370 para 15 páginas e manteve 235 fichas resumidas, com todos os links do
+índice conferidos. O pacote preservou os 823 registros estruturados
+byte a byte. Nenhuma nova chamada ao modelo foi feita.
